@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://pomo-noof.vercel.app/sitemap.xml
