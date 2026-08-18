@@ -8,6 +8,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { resolveStation, stationBackgroundEmbedSrc } from "../lib/stations";
+import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
@@ -343,8 +344,26 @@ export function Shell() {
     return Math.max(0, 22 * (1 - progress));
   }, [mode, personalTheme, timer.phase, timer.targetSeconds, timer.remainingSeconds]);
 
-  const showPhotoLayer =
-    mode === "personal" && (personalTheme === "photo" || personalTheme === "reveal") && !!personalBg;
+  const showPhotoLayer = mode === "personal" && personalTheme === "photo" && !!personalBg;
+  const showRevealLayer = mode === "personal" && personalTheme === "reveal";
+
+  // reveal's backdrop is a curated gallery, not an upload -- rotates to a new random
+  // painting every 30s (never repeating the one just shown, so a 2-painting gallery still
+  // visibly alternates rather than coin-flipping back onto itself)
+  const [galleryIndex, setGalleryIndex] = useState(() => Math.floor(Math.random() * GALLERY.length));
+  useEffect(() => {
+    if (!showRevealLayer || GALLERY.length <= 1) return;
+    const id = setInterval(() => {
+      setGalleryIndex((prev) => {
+        let next = Math.floor(Math.random() * (GALLERY.length - 1));
+        if (next >= prev) next += 1;
+        return next;
+      });
+    }, 30000);
+    return () => clearInterval(id);
+  }, [showRevealLayer]);
+  const currentPainting = GALLERY[galleryIndex] ?? GALLERY[0];
+
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showYtBgLayer = mode === "personal" && personalTheme === "ytbg";
@@ -377,7 +396,15 @@ export function Shell() {
               className="stage-photo"
               style={{
                 backgroundImage: `linear-gradient(180deg, rgba(10,8,7,.42), rgba(10,8,7,.62)), url(${personalBg})`,
-                filter: personalTheme === "reveal" ? `blur(${revealBlurPx}px)` : undefined,
+              }}
+            />
+          )}
+          {showRevealLayer && (
+            <div
+              className="stage-photo"
+              style={{
+                backgroundImage: `linear-gradient(180deg, rgba(10,8,7,.42), rgba(10,8,7,.62)), url(${currentPainting.src})`,
+                filter: `blur(${revealBlurPx}px)`,
               }}
             />
           )}
