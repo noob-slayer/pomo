@@ -536,10 +536,12 @@
   text-transform: uppercase;
 }
 
-.stage-dvd-logo__yt {
-  width: 40px;
-  height: auto;
-  flex-shrink: 0;
+.stage-dvd-logo__video {
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  padding-left: 0.4em; /* balance the letter-spacing's trailing gap so the word looks centered */
+  text-transform: uppercase;
 }
 
 .stage-inner {

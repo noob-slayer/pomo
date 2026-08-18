@@ -130,10 +130,7 @@ export function DvdBounce({ timer }: DvdBounceProps) {
       <div className="stage-dvd-overlay" />
       <div className="stage-dvd-logo" ref={logoRef} style={{ width: LOGO_W, height: LOGO_H }}>
         <span className="stage-dvd-logo__dvd">DVD</span>
-        <svg className="stage-dvd-logo__yt" viewBox="0 0 90 62" aria-hidden="true">
-          <rect x="1" y="1" width="88" height="60" rx="14" fill="#FF0000" />
-          <path d="M36 20 L62 31 L36 42 Z" fill="#fff" />
-        </svg>
+        <span className="stage-dvd-logo__video">VIDEO</span>
       </div>
     </div>
   );
