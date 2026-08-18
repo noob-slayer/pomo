@@ -37,7 +37,7 @@ export function stationEmbedSrc(station: ResolvedStation, autoplay = true): stri
 // chromeless, unmuted background embed for a user-supplied link -- deliberately skips
 // loop/playlist=self (see the lofi-2 fix above: that combo makes YouTube reject a
 // livestream link with "video unavailable", and a pasted link here could well be one)
-export function youtubeBackgroundEmbedSrc(parsed: { type: "video" | "playlist"; id: string }): string {
+export function youtubeBackgroundEmbedSrc(parsed: { type: "video" | "playlist"; id: string }, muted: boolean): string {
   const params = new URLSearchParams({
     rel: "0",
     autoplay: "1",
@@ -47,6 +47,7 @@ export function youtubeBackgroundEmbedSrc(parsed: { type: "video" | "playlist"; 
     fs: "0",
     playsinline: "1",
   });
+  if (muted) params.set("mute", "1");
   if (parsed.type === "playlist") {
     params.set("list", parsed.id);
     return `https://www.youtube.com/embed/videoseries?${params.toString()}`;

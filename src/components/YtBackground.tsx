@@ -7,39 +7,59 @@ interface YtBackgroundProps {
 
 export function YtBackground({ url }: YtBackgroundProps) {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [started, setStarted] = useState(false);
-  useEffect(() => {
-    setStarted(false);
-  }, [url]);
-
+  const [muted, setMuted] = useState(true);
   const parsed = url ? parseYoutubeInput(url) : null;
 
-  // iOS Safari only grants an embedded iframe autoplay-with-sound when it's created
-  // *synchronously* inside the tap that requested it -- going through React's setState
-  // (a task later, after the event handler returns) loses that "user activation" window
-  // even though it worked fine on desktop. Building and inserting the iframe by hand
-  // directly in the click handler, before any React re-render happens, is the pattern
-  // that actually survives iOS's stricter check.
-  const handlePlay = () => {
+  // muted autoplay is allowed everywhere, including iOS, with no gesture at all -- so the
+  // video itself always starts playing the moment a link is set, full stop. Unmuted
+  // autoplay is far less reliable (real iPad hardware failed to honor it even when the
+  // iframe was created synchronously inside a tap), so sound is opt-in via the toggle
+  // below instead of something we try to force on load.
+  const mountIframe = (wantMuted: boolean) => {
     if (!parsed || !mountRef.current) return;
     const iframe = document.createElement("iframe");
     iframe.className = "stage-yt";
-    iframe.src = youtubeBackgroundEmbedSrc(parsed);
+    iframe.src = youtubeBackgroundEmbedSrc(parsed, wantMuted);
     iframe.title = "background video";
     iframe.allow = "autoplay; encrypted-media";
     mountRef.current.replaceChildren(iframe);
-    setStarted(true);
+  };
+
+  useEffect(() => {
+    setMuted(true);
+    mountIframe(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+
+  const toggleMute = () => {
+    const next = !muted;
+    setMuted(next);
+    mountIframe(next);
   };
 
   return (
     <div className="stage-yt-wrap">
       <div className="stage-yt-mount" ref={mountRef} />
       {!parsed && <p className="stage-yt-prompt">paste a youtube link above to set this as your background</p>}
-      {parsed && !started && (
-        <button type="button" className="stage-yt-play" onClick={handlePlay} aria-label="play background video">
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 7.5v9l7.5-4.5-7.5-4.5Z" fill="currentColor" />
-          </svg>
+      {parsed && (
+        <button type="button" className="stage-yt-mute" onClick={toggleMute} aria-label={muted ? "unmute background video" : "mute background video"}>
+          {muted ? (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9v6h4l5 5V4L8 9H4Z" fill="currentColor" />
+              <path d="M16.5 9.5 20 13m0-3.5L16.5 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 9v6h4l5 5V4L8 9H4Z" fill="currentColor" />
+              <path
+                d="M15.5 8.5a5 5 0 0 1 0 7M17.8 6a8.5 8.5 0 0 1 0 12"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                fill="none"
+              />
+            </svg>
+          )}
         </button>
       )}
       <div className="stage-yt-overlay" />

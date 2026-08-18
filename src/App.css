@@ -643,25 +643,26 @@
   font-size: 0.95rem;
 }
 
-.stage-yt-play {
+.stage-yt-mute {
   position: absolute;
-  inset: 0;
-  /* above TimerStage's own content (unindexed, so it stacks on DOM order alone) so the
-     tap target isn't obscured by the timer controls layered on top of this background */
+  bottom: 20px;
+  left: 20px;
+  /* above TimerStage's own content (unindexed, so it stacks on DOM order alone) */
   z-index: 10;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.stage-yt-play svg {
-  width: 30px;
-  height: 30px;
-  padding: 22px;
   border-radius: 50%;
   background: #fff;
   color: #0a0a0a;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.stage-yt-mute svg {
+  width: 20px;
+  height: 20px;
 }
 
 .stage-yt-overlay {
