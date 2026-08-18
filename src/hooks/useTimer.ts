@@ -84,6 +84,54 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, targetSeconds]);
 
+  // a refresh or close is a *known* interruption, unlike a background tab merely getting
+  // throttled -- for those we still want the wall-clock catch-up above (a brief standby
+  // shouldn't derail a legitimately still-running session). But if the page is actually
+  // going away, snapshotting the CURRENT elapsed/remaining as "paused" (rather than
+  // leaving endAt/startedAt pointing at a running countdown) means recovery on the next
+  // load shows exactly the time that had really elapsed up to this moment -- not wall-
+  // clock time extrapolated through however long the tab happened to stay closed, and not
+  // an assumed "it must have completed" the way a still-"running" restore would read once
+  // its endAt is in the past. beforeunload also drives the "are you sure?" confirmation;
+  // pagehide is a pure best-effort backup snapshot for cases where beforeunload doesn't
+  // fire reliably (backgrounding on mobile Safari, some bfcache navigations).
+  useEffect(() => {
+    if (status === "idle") return;
+    const snapshotAsPaused = () => {
+      const freshRemaining =
+        status === "running" && targetSeconds !== null && endAtRef.current !== null
+          ? Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000))
+          : remainingSeconds;
+      const freshElapsed =
+        status === "running" && targetSeconds === null && startedAtRef.current !== null
+          ? Math.floor((Date.now() - startedAtRef.current) / 1000)
+          : elapsedSeconds;
+      writePersistedSession({
+        phase,
+        status: "paused",
+        targetSeconds,
+        endAt: null,
+        startedAt: null,
+        remainingSeconds: freshRemaining,
+        elapsedSeconds: freshElapsed,
+        activeTaskId,
+        activeTaskTitle,
+        lastMinutes: lastMinutesRef.current,
+      });
+    };
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      snapshotAsPaused();
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", snapshotAsPaused);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", snapshotAsPaused);
+    };
+  }, [status, phase, targetSeconds, remainingSeconds, elapsedSeconds, activeTaskId, activeTaskTitle]);
+
   // completion watcher — also the path a restored "running" session takes if its endAt
   // has already passed by the time the app is reopened (recompute() above will have just
   // set remainingSeconds to 0), logging it exactly as if it had completed while open
