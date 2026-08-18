@@ -364,6 +364,7 @@ export function Shell() {
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showSuitsLayer = mode === "personal" && personalTheme === "suits";
+  const showF1Layer = mode === "personal" && personalTheme === "f1";
   const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
@@ -436,6 +437,12 @@ export function Shell() {
             <div className="stage-suits-wrap">
               <video className="stage-suits" src="/suits-bg.mp4" autoPlay muted loop playsInline />
               <div className="stage-suits-overlay" />
+            </div>
+          )}
+          {showF1Layer && (
+            <div className="stage-f1-wrap">
+              <video className="stage-f1" src="/f1-bg.mp4" autoPlay muted loop playsInline />
+              <div className="stage-f1-overlay" />
             </div>
           )}
           {showSuccessionLayer && (
