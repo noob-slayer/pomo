@@ -1,0 +1,75 @@
+:root {
+  --font: calibri, "segoe ui", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "consolas", "sf mono", ui-monospace, menlo, monospace;
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --page-bg: #efeae6;
+  --page-ink: #211a17;
+  --page-muted: #6f645f;
+  --page-border: #ddd3cd;
+  --page-surface: #ffffff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: var(--font);
+  text-transform: lowercase;
+  background: var(--page-bg);
+  color: var(--page-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 1rem;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+input {
+  background: transparent;
+}
+
+a {
+  color: inherit;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
