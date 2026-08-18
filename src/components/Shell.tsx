@@ -339,7 +339,9 @@ export function Shell() {
     return Math.max(0, 22 * (1 - progress));
   }, [mode, personalTheme, timer.phase, timer.targetSeconds, timer.remainingSeconds]);
 
-  const showPhotoLayer = mode === "personal" && personalTheme !== "colour" && !!personalBg;
+  const showPhotoLayer =
+    mode === "personal" && (personalTheme === "photo" || personalTheme === "reveal") && !!personalBg;
+  const showLofiLayer = mode === "personal" && personalTheme === "lofi";
 
   return (
     <div className="shell" style={themeVars}>
@@ -367,6 +369,12 @@ export function Shell() {
                 filter: personalTheme === "reveal" ? `blur(${revealBlurPx}px)` : undefined,
               }}
             />
+          )}
+          {showLofiLayer && (
+            <div className="stage-lofi-wrap">
+              <video className="stage-lofi" src="/lofi-bg.mp4" autoPlay muted loop playsInline />
+              <div className="stage-lofi-overlay" />
+            </div>
           )}
           <TimerStage
             timer={timer}

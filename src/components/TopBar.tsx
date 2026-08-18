@@ -44,7 +44,11 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats 
         ) : (
           <>
             <PersonalThemeTabs />
-            {personalTheme === "colour" ? <PersonalColorSwatches /> : <BackgroundPicker />}
+            {personalTheme === "colour" ? (
+              <PersonalColorSwatches />
+            ) : personalTheme === "lofi" ? null : (
+              <BackgroundPicker />
+            )}
           </>
         )}
         <LobbyWidget onOpenTeamStats={onOpenTeamStats} />

@@ -10,6 +10,7 @@ import type { PersonalTheme } from "../types";
 const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "photo", label: "photo" },
   { value: "reveal", label: "reveal" },
+  { value: "lofi", label: "lofi" },
 ];
 
 export function PersonalThemeTabs() {
