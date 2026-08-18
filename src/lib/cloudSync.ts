@@ -6,8 +6,6 @@ interface TaskRow {
   title: string;
   category: string;
   estimated_pomos: number | null;
-  start_time: string | null;
-  end_time: string | null;
   mode: Mode;
   done: boolean;
   created_at: string;
@@ -19,8 +17,6 @@ function rowToTask(row: TaskRow): Task {
     title: row.title,
     category: row.category,
     estimatedPomos: row.estimated_pomos,
-    startTime: row.start_time,
-    endTime: row.end_time,
     mode: row.mode,
     done: row.done,
     createdAt: new Date(row.created_at).getTime(),
@@ -42,8 +38,6 @@ export async function insertTask(userId: string, task: Task): Promise<void> {
     title: task.title,
     category: task.category,
     estimated_pomos: task.estimatedPomos,
-    start_time: task.startTime,
-    end_time: task.endTime,
     mode: task.mode,
     done: task.done,
     created_at: new Date(task.createdAt).toISOString(),

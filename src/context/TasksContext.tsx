@@ -8,8 +8,6 @@ interface NewTaskInput {
   title: string;
   category: string;
   estimatedPomos: number | null;
-  startTime: string | null;
-  endTime: string | null;
   mode: Mode;
 }
 
@@ -66,8 +64,6 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       title: input.title,
       category: input.category,
       estimatedPomos: input.estimatedPomos,
-      startTime: input.startTime,
-      endTime: input.endTime,
       mode: input.mode,
       done: false,
       createdAt: Date.now(),

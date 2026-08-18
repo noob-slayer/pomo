@@ -4,15 +4,6 @@ import type { TimerApi } from "../hooks/useTimer";
 import type { Mode } from "../types";
 import { HistoryView } from "./HistoryView";
 import { CATEGORY_OPTIONS } from "../lib/categories";
-import {
-  HOUR_OPTIONS_12,
-  MINUTE_OPTIONS,
-  timeLabel,
-  nearestTimeParts,
-  partsToValue,
-  type TimeParts,
-  type Period,
-} from "../lib/durations";
 
 interface TaskPanelProps {
   open: boolean;
@@ -23,46 +14,6 @@ interface TaskPanelProps {
   panelRef: RefObject<HTMLElement | null>;
 }
 
-const EMPTY_PARTS: TimeParts = { hour12: "", minute: "", period: "am" };
-
-function TimeField({
-  label,
-  parts,
-  onChange,
-}: {
-  label: string;
-  parts: TimeParts;
-  onChange: (parts: TimeParts) => void;
-}) {
-  return (
-    <div className="time-field">
-      <span className="time-field__label">{label}</span>
-      <div className="time-field__selects">
-        <select value={parts.hour12} onChange={(e) => onChange({ ...parts, hour12: e.target.value })}>
-          <option value="">hh</option>
-          {HOUR_OPTIONS_12.map((h) => (
-            <option key={h} value={h}>
-              {h}
-            </option>
-          ))}
-        </select>
-        <select value={parts.minute} onChange={(e) => onChange({ ...parts, minute: e.target.value })}>
-          <option value="">mm</option>
-          {MINUTE_OPTIONS.map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
-        <select value={parts.period} onChange={(e) => onChange({ ...parts, period: e.target.value as Period })}>
-          <option value="am">am</option>
-          <option value="pm">pm</option>
-        </select>
-      </div>
-    </div>
-  );
-}
-
 export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity, panelRef }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [tab, setTab] = useState<"tasks" | "history">("tasks");
@@ -70,8 +21,6 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
   const [categoryChoice, setCategoryChoice] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [estimate, setEstimate] = useState("");
-  const [startParts, setStartParts] = useState<TimeParts>(() => nearestTimeParts());
-  const [endParts, setEndParts] = useState<TimeParts>(EMPTY_PARTS);
 
   const visibleTasks = tasks.filter((t) => t.mode === mode);
 
@@ -84,16 +33,12 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
       title: title.trim(),
       category,
       estimatedPomos: estimate ? Number(estimate) : null,
-      startTime: partsToValue(startParts),
-      endTime: partsToValue(endParts),
       mode,
     });
     setTitle("");
     setCategoryChoice("");
     setCustomCategory("");
     setEstimate("");
-    setStartParts(nearestTimeParts());
-    setEndParts(EMPTY_PARTS);
   };
 
   return (
@@ -160,8 +105,6 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
             onChange={(e) => setCustomCategory(e.target.value)}
           />
         )}
-        <TimeField label="start" parts={startParts} onChange={setStartParts} />
-        <TimeField label="end" parts={endParts} onChange={setEndParts} />
         <button type="submit" className="btn btn--full">
           add
         </button>
@@ -187,7 +130,6 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
                   <p className="task__meta">
                     {task.category}
                     {task.estimatedPomos ? ` · ${task.estimatedPomos} est.` : ""}
-                    {task.startTime ? ` · ${timeLabel(task.startTime)}–${timeLabel(task.endTime) || "?"}` : ""}
                     {" · "}
                     {pomosForTask(task.id)} logged
                   </p>

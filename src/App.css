@@ -588,33 +588,6 @@
   gap: 8px;
 }
 
-.time-field {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.time-field__label {
-  width: 32px;
-  flex-shrink: 0;
-  font-size: 0.8rem;
-  color: var(--page-muted);
-}
-
-.time-field__selects {
-  display: flex;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.time-field__selects select {
-  flex: 1;
-  min-width: 0;
-  padding-left: 6px;
-  padding-right: 6px;
-}
-
 .task-list {
   list-style: none;
   margin: 0;

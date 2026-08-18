@@ -9,8 +9,6 @@ export interface Task {
   title: string;
   category: string;
   estimatedPomos: number | null;
-  startTime: string | null;
-  endTime: string | null;
   mode: Mode;
   done: boolean;
   createdAt: number;
