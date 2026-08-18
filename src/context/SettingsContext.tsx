@@ -21,7 +21,8 @@ interface Settings {
   activeStationId: string; // default station id, or "custom"
   customStation: ResolvedStation | null;
   personaName: string; // set once during onboarding, used as the display name everywhere
-  currentLobby: CurrentLobby | null;
+  currentLobby: CurrentLobby | null; // per-device, never synced -- see upsertSettings
+  lastLobby: CurrentLobby | null; // synced, powers the "rejoin" option in tasks > team
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,6 +35,7 @@ const DEFAULT_SETTINGS: Settings = {
   customStation: null,
   personaName: "",
   currentLobby: null,
+  lastLobby: null,
 };
 
 interface SettingsContextValue extends Settings {
@@ -123,7 +125,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setCustomStation: (customStation) =>
       patch({ customStation, activeStationId: customStation ? "custom" : settings.activeStationId }),
     setPersonaName: (personaName) => patch({ personaName }),
-    setCurrentLobby: (currentLobby) => patch({ currentLobby }),
+    // joining/creating a lobby also stashes it as lastLobby, so leaving (or a fresh,
+    // never-auto-restored login) still leaves a "rejoin" pointer behind. Leaving a lobby
+    // (currentLobby set to null) deliberately does NOT touch lastLobby -- that's the
+    // whole point of keeping the two separate.
+    setCurrentLobby: (currentLobby) => patch(currentLobby ? { currentLobby, lastLobby: currentLobby } : { currentLobby }),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

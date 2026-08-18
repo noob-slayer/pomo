@@ -1376,6 +1376,23 @@
   color: var(--page-muted);
 }
 
+.lobby-rejoin {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.lobby-rejoin__hint {
+  margin: 0 0 12px;
+  font-size: 0.86rem;
+  color: var(--page-ink);
+}
+
+.lobby-rejoin .lobby-panel__cta {
+  width: 100%;
+}
+
 /* ---------- credit ---------- */
 
 /* the stage now always fills the full viewport below the topbar (the task panel is

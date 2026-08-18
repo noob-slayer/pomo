@@ -122,7 +122,13 @@ export async function fetchSettings(userId: string): Promise<Record<string, unkn
 
 export async function upsertSettings(userId: string, settings: Record<string, unknown>): Promise<void> {
   if (!supabase) return;
-  const { personalBg: _personalBg, ...syncable } = settings;
+  // personalBg stays per-device (large data-uri, not worth syncing). currentLobby stays
+  // per-device too, deliberately: it's "which lobby am I actively in right now", and
+  // syncing it meant logging back in silently re-entered whatever lobby was active last
+  // time, with no fresh start. lastLobby (just a pointer for the "rejoin" option) is
+  // still synced, so that stays available across logins/devices even though currentLobby
+  // doesn't auto-restore.
+  const { personalBg: _personalBg, currentLobby: _currentLobby, ...syncable } = settings;
   const { error } = await supabase
     .from("user_settings")
     .upsert({ user_id: userId, settings: syncable, updated_at: new Date().toISOString() });

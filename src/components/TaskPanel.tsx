@@ -6,6 +6,7 @@ import type { CurrentLobby } from "../context/SettingsContext";
 import { HistoryView } from "./HistoryView";
 import { StatsView } from "./StatsView";
 import { LobbyStatsView } from "./LobbyStatsView";
+import { LobbyRejoin } from "./LobbyRejoin";
 import { CATEGORY_OPTIONS } from "../lib/categories";
 
 export type PanelTab = "tasks" | "history" | "stats" | "team";
@@ -20,6 +21,7 @@ interface TaskPanelProps {
   tab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
   currentLobby: CurrentLobby | null;
+  lastLobby: CurrentLobby | null;
 }
 
 export function TaskPanel({
@@ -32,6 +34,7 @@ export function TaskPanel({
   tab,
   onTabChange,
   currentLobby,
+  lastLobby,
 }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [title, setTitle] = useState("");
@@ -93,7 +96,7 @@ export function TaskPanel({
         >
           stats
         </button>
-        {currentLobby && (
+        {(currentLobby || lastLobby) && (
           <button
             type="button"
             role="tab"
@@ -110,8 +113,12 @@ export function TaskPanel({
         <HistoryView mode={mode} />
       ) : tab === "stats" ? (
         <StatsView mode={mode} />
-      ) : tab === "team" && currentLobby ? (
-        <LobbyStatsView lobby={currentLobby} />
+      ) : tab === "team" ? (
+        currentLobby ? (
+          <LobbyStatsView lobby={currentLobby} />
+        ) : lastLobby ? (
+          <LobbyRejoin lastLobby={lastLobby} />
+        ) : null
       ) : (
         <>
       <form className="task-form" onSubmit={handleAdd}>
