@@ -46,7 +46,10 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats 
             <PersonalThemeTabs />
             {personalTheme === "colour" ? (
               <PersonalColorSwatches />
-            ) : personalTheme === "lofi" || personalTheme === "dvd" || personalTheme === "ytbg" ? null : (
+            ) : personalTheme === "lofi" ||
+              personalTheme === "dvd" ||
+              personalTheme === "ytbg" ||
+              personalTheme === "suits" ? null : (
               <BackgroundPicker />
             )}
           </>

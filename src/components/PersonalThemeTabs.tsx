@@ -13,6 +13,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "lofi", label: "lofi" },
   { value: "dvd", label: "dvd logo" },
   { value: "ytbg", label: "youtube" },
+  { value: "suits", label: "Suits - Life is this" },
 ];
 
 export function PersonalThemeTabs() {

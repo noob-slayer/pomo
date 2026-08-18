@@ -456,6 +456,27 @@
   background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
 }
 
+.stage-suits-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.stage-suits {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  /* 10% of the reveal theme's own 22px max blur range -- barely a haze */
+  filter: blur(2.2px);
+}
+
+.stage-suits-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
+}
+
 .stage-ytbg-wrap {
   position: absolute;
   inset: 0;
@@ -520,7 +541,6 @@
   justify-content: center;
   gap: 0.2em;
   border-radius: 12px;
-  border: 5px solid #0a0a0a;
   background: #8a234e;
   color: #fff;
   will-change: transform, background-color;

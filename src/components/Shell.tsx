@@ -348,6 +348,7 @@ export function Shell() {
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showYtBgLayer = mode === "personal" && personalTheme === "ytbg";
+  const showSuitsLayer = mode === "personal" && personalTheme === "suits";
   const ytBgEmbedSrc = useMemo(
     () => stationBackgroundEmbedSrc(resolveStation(activeStationId, customStation)),
     [activeStationId, customStation],
@@ -384,6 +385,12 @@ export function Shell() {
             <div className="stage-lofi-wrap">
               <video className="stage-lofi" src="/lofi-bg.mp4" autoPlay muted loop playsInline />
               <div className="stage-lofi-overlay" />
+            </div>
+          )}
+          {showSuitsLayer && (
+            <div className="stage-suits-wrap">
+              <video className="stage-suits" src="/suits-bg.mp4" autoPlay muted loop playsInline />
+              <div className="stage-suits-overlay" />
             </div>
           )}
           {showDvdLayer && <DvdBounce timer={timer} />}
