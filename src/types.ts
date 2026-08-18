@@ -1,6 +1,6 @@
 export type Mode = "work" | "personal";
 export type WorkTheme = "burgundy" | "forest" | "vistara" | "slate" | "goldenpink";
-export type PersonalTheme = "photo" | "reveal" | "colour" | "lofi" | "dvd";
+export type PersonalTheme = "photo" | "reveal" | "colour" | "lofi" | "dvd" | "ytbg";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 

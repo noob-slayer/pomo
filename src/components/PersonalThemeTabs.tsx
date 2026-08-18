@@ -12,6 +12,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "reveal", label: "reveal" },
   { value: "lofi", label: "lofi" },
   { value: "dvd", label: "dvd logo" },
+  { value: "ytbg", label: "youtube" },
 ];
 
 export function PersonalThemeTabs() {

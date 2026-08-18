@@ -31,6 +31,28 @@ export function stationEmbedSrc(station: ResolvedStation, autoplay = true): stri
   return `https://www.youtube.com/embed/${station.id}?${params.toString()}`;
 }
 
+// same station, but tuned to sit behind the UI as a muted, chromeless backdrop rather
+// than something the user is meant to watch or control directly. Deliberately skips
+// loop/playlist=self -- several of the default stations are 24/7 livestreams, and
+// YouTube's embed rejects that param combo on a live video ("video unavailable")
+export function stationBackgroundEmbedSrc(station: ResolvedStation): string {
+  const params = new URLSearchParams({
+    rel: "0",
+    autoplay: "1",
+    mute: "1",
+    controls: "0",
+    modestbranding: "1",
+    disablekb: "1",
+    fs: "0",
+    playsinline: "1",
+  });
+  if (station.type === "playlist") {
+    params.set("list", station.id);
+    return `https://www.youtube.com/embed/videoseries?${params.toString()}`;
+  }
+  return `https://www.youtube.com/embed/${station.id}?${params.toString()}`;
+}
+
 const WATCH_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/;
 const PLAYLIST_RE = /[?&]list=([a-zA-Z0-9_-]+)/;
 
