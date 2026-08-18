@@ -3,6 +3,7 @@ import { joinRoom, type LiveTick } from "../lib/liveSession";
 import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
 import { formatClock } from "../lib/durations";
 import { stationEmbedSrc } from "../lib/stations";
+import { Credit } from "./Credit";
 
 interface LiveViewerShellProps {
   roomCode: string;
@@ -81,6 +82,7 @@ export function LiveViewerShell({ roomCode }: LiveViewerShellProps) {
           )}
         </div>
       )}
+      <Credit />
     </div>
   );
 }

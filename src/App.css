@@ -736,3 +736,37 @@
 .history-category__value {
   color: var(--page-muted);
 }
+
+/* ---------- credit ---------- */
+
+.credit {
+  position: fixed;
+  left: 16px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--page-muted);
+  opacity: 0.75;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.credit__coffee {
+  pointer-events: auto;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.credit__coffee:hover {
+  color: var(--page-ink);
+}
+
+@media (max-width: 860px) {
+  .credit {
+    position: static;
+    justify-content: center;
+    padding: 14px 16px;
+  }
+}

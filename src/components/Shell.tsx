@@ -13,6 +13,7 @@ import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
 import { YoutubeWidget } from "./YoutubeWidget";
+import { Credit } from "./Credit";
 
 export function Shell() {
   const {
@@ -188,6 +189,7 @@ export function Shell() {
         />
       </div>
       <YoutubeWidget />
+      <Credit />
     </div>
   );
 }
