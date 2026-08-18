@@ -213,12 +213,13 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
   if (!supabase) return [];
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const { data: allData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
+  // p_since pushes the date bound back into SQL (lobby_sessions_completed_at_idx) instead
+  // of fetching the lobby's entire history and filtering it in JS on every ~8s poll
+  const { data, error } = await supabase.rpc("get_lobby_sessions", {
+    p_lobby_id: lobbyId,
+    p_since: startOfDay.toISOString(),
+  });
   if (error) console.error("fetchTodayLobbyStats failed", error);
-  // ascending by completed_at, so the last row seen per member below is their latest
-  const data = (allData ?? [])
-    .filter((r: LobbySessionRow) => new Date(r.completed_at).getTime() >= startOfDay.getTime())
-    .sort((a: LobbySessionRow, b: LobbySessionRow) => a.completed_at.localeCompare(b.completed_at));
 
   const map = new Map<string, LobbyMemberStat>();
   for (const m of members) {
@@ -257,10 +258,10 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
 // lobby's history no matter how many days it's been since the last session
 export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyAllTimeStat[]> {
   if (!supabase) return [];
-  const { data: rawData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
+  // genuinely needs the full history for true all-time totals -- the RPC already returns
+  // it ascending by completed_at, so the last row seen per member below is their latest
+  const { data, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
   if (error) console.error("fetchAllTimeLobbyStats failed", error);
-  // ascending by completed_at, so the last row seen per member below is their latest
-  const data = (rawData ?? []).slice().sort((a: LobbySessionRow, b: LobbySessionRow) => a.completed_at.localeCompare(b.completed_at));
 
   const map = new Map<string, LobbyAllTimeStat & { days: Set<string> }>();
   for (const m of members) {
@@ -305,13 +306,14 @@ export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMemb
 // a recent-activity log across every member, most recent first -- who did what, when
 export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Promise<LobbyActivityEntry[]> {
   if (!supabase) return [];
-  const { data: rawData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
-  if (error || !rawData) return [];
-  const data = (rawData as LobbySessionRow[])
-    .slice()
-    .sort((a, b) => b.completed_at.localeCompare(a.completed_at))
-    .slice(0, limit);
-  return data.map((r) => ({
+  // get_recent_lobby_sessions does the ORDER BY completed_at DESC LIMIT in SQL, same as
+  // the direct-table query this replaced -- see supabase/lobby_sessions_rpc_params.sql
+  const { data, error } = await supabase.rpc("get_recent_lobby_sessions", {
+    p_lobby_id: lobbyId,
+    p_limit: limit,
+  });
+  if (error || !data) return [];
+  return (data as LobbySessionRow[]).map((r) => ({
     id: r.id,
     identityKey: r.identity_key,
     personaName: r.persona_name,

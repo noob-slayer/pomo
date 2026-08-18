@@ -16,10 +16,11 @@ Three things need to happen, in order: create a Supabase project (for login/sync
    VITE_SUPABASE_ANON_KEY=eyJ...
    ```
 4. **SQL Editor → New query** — paste the contents of `supabase/schema.sql` and run it. This creates the `tasks`, `pomo_history`, and `user_settings` tables with row-level security so each signed-in user only ever sees their own data.
-5. **Authentication → Providers → Google** — enable it. You'll need a Google OAuth client ID/secret from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth consent screen + "Web application" credential). Add Supabase's callback URL (shown on that provider settings page) as an authorized redirect URI in the Google console.
-6. Send me the project URL + anon key (or confirm `.env.local` is filled in) and I'll wire up the actual login button, cross-device sync, and live shared sessions against it.
+5. If you want group co-working lobbies too, run these in order (each one's own file, one query at a time): `supabase/lobby_schema.sql`, `supabase/lobby_sync_schema.sql`, `supabase/lobby_task_title_schema.sql`, `supabase/lobby_rls_hardening.sql`, `supabase/lobby_sessions_rpc_params.sql`. The lobby feature reads through `SECURITY DEFINER` RPC functions rather than direct table access (closes off the whole `lobbies`/`lobby_members`/`lobby_sessions` tables being listable by anyone holding the public anon key) — skipping the last two files leaves those RPCs undefined and the lobby feature silently returns empty everywhere.
+6. **Authentication → Providers → Google** — enable it. You'll need a Google OAuth client ID/secret from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) (OAuth consent screen + "Web application" credential). Add Supabase's callback URL (shown on that provider settings page) as an authorized redirect URI in the Google console.
+7. Send me the project URL + anon key (or confirm `.env.local` is filled in) and I'll wire up the actual login button, cross-device sync, and live shared sessions against it.
 
-Until step 6, the app keeps working exactly as it does now — everything just stays local to the browser (`localStorage`).
+Until step 7, the app keeps working exactly as it does now — everything just stays local to the browser (`localStorage`).
 
 ## 2. Push to GitHub
 
