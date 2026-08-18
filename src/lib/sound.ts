@@ -1,14 +1,38 @@
-// synthesized chime — no audio asset needed, works offline. Browsers require some prior
-// user interaction on the page before audio will play; by the time a session completes,
-// the user has already clicked start/pause/etc, so this reliably plays.
+// synthesized chime — no audio asset needed, works offline.
 //
-// two passes of an ascending three-note chime, well above the old single quiet pair —
-// loud enough to notice from another room, not just at the desk.
-export function playChime(): void {
+// strict browser autoplay policies (notably iOS/desktop Safari) only let audio actually
+// play on an AudioContext instance that was created or resumed as a direct result of a
+// user gesture -- resume()ing a context from inside a later, non-gesture callback (like
+// our timer-completion effect, which fires from setInterval) silently produces no sound
+// even though every node schedules without error. A completion chime can never itself be
+// the triggering gesture, so we keep ONE shared context alive across the whole session,
+// unlocked once during the user's first real tap/click/keypress (see unlockAudio, wired
+// up from a document-level listener in Shell), and reuse that same instance every time a
+// session completes.
+let sharedCtx: AudioContext | null = null;
+
+function resolveCtx(): AudioContext | null {
   try {
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext })
       .webkitAudioContext;
-    const ctx = new Ctx();
+    if (!sharedCtx || sharedCtx.state === "closed") sharedCtx = new Ctx();
+    return sharedCtx;
+  } catch {
+    return null;
+  }
+}
+
+export function unlockAudio(): void {
+  const ctx = resolveCtx();
+  if (ctx && ctx.state === "suspended") void ctx.resume();
+}
+
+// two passes of an ascending three-note chime, loud enough to notice from another room.
+export function playChime(): void {
+  try {
+    const ctx = resolveCtx();
+    if (!ctx) return;
+    if (ctx.state === "suspended") void ctx.resume();
     // notes overlap (ascending run, pass repeated) and each is driven fairly loud, so
     // route everything through a compressor to avoid clipping/distortion when several
     // overlapping tones' peaks sum above 0dB, instead of just turning gain down overall
@@ -21,7 +45,6 @@ export function playChime(): void {
     for (const pass of [0, 0.55]) {
       notes.forEach((freq, i) => playTone(ctx, compressor, freq, now + pass + i * 0.11, 0.3));
     }
-    setTimeout(() => void ctx.close(), 1600);
   } catch {
     // audio unavailable (blocked, unsupported, etc.) — never let this break completion flow
   }

@@ -18,6 +18,7 @@ export interface HistorySummary {
   totalMinutes: number;
   todayPomos: number;
   todayMinutes: number;
+  todayBreakMinutes: number;
   byCategory: CategoryStat[];
   days: DayStat[];
 }
@@ -29,6 +30,7 @@ export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mod
 
   const todayKey = new Date().toDateString();
   const today = focus.filter((r) => new Date(r.completedAt).toDateString() === todayKey);
+  const todayBreaks = breaks.filter((r) => new Date(r.completedAt).toDateString() === todayKey);
 
   const catMap = new Map<string, { count: number; minutes: number }>();
   for (const r of focus) {
@@ -70,6 +72,7 @@ export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mod
     totalMinutes,
     todayPomos: today.length,
     todayMinutes: today.reduce((sum, r) => sum + r.minutes, 0),
+    todayBreakMinutes: todayBreaks.reduce((sum, r) => sum + r.minutes, 0),
     byCategory,
     days,
   };

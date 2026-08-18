@@ -9,10 +9,11 @@ import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
 import { resolveStation } from "../lib/stations";
-import { playChime } from "../lib/sound";
+import { playChime, unlockAudio } from "../lib/sound";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
+import { DailySummary } from "./DailySummary";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -58,6 +59,17 @@ export function Shell() {
   useEffect(() => {
     if (timer.status !== "idle" && sessionPrompt) setSessionPrompt(null);
   }, [timer.status, sessionPrompt]);
+
+  // unlock the completion-chime AudioContext on the very first real interaction with the
+  // page -- see the comment in lib/sound.ts for why the chime itself can't do this later
+  useEffect(() => {
+    document.addEventListener("pointerdown", unlockAudio, { once: true });
+    document.addEventListener("keydown", unlockAudio, { once: true });
+    return () => {
+      document.removeEventListener("pointerdown", unlockAudio);
+      document.removeEventListener("keydown", unlockAudio);
+    };
+  }, []);
 
   useKeyboardShortcuts({
     onToggle: () => timer.togglePrimary(selectedFocusMinutes),
@@ -212,6 +224,7 @@ export function Shell() {
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
           />
+          <DailySummary mode={mode} />
           {sessionPrompt && (
             <SessionPrompt
               stage={sessionPrompt}
