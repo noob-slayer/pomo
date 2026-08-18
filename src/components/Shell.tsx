@@ -154,7 +154,7 @@ export function Shell() {
   const showPhotoLayer = mode === "personal" && personalTheme !== "colour" && !!personalBg;
 
   return (
-    <div className="shell">
+    <div className="shell" style={themeVars}>
       <TopBar
         tasksOpen={tasksOpen}
         onToggleTasks={() => setTasksOpen((v) => !v)}
@@ -164,7 +164,7 @@ export function Shell() {
         onStopHosting={stopHosting}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
-        <main className="stage" style={themeVars} data-mode={mode}>
+        <main className="stage" data-mode={mode}>
           {showPhotoLayer && (
             <div
               className="stage-photo"

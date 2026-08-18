@@ -43,14 +43,14 @@ export function LiveViewerShell({ roomCode }: LiveViewerShellProps) {
   const displaySeconds = tick ? (tick.targetSeconds === null ? tick.elapsedSeconds : tick.remainingSeconds) : 0;
 
   return (
-    <div className="shell">
+    <div className="shell" style={themeVars}>
       <header className="topbar">
         <div className="topbar-left">
           <span className="wordmark">pomo</span>
           <span className="mode-switch__item">live session</span>
         </div>
       </header>
-      <main className="stage" style={themeVars}>
+      <main className="stage">
         <div className="stage-inner">
           <p className="stage-label">{label}</p>
           <p className="clock tabular">{formatClock(displaySeconds)}</p>

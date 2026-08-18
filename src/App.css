@@ -812,6 +812,20 @@
   color: var(--page-ink);
 }
 
+/* on desktop the credit line sits fixed over the stage's own colored background, so it
+   needs the stage's ink color to stay readable/match the clock, not the page's neutral
+   grey — below the 860px breakpoint it moves into the plain page background instead
+   (after the stacked task panel), where page-muted is the correct color to use */
+@media (min-width: 861px) {
+  .credit {
+    color: var(--stage-ink-muted);
+  }
+
+  .credit__coffee:hover {
+    color: var(--stage-ink);
+  }
+}
+
 @media (max-width: 860px) {
   .credit {
     position: static;
