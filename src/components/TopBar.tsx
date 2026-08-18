@@ -9,9 +9,19 @@ interface TopBarProps {
   tasksOpen: boolean;
   onToggleTasks: () => void;
   focusMinutes: number;
+  roomCode: string | null;
+  onStartHosting: () => string;
+  onStopHosting: () => void;
 }
 
-export function TopBar({ tasksOpen, onToggleTasks, focusMinutes }: TopBarProps) {
+export function TopBar({
+  tasksOpen,
+  onToggleTasks,
+  focusMinutes,
+  roomCode,
+  onStartHosting,
+  onStopHosting,
+}: TopBarProps) {
   const { mode, setMode } = useSettings();
 
   return (
@@ -46,7 +56,12 @@ export function TopBar({ tasksOpen, onToggleTasks, focusMinutes }: TopBarProps) 
             <BackgroundPicker />
           </>
         )}
-        <ShareWidget focusMinutes={focusMinutes} />
+        <ShareWidget
+          focusMinutes={focusMinutes}
+          roomCode={roomCode}
+          onStartHosting={onStartHosting}
+          onStopHosting={onStopHosting}
+        />
         <AccountWidget />
         <button
           type="button"

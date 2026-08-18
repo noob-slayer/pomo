@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
 import { useTimer } from "../hooks/useTimer";
@@ -6,6 +7,7 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
+import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
@@ -16,6 +18,9 @@ export function Shell() {
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [hostReady, setHostReady] = useState(false);
+  const hostChannelRef = useRef<RealtimeChannel | null>(null);
 
   const timer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
@@ -42,6 +47,50 @@ export function Shell() {
     clearShareFromLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const startHosting = (): string => {
+    if (roomCode) return roomCode;
+    const code = generateRoomCode();
+    hostChannelRef.current = hostRoom(code, setHostReady);
+    setRoomCode(code);
+    return code;
+  };
+
+  const stopHosting = () => {
+    hostChannelRef.current?.unsubscribe();
+    hostChannelRef.current = null;
+    setHostReady(false);
+    setRoomCode(null);
+  };
+
+  useEffect(() => () => void hostChannelRef.current?.unsubscribe(), []);
+
+  // while hosting, broadcast the current timer state on every change (the timer's own
+  // 1s tick drives this effect too, so viewers get roughly one update per second)
+  useEffect(() => {
+    if (!roomCode || !hostChannelRef.current || !hostReady) return;
+    broadcastTick(hostChannelRef.current, {
+      phase: timer.phase,
+      status: timer.status,
+      targetSeconds: timer.targetSeconds,
+      remainingSeconds: timer.remainingSeconds,
+      elapsedSeconds: timer.elapsedSeconds,
+      taskTitle: timer.activeTaskTitle,
+      mode,
+      workTheme: mode === "work" ? workTheme : undefined,
+    });
+  }, [
+    roomCode,
+    hostReady,
+    timer.phase,
+    timer.status,
+    timer.targetSeconds,
+    timer.remainingSeconds,
+    timer.elapsedSeconds,
+    timer.activeTaskTitle,
+    mode,
+    workTheme,
+  ]);
 
   const theme = mode === "work" ? WORK_THEMES[workTheme] : PERSONAL_THEME;
 
@@ -72,6 +121,9 @@ export function Shell() {
         tasksOpen={tasksOpen}
         onToggleTasks={() => setTasksOpen((v) => !v)}
         focusMinutes={selectedFocusMinutes}
+        roomCode={roomCode}
+        onStartHosting={startHosting}
+        onStopHosting={stopHosting}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" style={themeVars} data-mode={mode}>
