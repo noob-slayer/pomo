@@ -26,10 +26,10 @@ interface Settings {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  mode: "work",
+  mode: "personal",
   workTheme: "burgundy",
-  personalTheme: "photo",
-  personalColorTheme: "vistara",
+  personalTheme: "colour",
+  personalColorTheme: "burgundy",
   personalBg: null,
   ytBgUrl: null,
   activeStationId: "lofi-2",
