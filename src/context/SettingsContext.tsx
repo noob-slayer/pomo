@@ -2,13 +2,8 @@ import { createContext, useContext, useEffect, useRef, type ReactNode } from "re
 import { useLocalStorage } from "../lib/storage";
 import { fetchSettings, upsertSettings } from "../lib/cloudSync";
 import { useAuth } from "./AuthContext";
+import type { ResolvedStation } from "../lib/stations";
 import type { Mode, PersonalTheme, WorkTheme } from "../types";
-
-interface CustomStation {
-  type: "video" | "playlist";
-  id: string;
-  label: string;
-}
 
 interface Settings {
   mode: Mode;
@@ -16,7 +11,7 @@ interface Settings {
   personalTheme: PersonalTheme;
   personalBg: string | null;
   activeStationId: string; // default station id, or "custom"
-  customStation: CustomStation | null;
+  customStation: ResolvedStation | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -34,7 +29,7 @@ interface SettingsContextValue extends Settings {
   setPersonalTheme: (theme: PersonalTheme) => void;
   setPersonalBg: (dataUrl: string | null) => void;
   setActiveStationId: (id: string) => void;
-  setCustomStation: (station: CustomStation | null) => void;
+  setCustomStation: (station: ResolvedStation | null) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);

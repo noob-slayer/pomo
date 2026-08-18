@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import type { ResolvedStation } from "./stations";
 import type { Mode, Phase, Status, WorkTheme } from "../types";
 
 export interface LiveTick {
@@ -11,6 +12,7 @@ export interface LiveTick {
   taskTitle: string | null;
   mode: Mode;
   workTheme?: WorkTheme;
+  station: ResolvedStation;
 }
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"; // no ambiguous chars (0/o, 1/l/i)

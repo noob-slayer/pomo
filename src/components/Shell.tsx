@@ -8,13 +8,15 @@ import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
+import { resolveStation } from "../lib/stations";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
 import { YoutubeWidget } from "./YoutubeWidget";
 
 export function Shell() {
-  const { mode, workTheme, personalTheme, personalBg, setMode, setWorkTheme } = useSettings();
+  const { mode, workTheme, personalTheme, personalBg, activeStationId, customStation, setMode, setWorkTheme } =
+    useSettings();
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
@@ -78,6 +80,7 @@ export function Shell() {
       taskTitle: timer.activeTaskTitle,
       mode,
       workTheme: mode === "work" ? workTheme : undefined,
+      station: resolveStation(activeStationId, customStation),
     });
   }, [
     roomCode,
@@ -90,6 +93,8 @@ export function Shell() {
     timer.activeTaskTitle,
     mode,
     workTheme,
+    activeStationId,
+    customStation,
   ]);
 
   const theme = mode === "work" ? WORK_THEMES[workTheme] : PERSONAL_THEME;

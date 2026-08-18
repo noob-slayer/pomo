@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useSettings } from "../context/SettingsContext";
-import { DEFAULT_STATIONS, parseYoutubeInput } from "../lib/stations";
+import { DEFAULT_STATIONS, parseYoutubeInput, resolveStation, stationEmbedSrc } from "../lib/stations";
 
 export function YoutubeWidget() {
   const { activeStationId, setActiveStationId, customStation, setCustomStation } = useSettings();
@@ -9,17 +9,7 @@ export function YoutubeWidget() {
   const [customUrl, setCustomUrl] = useState("");
   const [customError, setCustomError] = useState(false);
 
-  const current =
-    customStation ??
-    (() => {
-      const station = DEFAULT_STATIONS.find((s) => s.id === activeStationId) ?? DEFAULT_STATIONS[0];
-      return { type: "video" as const, id: station.videoId, label: station.label };
-    })();
-
-  const embedSrc =
-    current.type === "playlist"
-      ? `https://www.youtube.com/embed/videoseries?list=${current.id}&autoplay=1&rel=0`
-      : `https://www.youtube.com/embed/${current.id}?autoplay=1&rel=0`;
+  const embedSrc = stationEmbedSrc(resolveStation(activeStationId, customStation));
 
   const handleSelectStation = (id: string) => {
     setActiveStationId(id);

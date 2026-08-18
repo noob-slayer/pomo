@@ -9,6 +9,28 @@ export const DEFAULT_STATIONS: Station[] = [
   { id: "deep-focus", label: "chill hiphop, deep focus", videoId: "v8XAikhbTMs" },
 ];
 
+export interface ResolvedStation {
+  type: "video" | "playlist";
+  id: string;
+  label: string;
+}
+
+export function resolveStation(activeStationId: string, customStation: ResolvedStation | null): ResolvedStation {
+  if (customStation) return customStation;
+  const station = DEFAULT_STATIONS.find((s) => s.id === activeStationId) ?? DEFAULT_STATIONS[0];
+  return { type: "video", id: station.videoId, label: station.label };
+}
+
+export function stationEmbedSrc(station: ResolvedStation, autoplay = true): string {
+  const params = new URLSearchParams({ rel: "0" });
+  if (autoplay) params.set("autoplay", "1");
+  if (station.type === "playlist") {
+    params.set("list", station.id);
+    return `https://www.youtube.com/embed/videoseries?${params.toString()}`;
+  }
+  return `https://www.youtube.com/embed/${station.id}?${params.toString()}`;
+}
+
 const WATCH_RE = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/;
 const PLAYLIST_RE = /[?&]list=([a-zA-Z0-9_-]+)/;
 

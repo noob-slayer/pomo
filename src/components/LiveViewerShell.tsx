@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { joinRoom, type LiveTick } from "../lib/liveSession";
 import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
 import { formatClock } from "../lib/durations";
+import { stationEmbedSrc } from "../lib/stations";
 
 interface LiveViewerShellProps {
   roomCode: string;
@@ -10,6 +11,7 @@ interface LiveViewerShellProps {
 export function LiveViewerShell({ roomCode }: LiveViewerShellProps) {
   const [tick, setTick] = useState<LiveTick | null>(null);
   const [connStatus, setConnStatus] = useState<string>("connecting");
+  const [audioStarted, setAudioStarted] = useState(false);
 
   useEffect(() => {
     const channel = joinRoom(roomCode, setTick, setConnStatus);
@@ -54,6 +56,31 @@ export function LiveViewerShell({ roomCode }: LiveViewerShellProps) {
           <p className="shortcut-footer">room {roomCode} · read-only</p>
         </div>
       </main>
+
+      {tick && (
+        <div className="yt-widget">
+          <button
+            type="button"
+            className="yt-toggle"
+            onClick={() => setAudioStarted((v) => !v)}
+            aria-pressed={audioStarted}
+            aria-label={`music: ${tick.station.label}`}
+            title={tick.station.label}
+          >
+            <svg className="yt-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M9 7.5v9l7.5-4.5-7.5-4.5Z" fill="currentColor" />
+            </svg>
+          </button>
+          {audioStarted && (
+            <iframe
+              className="yt-frame yt-frame--visible"
+              src={stationEmbedSrc(tick.station)}
+              title="focus audio"
+              allow="autoplay; encrypted-media"
+            />
+          )}
+        </div>
+      )}
     </div>
   );
 }
