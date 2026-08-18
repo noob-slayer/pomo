@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseYoutubeInput, youtubeBackgroundEmbedSrc } from "../lib/stations";
 
 interface YtBackgroundProps {
@@ -6,12 +6,7 @@ interface YtBackgroundProps {
 }
 
 export function YtBackground({ url }: YtBackgroundProps) {
-  // iOS Safari (and, less predictably, other browsers) only allows an embedded iframe to
-  // autoplay with sound when it's created as the direct result of a tap on that same
-  // element -- a click anywhere else on the page, or a gesture that already happened
-  // several renders ago, doesn't reliably carry over. So rather than guessing, always
-  // require one explicit tap on the video area itself before mounting the iframe; that
-  // tap's synchronous state update is what gives the iframe its gesture credit.
+  const mountRef = useRef<HTMLDivElement>(null);
   const [started, setStarted] = useState(false);
   useEffect(() => {
     setStarted(false);
@@ -19,23 +14,33 @@ export function YtBackground({ url }: YtBackgroundProps) {
 
   const parsed = url ? parseYoutubeInput(url) : null;
 
+  // iOS Safari only grants an embedded iframe autoplay-with-sound when it's created
+  // *synchronously* inside the tap that requested it -- going through React's setState
+  // (a task later, after the event handler returns) loses that "user activation" window
+  // even though it worked fine on desktop. Building and inserting the iframe by hand
+  // directly in the click handler, before any React re-render happens, is the pattern
+  // that actually survives iOS's stricter check.
+  const handlePlay = () => {
+    if (!parsed || !mountRef.current) return;
+    const iframe = document.createElement("iframe");
+    iframe.className = "stage-yt";
+    iframe.src = youtubeBackgroundEmbedSrc(parsed);
+    iframe.title = "background video";
+    iframe.allow = "autoplay; encrypted-media";
+    mountRef.current.replaceChildren(iframe);
+    setStarted(true);
+  };
+
   return (
     <div className="stage-yt-wrap">
-      {parsed && started ? (
-        <iframe
-          className="stage-yt"
-          src={youtubeBackgroundEmbedSrc(parsed)}
-          title="background video"
-          allow="autoplay; encrypted-media"
-        />
-      ) : parsed ? (
-        <button type="button" className="stage-yt-play" onClick={() => setStarted(true)} aria-label="play background video">
+      <div className="stage-yt-mount" ref={mountRef} />
+      {!parsed && <p className="stage-yt-prompt">paste a youtube link above to set this as your background</p>}
+      {parsed && !started && (
+        <button type="button" className="stage-yt-play" onClick={handlePlay} aria-label="play background video">
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M9 7.5v9l7.5-4.5-7.5-4.5Z" fill="currentColor" />
           </svg>
         </button>
-      ) : (
-        <p className="stage-yt-prompt">paste a youtube link above to set this as your background</p>
       )}
       <div className="stage-yt-overlay" />
     </div>

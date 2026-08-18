@@ -400,20 +400,22 @@ export function Shell() {
 
   return (
     <div className="shell" style={themeVars}>
-      <TopBar
-        tasksOpen={tasksOpen}
-        onToggleTasks={() => setTasksOpen((v) => !v)}
-        onOpenStats={() => {
-          setPanelTab("stats");
-          setTasksOpen(true);
-          resetTaskAutoHide();
-        }}
-        onOpenTeamStats={() => {
-          setPanelTab("team");
-          setTasksOpen(true);
-          resetTaskAutoHide();
-        }}
-      />
+      {timer.status !== "running" && (
+        <TopBar
+          tasksOpen={tasksOpen}
+          onToggleTasks={() => setTasksOpen((v) => !v)}
+          onOpenStats={() => {
+            setPanelTab("stats");
+            setTasksOpen(true);
+            resetTaskAutoHide();
+          }}
+          onOpenTeamStats={() => {
+            setPanelTab("team");
+            setTasksOpen(true);
+            resetTaskAutoHide();
+          }}
+        />
+      )}
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" data-mode={mode} data-personal-theme={mode === "personal" ? personalTheme : undefined}>
           {showPhotoLayer && (
