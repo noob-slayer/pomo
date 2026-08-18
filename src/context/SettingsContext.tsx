@@ -82,10 +82,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
+  // uses the functional setState form (merging onto `prev`, not the `settings` closed
+  // over at render time) deliberately: two patch() calls can land far apart in time from
+  // *different* async sources (e.g. onboarding's setPersonaName, and the ?lobby= auto-
+  // join effect's setCurrentLobby resolving a moment later over the network). With a
+  // plain `{...settings, ...partial}` merge, whichever call's setSettings lands second
+  // would silently overwrite the first's change, since both read the same stale
+  // pre-update `settings` snapshot -- exactly what caused a lobby auto-join to wipe out a
+  // persona name entered just before it. The functional form always merges onto whatever
+  // is actually latest at the moment each call executes, regardless of ordering.
   const patch = (partial: Partial<Settings>) => {
-    const next = { ...settings, ...partial };
-    if (user) void upsertSettings(user.id, next as unknown as Record<string, unknown>);
-    setSettings(next);
+    setSettings((prev) => {
+      const merged = { ...DEFAULT_SETTINGS, ...prev, ...partial };
+      if (user) void upsertSettings(user.id, merged as unknown as Record<string, unknown>);
+      return merged;
+    });
   };
 
   const value: SettingsContextValue = {
