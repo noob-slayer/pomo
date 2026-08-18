@@ -18,7 +18,7 @@ export function PersonalThemeTabs() {
   const menuRef = useRef<HTMLDivElement>(null);
   useClickAway(menuRef, () => setOpen(false), open);
 
-  const isFunActive = FUN_OPTIONS.some((o) => o.value === personalTheme);
+  const activeFunOption = FUN_OPTIONS.find((o) => o.value === personalTheme);
 
   return (
     <div className="theme-tabs" role="group" aria-label="personal theme">
@@ -32,11 +32,12 @@ export function PersonalThemeTabs() {
       <div className="fun-menu" ref={menuRef}>
         <button
           type="button"
-          className={isFunActive ? "theme-tabs__item theme-tabs__item--active" : "theme-tabs__item"}
+          className={activeFunOption ? "theme-tabs__item theme-tabs__item--active" : "theme-tabs__item"}
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
         >
-          make it fun ▾
+          make it fun
+          {activeFunOption && <span className="fun-menu__current">({activeFunOption.label})</span>} ▾
         </button>
         {open && (
           <div className="fun-menu__panel">

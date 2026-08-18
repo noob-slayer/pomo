@@ -375,6 +375,12 @@
   font-weight: 600;
 }
 
+.fun-menu__current {
+  margin-left: 3px;
+  font-weight: 400;
+  opacity: 0.65;
+}
+
 
 /* ---------- layout ---------- */
 
