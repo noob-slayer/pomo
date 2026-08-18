@@ -28,9 +28,7 @@ export function DailySummary({ mode }: DailySummaryProps) {
       {stats.longestToday > 0 && (
         <p className="daily-summary__line">longest {formatDuration(stats.longestToday)}</p>
       )}
-      {summary.todayBreakMinutes > 0 && (
-        <p className="daily-summary__line">{formatDuration(summary.todayBreakMinutes)} break</p>
-      )}
+      <p className="daily-summary__line">{formatDuration(summary.todayBreakMinutes)} break</p>
     </div>
   );
 }
