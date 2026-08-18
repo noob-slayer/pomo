@@ -569,6 +569,20 @@
   font-size: 0.95rem;
 }
 
+/* .btn defaults to stage-toned colors for use on the dark stage; the task panel sits
+   on the light page background instead, so the submit button needs page tones or it
+   renders near-invisible (e.g. cream stage-ink text on a cream page background) */
+.task-form .btn {
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border-color: var(--page-ink);
+}
+
+.task-form .btn:hover:not(:disabled) {
+  opacity: 0.88;
+  border-color: var(--page-ink);
+}
+
 .task-form__row {
   display: flex;
   gap: 8px;
