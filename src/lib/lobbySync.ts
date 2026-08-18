@@ -44,7 +44,10 @@ export async function writeSyncState(lobbyId: string, state: LobbySyncState): Pr
 
 export async function readSyncState(lobbyId: string): Promise<LobbySyncState | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from("lobbies").select("sync_state").eq("id", lobbyId).maybeSingle();
-  if (error || !data?.sync_state) return null;
-  return data.sync_state as LobbySyncState;
+  // goes through the same get_lobby RPC as lobby.ts's fetchLobby -- see
+  // supabase/lobby_rls_hardening.sql for why direct table reads are locked down
+  const { data, error } = await supabase.rpc("get_lobby", { p_id: lobbyId });
+  const row = data?.[0] as { sync_state?: LobbySyncState } | undefined;
+  if (error || !row?.sync_state) return null;
+  return row.sync_state;
 }

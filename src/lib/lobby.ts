@@ -86,35 +86,45 @@ export async function createLobby(
 ): Promise<Lobby | null> {
   if (!supabase) return null;
   const code = generateLobbyCode();
-  const { data, error } = await supabase
+  // deliberately no .select() chained onto the insert -- PostgREST needs a SELECT-level
+  // policy to return a representation of the row it just inserted, and lobbies has none
+  // anymore (see lobby_rls_hardening.sql). Fetch it back through find_lobby_by_code's
+  // SECURITY DEFINER RPC instead, which doesn't need one.
+  const { error: insertError } = await supabase
     .from("lobbies")
-    .insert({ code, name, mode, created_by: identityKey, creator_persona: personaName })
-    .select()
-    .single();
-  if (error || !data) {
-    console.error("createLobby failed", error);
+    .insert({ code, name, mode, created_by: identityKey, creator_persona: personaName });
+  if (insertError) {
+    console.error("createLobby failed", insertError);
     return null;
   }
-  await joinLobby(data.id as string, identityKey, personaName);
-  return rowToLobby(data as LobbyRow);
+  const lobby = await findLobbyByCode(code);
+  if (!lobby) {
+    console.error("createLobby: insert succeeded but the lobby couldn't be read back");
+    return null;
+  }
+  await joinLobby(lobby.id, identityKey, personaName);
+  return lobby;
 }
+
+// these all go through SECURITY DEFINER RPCs (see supabase/lobby_rls_hardening.sql)
+// rather than direct `.from(table).select()` -- a plain "anyone can read" RLS policy
+// can't tell "the client already knows the code" apart from "the client asked for
+// everything", so the only way to stop the whole table being listable by anyone holding
+// the public anon key is to route reads through a function whose own SQL decides exactly
+// what comes back.
 
 export async function findLobbyByCode(code: string): Promise<Lobby | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase
-    .from("lobbies")
-    .select("*")
-    .eq("code", code.trim().toLowerCase())
-    .maybeSingle();
-  if (error || !data) return null;
-  return rowToLobby(data as LobbyRow);
+  const { data, error } = await supabase.rpc("find_lobby_by_code", { p_code: code.trim().toLowerCase() });
+  if (error || !data || data.length === 0) return null;
+  return rowToLobby(data[0] as LobbyRow);
 }
 
 export async function fetchLobby(id: string): Promise<Lobby | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.from("lobbies").select("*").eq("id", id).maybeSingle();
-  if (error || !data) return null;
-  return rowToLobby(data as LobbyRow);
+  const { data, error } = await supabase.rpc("get_lobby", { p_id: id });
+  if (error || !data || data.length === 0) return null;
+  return rowToLobby(data[0] as LobbyRow);
 }
 
 // every lobby this identity has ever been part of -- current membership (lobby_members)
@@ -123,31 +133,41 @@ export async function fetchLobby(id: string): Promise<Lobby | null> {
 // across every lobby ever joined, not just whichever one happens to be active right now.
 export async function fetchMyLobbies(identityKey: string): Promise<Lobby[]> {
   if (!supabase) return [];
-  const [{ data: memberRows }, { data: sessionRows }] = await Promise.all([
-    supabase.from("lobby_members").select("lobby_id").eq("identity_key", identityKey),
-    supabase.from("lobby_sessions").select("lobby_id").eq("identity_key", identityKey),
-  ]);
-  const ids = new Set<string>();
-  for (const r of memberRows ?? []) ids.add(r.lobby_id as string);
-  for (const r of sessionRows ?? []) ids.add(r.lobby_id as string);
-  if (ids.size === 0) return [];
-  const { data, error } = await supabase.from("lobbies").select("*").in("id", [...ids]);
+  const { data: idRows, error: idError } = await supabase.rpc("get_lobby_ids_for_identity", {
+    p_identity_key: identityKey,
+  });
+  if (idError || !idRows || idRows.length === 0) return [];
+  const ids = [...new Set((idRows as { lobby_id: string }[]).map((r) => r.lobby_id))];
+  const { data, error } = await supabase.rpc("get_lobbies_by_ids", { p_ids: ids });
   if (error || !data) return [];
   return (data as LobbyRow[]).map(rowToLobby).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function joinLobby(lobbyId: string, identityKey: string, personaName: string): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from("lobby_members").upsert(
-    {
-      lobby_id: lobbyId,
-      identity_key: identityKey,
-      persona_name: personaName,
-      last_seen_at: new Date().toISOString(),
-    },
-    { onConflict: "lobby_id,identity_key" },
-  );
-  if (error) console.error("joinLobby failed", error);
+  // deliberately a plain insert-then-update instead of .upsert(): Postgres's ON CONFLICT
+  // DO UPDATE needs to see the existing conflicting row to detect the conflict at all,
+  // which runs into the same "no SELECT policy left" wall as createLobby's .select() did
+  // (see lobby_rls_hardening.sql) even though nothing here chains .select() itself. A
+  // plain insert/update never needs to read a row back, so neither hits that wall.
+  const { error: insertError } = await supabase.from("lobby_members").insert({
+    lobby_id: lobbyId,
+    identity_key: identityKey,
+    persona_name: personaName,
+    last_seen_at: new Date().toISOString(),
+  });
+  if (!insertError) return;
+  // 23505 = unique_violation on (lobby_id, identity_key) -- already a member, update instead
+  if (insertError.code !== "23505") {
+    console.error("joinLobby failed", insertError);
+    return;
+  }
+  const { error: updateError } = await supabase
+    .from("lobby_members")
+    .update({ persona_name: personaName, last_seen_at: new Date().toISOString() })
+    .eq("lobby_id", lobbyId)
+    .eq("identity_key", identityKey);
+  if (updateError) console.error("joinLobby (update) failed", updateError);
 }
 
 export async function leaveLobby(lobbyId: string, identityKey: string): Promise<void> {
@@ -162,11 +182,7 @@ export async function leaveLobby(lobbyId: string, identityKey: string): Promise<
 
 export async function fetchLobbyMembers(lobbyId: string): Promise<LobbyMember[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("lobby_members")
-    .select("*")
-    .eq("lobby_id", lobbyId)
-    .order("joined_at");
+  const { data, error } = await supabase.rpc("get_lobby_members", { p_lobby_id: lobbyId });
   if (error || !data) return [];
   return (data as LobbyMemberRow[]).map((r) => ({
     identityKey: r.identity_key,
@@ -197,13 +213,12 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
   if (!supabase) return [];
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const { data, error } = await supabase
-    .from("lobby_sessions")
-    .select("identity_key, persona_name, phase, minutes, task_title, completed_at")
-    .eq("lobby_id", lobbyId)
-    .gte("completed_at", startOfDay.toISOString())
-    .order("completed_at"); // ascending, so the last row seen per member is their latest
+  const { data: allData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
   if (error) console.error("fetchTodayLobbyStats failed", error);
+  // ascending by completed_at, so the last row seen per member below is their latest
+  const data = (allData ?? [])
+    .filter((r: LobbySessionRow) => new Date(r.completed_at).getTime() >= startOfDay.getTime())
+    .sort((a: LobbySessionRow, b: LobbySessionRow) => a.completed_at.localeCompare(b.completed_at));
 
   const map = new Map<string, LobbyMemberStat>();
   for (const m of members) {
@@ -242,12 +257,10 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
 // lobby's history no matter how many days it's been since the last session
 export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyAllTimeStat[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("lobby_sessions")
-    .select("identity_key, persona_name, phase, minutes, task_title, completed_at")
-    .eq("lobby_id", lobbyId)
-    .order("completed_at"); // ascending, so the last row seen per member is their latest
+  const { data: rawData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
   if (error) console.error("fetchAllTimeLobbyStats failed", error);
+  // ascending by completed_at, so the last row seen per member below is their latest
+  const data = (rawData ?? []).slice().sort((a: LobbySessionRow, b: LobbySessionRow) => a.completed_at.localeCompare(b.completed_at));
 
   const map = new Map<string, LobbyAllTimeStat & { days: Set<string> }>();
   for (const m of members) {
@@ -292,14 +305,13 @@ export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMemb
 // a recent-activity log across every member, most recent first -- who did what, when
 export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Promise<LobbyActivityEntry[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("lobby_sessions")
-    .select("id, identity_key, persona_name, phase, minutes, task_title, completed_at")
-    .eq("lobby_id", lobbyId)
-    .order("completed_at", { ascending: false })
-    .limit(limit);
-  if (error || !data) return [];
-  return (data as LobbySessionRow[]).map((r) => ({
+  const { data: rawData, error } = await supabase.rpc("get_lobby_sessions", { p_lobby_id: lobbyId });
+  if (error || !rawData) return [];
+  const data = (rawData as LobbySessionRow[])
+    .slice()
+    .sort((a, b) => b.completed_at.localeCompare(a.completed_at))
+    .slice(0, limit);
+  return data.map((r) => ({
     id: r.id,
     identityKey: r.identity_key,
     personaName: r.persona_name,
