@@ -9,10 +9,9 @@ import type { PersonalTheme } from "../types";
 // growing unbounded.
 const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "photo", label: "photo" },
-  { value: "reveal", label: "reveal" },
+  { value: "reveal", label: "reveal - painting" },
   { value: "lofi", label: "lofi" },
   { value: "dvd", label: "the office - dvd logo" },
-  { value: "ytbg", label: "youtube" },
   { value: "suits", label: "Suits - Life is this" },
 ];
 

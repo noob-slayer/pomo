@@ -7,7 +7,6 @@ import { useTimer, type TimerApi } from "../hooks/useTimer";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
-import { resolveStation, stationBackgroundEmbedSrc } from "../lib/stations";
 import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
@@ -32,8 +31,6 @@ export function Shell() {
     personalTheme,
     personalColorTheme,
     personalBg,
-    activeStationId,
-    customStation,
     personaName,
     currentLobby,
     setCurrentLobby,
@@ -366,12 +363,7 @@ export function Shell() {
 
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
-  const showYtBgLayer = mode === "personal" && personalTheme === "ytbg";
   const showSuitsLayer = mode === "personal" && personalTheme === "suits";
-  const ytBgEmbedSrc = useMemo(
-    () => stationBackgroundEmbedSrc(resolveStation(activeStationId, customStation)),
-    [activeStationId, customStation],
-  );
 
   return (
     <div className="shell" style={themeVars}>
@@ -421,18 +413,6 @@ export function Shell() {
             </div>
           )}
           {showDvdLayer && <DvdBounce timer={timer} />}
-          {showYtBgLayer && (
-            <div className="stage-ytbg-wrap">
-              <iframe
-                key={ytBgEmbedSrc}
-                className="stage-ytbg"
-                src={ytBgEmbedSrc}
-                title="background video"
-                allow="autoplay; encrypted-media"
-              />
-              <div className="stage-ytbg-overlay" />
-            </div>
-          )}
           <TimerStage
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}

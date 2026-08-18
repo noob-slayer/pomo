@@ -477,37 +477,6 @@
   background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
 }
 
-.stage-ytbg-wrap {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: #000;
-}
-
-.stage-ytbg {
-  /* an iframe can't be object-fit: cover'd, so oversize it to a 16:9 box big enough to
-     always cover the container regardless of its aspect ratio, then crop via overflow
-     hidden on the wrap above -- the standard "fill the background with an embed" trick */
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 100vw;
-  height: 56.25vw; /* 16:9 */
-  min-width: 177.78vh; /* 16:9 */
-  min-height: 100vh;
-  transform: translate(-50%, -50%);
-  border: 0;
-  pointer-events: none;
-  /* 10% of the reveal theme's own 22px max blur range -- barely a haze */
-  filter: blur(2.2px);
-}
-
-.stage-ytbg-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
-}
-
 .stage-dvd-wrap {
   position: absolute;
   inset: 0;
