@@ -130,7 +130,7 @@ export function Shell() {
         onStartHosting={startHosting}
         onStopHosting={stopHosting}
       />
-      <div className="layout">
+      <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" style={themeVars} data-mode={mode}>
           {showPhotoLayer && (
             <div

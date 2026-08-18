@@ -43,11 +43,14 @@ export function parseYoutubeInput(raw: string): ParsedYoutubeInput {
   const value = raw.trim();
   if (!value) return null;
 
-  const playlistMatch = value.match(PLAYLIST_RE);
-  if (playlistMatch) return { type: "playlist", id: playlistMatch[1] };
-
+  // check video first: most pasted links (especially from the YouTube app) carry an
+  // auto-appended "&list=RD..." radio-mix param alongside "v=" — if playlist won that
+  // race, pasting a specific video would silently play YouTube's related mix instead.
   const watchMatch = value.match(WATCH_RE);
   if (watchMatch) return { type: "video", id: watchMatch[1] };
+
+  const playlistMatch = value.match(PLAYLIST_RE);
+  if (playlistMatch) return { type: "playlist", id: playlistMatch[1] };
 
   // bare 11-char video id
   if (/^[a-zA-Z0-9_-]{11}$/.test(value)) return { type: "video", id: value };
