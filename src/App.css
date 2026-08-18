@@ -834,6 +834,19 @@
   gap: 8px;
 }
 
+/* the "back" button here is a plain .chip, which normally takes its colour from the
+   active stage theme (--stage-ink/--stage-line) -- fine on the stage itself, but this
+   panel always sits on the fixed light page chrome, so on lighter stage themes it can
+   wash out. Pin it to the panel's own page-ink/page-border instead. */
+.lobby-panel__row .chip {
+  border-color: var(--page-border);
+  color: var(--page-ink);
+}
+
+.lobby-panel__row .chip:hover {
+  border-color: var(--page-ink);
+}
+
 .lobby-panel__cta {
   flex: 1;
   background: var(--page-ink);
