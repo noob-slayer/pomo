@@ -19,6 +19,7 @@ export function DailySummary({ mode }: DailySummaryProps) {
 
   return (
     <div className="daily-summary">
+      <p className="daily-summary__title">you</p>
       <p className="daily-summary__line">today · {formatDuration(summary.todayMinutes)} focused</p>
       {summary.todayPomos > 0 && (
         <p className="daily-summary__line">

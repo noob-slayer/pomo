@@ -15,6 +15,8 @@ interface LobbyStatsViewProps {
   lobby: CurrentLobby;
 }
 
+const POLL_MS = 8000;
+
 export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
   const { user } = useAuth();
   const [stats, setStats] = useState<LobbyAllTimeStat[]>([]);
@@ -22,9 +24,12 @@ export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
   const [loaded, setLoaded] = useState(false);
   const identityKey = resolveIdentityKey(user?.id ?? null);
 
+  // this view had no refresh at all before -- once loaded on mount, another member's
+  // sessions never showed up unless you switched tabs away and back, which could easily
+  // read as being "stuck" for minutes. Polling here matches LobbySummary's approach.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const load = async () => {
       const members = await fetchLobbyMembers(lobby.id);
       const [allTime, recent] = await Promise.all([
         fetchAllTimeLobbyStats(lobby.id, members),
@@ -34,9 +39,12 @@ export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
       setStats(allTime);
       setActivity(recent);
       setLoaded(true);
-    })();
+    };
+    void load();
+    const id = setInterval(load, POLL_MS);
     return () => {
       cancelled = true;
+      clearInterval(id);
     };
   }, [lobby.id]);
 

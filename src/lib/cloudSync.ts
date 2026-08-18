@@ -125,9 +125,10 @@ export async function upsertSettings(userId: string, settings: Record<string, un
   // personalBg stays per-device (large data-uri, not worth syncing). currentLobby stays
   // per-device too, deliberately: it's "which lobby am I actively in right now", and
   // syncing it meant logging back in silently re-entered whatever lobby was active last
-  // time, with no fresh start. lastLobby (just a pointer for the "rejoin" option) is
-  // still synced, so that stays available across logins/devices even though currentLobby
-  // doesn't auto-restore.
+  // time, with no fresh start. Which lobbies you've ever been part of is now derived
+  // live from the database (see fetchMyLobbies) rather than a synced pointer, so a fresh
+  // login still shows full lobby history in tasks > team even though currentLobby itself
+  // never auto-restores.
   const { personalBg: _personalBg, currentLobby: _currentLobby, ...syncable } = settings;
   const { error } = await supabase
     .from("user_settings")

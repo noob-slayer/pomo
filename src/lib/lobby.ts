@@ -117,6 +117,25 @@ export async function fetchLobby(id: string): Promise<Lobby | null> {
   return rowToLobby(data as LobbyRow);
 }
 
+// every lobby this identity has ever been part of -- current membership (lobby_members)
+// plus anywhere it's logged a session (lobby_sessions), since leaving a lobby deletes the
+// membership row but the session history stays. This is what makes "team" a real history
+// across every lobby ever joined, not just whichever one happens to be active right now.
+export async function fetchMyLobbies(identityKey: string): Promise<Lobby[]> {
+  if (!supabase) return [];
+  const [{ data: memberRows }, { data: sessionRows }] = await Promise.all([
+    supabase.from("lobby_members").select("lobby_id").eq("identity_key", identityKey),
+    supabase.from("lobby_sessions").select("lobby_id").eq("identity_key", identityKey),
+  ]);
+  const ids = new Set<string>();
+  for (const r of memberRows ?? []) ids.add(r.lobby_id as string);
+  for (const r of sessionRows ?? []) ids.add(r.lobby_id as string);
+  if (ids.size === 0) return [];
+  const { data, error } = await supabase.from("lobbies").select("*").in("id", [...ids]);
+  if (error || !data) return [];
+  return (data as LobbyRow[]).map(rowToLobby).sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function joinLobby(lobbyId: string, identityKey: string, personaName: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("lobby_members").upsert(

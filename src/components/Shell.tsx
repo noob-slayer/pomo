@@ -31,7 +31,6 @@ export function Shell() {
     personalBg,
     personaName,
     currentLobby,
-    lastLobby,
     setCurrentLobby,
     setMode,
     setWorkTheme,
@@ -410,8 +409,6 @@ export function Shell() {
           panelRef={taskPanelRef}
           tab={panelTab}
           onTabChange={setPanelTab}
-          currentLobby={currentLobby}
-          lastLobby={lastLobby}
         />
       </div>
       <YoutubeWidget />

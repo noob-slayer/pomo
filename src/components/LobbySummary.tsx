@@ -11,7 +11,7 @@ interface LobbySummaryProps {
   refreshToken: number;
 }
 
-const POLL_MS = 20000;
+const POLL_MS = 8000;
 
 export function LobbySummary({ lobby, refreshToken }: LobbySummaryProps) {
   const { user } = useAuth();
@@ -37,7 +37,7 @@ export function LobbySummary({ lobby, refreshToken }: LobbySummaryProps) {
 
   return (
     <div className="lobby-summary">
-      <p className="lobby-summary__title">{lobby.name}</p>
+      <p className="lobby-summary__title">{lobby.name} lobby</p>
       <ul className="lobby-summary__list">
         {stats.map((s) => (
           <li key={s.identityKey} className="lobby-summary__member">
