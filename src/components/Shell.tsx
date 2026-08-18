@@ -9,7 +9,8 @@ import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
 import { resolveStation } from "../lib/stations";
-import { playChime, unlockAudio } from "../lib/sound";
+import { playChime, stopChime, unlockAudio } from "../lib/sound";
+import { useLocalStorage } from "../lib/storage";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
@@ -34,7 +35,7 @@ export function Shell() {
   const [tasksOpen, setTasksOpen] = useState(true);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
-  const [roomCode, setRoomCode] = useState<string | null>(null);
+  const [roomCode, setRoomCode] = useLocalStorage<string | null>("pomo:roomCode", null);
   const [hostReady, setHostReady] = useState(false);
   const hostChannelRef = useRef<RealtimeChannel | null>(null);
   const taskAutoHideRef = useRef<number | null>(null);
@@ -57,7 +58,10 @@ export function Shell() {
   // pomo", etc.) while the prompt is still up, dismiss it rather than leaving it stacked
   // on top of an already-running timer
   useEffect(() => {
-    if (timer.status !== "idle" && sessionPrompt) setSessionPrompt(null);
+    if (timer.status !== "idle" && sessionPrompt) {
+      stopChime();
+      setSessionPrompt(null);
+    }
   }, [timer.status, sessionPrompt]);
 
   // unlock the completion-chime AudioContext on the very first real interaction with the
@@ -103,7 +107,23 @@ export function Shell() {
     setRoomCode(null);
   };
 
-  useEffect(() => () => void hostChannelRef.current?.unsubscribe(), []);
+  // the room code persists in localStorage so a refresh doesn't invalidate a link
+  // already shared with someone else -- reconnect the broadcast channel for it here,
+  // since the channel subscription itself (unlike the code) can't survive a reload.
+  // nulling the ref on cleanup matters even though this only runs once in production:
+  // React StrictMode mounts every effect twice in dev (mount -> cleanup -> mount), and
+  // without clearing the ref the second mount would see a stale unsubscribed channel
+  // and skip reconnecting entirely.
+  useEffect(() => {
+    if (roomCode && !hostChannelRef.current) {
+      hostChannelRef.current = hostRoom(roomCode, setHostReady);
+    }
+    return () => {
+      hostChannelRef.current?.unsubscribe();
+      hostChannelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // task panel auto-hides 5s after opening; resets on any interaction inside it
   const resetTaskAutoHide = () => {
@@ -229,13 +249,23 @@ export function Shell() {
             <SessionPrompt
               stage={sessionPrompt}
               phase={timer.phase}
-              onContinue={() => setSessionPrompt(null)}
-              onChooseBreak={() => setSessionPrompt("break-picker")}
+              onContinue={() => {
+                stopChime();
+                setSessionPrompt(null);
+              }}
+              onChooseBreak={() => {
+                stopChime();
+                setSessionPrompt("break-picker");
+              }}
               onStartBreak={(minutes) => {
+                stopChime();
                 timer.startBreak(minutes);
                 setSessionPrompt(null);
               }}
-              onDismiss={() => setSessionPrompt(null)}
+              onDismiss={() => {
+                stopChime();
+                setSessionPrompt(null);
+              }}
             />
           )}
         </main>
