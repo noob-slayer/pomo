@@ -9,11 +9,13 @@ import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
 import { resolveStation } from "../lib/stations";
+import { playChime } from "../lib/sound";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel } from "./TaskPanel";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
+import { SessionPrompt } from "./SessionPrompt";
 
 export function Shell() {
   const {
@@ -30,6 +32,7 @@ export function Shell() {
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
+  const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [hostReady, setHostReady] = useState(false);
   const hostChannelRef = useRef<RealtimeChannel | null>(null);
@@ -39,11 +42,22 @@ export function Shell() {
   const timer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now() });
+      playChime();
+      setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
       logCompletion({ taskId: null, taskTitle: null, mode, phase: "break", minutes, completedAt: Date.now() });
+      playChime();
+      setSessionPrompt("choice");
     },
   });
+
+  // if a new session starts by any other means (keyboard shortcut, task-panel "start
+  // pomo", etc.) while the prompt is still up, dismiss it rather than leaving it stacked
+  // on top of an already-running timer
+  useEffect(() => {
+    if (timer.status !== "idle" && sessionPrompt) setSessionPrompt(null);
+  }, [timer.status, sessionPrompt]);
 
   useKeyboardShortcuts({
     onToggle: () => timer.togglePrimary(selectedFocusMinutes),
@@ -198,6 +212,19 @@ export function Shell() {
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
           />
+          {sessionPrompt && (
+            <SessionPrompt
+              stage={sessionPrompt}
+              phase={timer.phase}
+              onContinue={() => setSessionPrompt(null)}
+              onChooseBreak={() => setSessionPrompt("break-picker")}
+              onStartBreak={(minutes) => {
+                timer.startBreak(minutes);
+                setSessionPrompt(null);
+              }}
+              onDismiss={() => setSessionPrompt(null)}
+            />
+          )}
         </main>
         <TaskPanel
           open={tasksOpen}

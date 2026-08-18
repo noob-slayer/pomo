@@ -449,6 +449,43 @@
   text-transform: none;
 }
 
+/* ---------- session prompt ---------- */
+
+.session-prompt {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 24px;
+}
+
+.session-prompt__card {
+  background: var(--stage-bg);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  padding: 30px 34px;
+  min-width: 280px;
+  max-width: 90vw;
+  text-align: center;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55);
+}
+
+.session-prompt__title {
+  color: var(--stage-ink);
+  font-size: 1.05rem;
+  margin: 0 0 20px;
+}
+
+.session-prompt__actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* ---------- task panel ---------- */
 
 .task-panel {

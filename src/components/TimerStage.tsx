@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
-import { BREAK_PRESETS, FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
+import { FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
 
 interface TimerStageProps {
   timer: TimerApi;
@@ -110,22 +110,6 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }
               >
                 set custom
               </button>
-            </div>
-          </div>
-
-          <div className="preset-group">
-            <span className="preset-group__label">break</span>
-            <div className="preset-row">
-              {BREAK_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  className="chip"
-                  onClick={() => timer.startBreak(preset.minutes)}
-                >
-                  {preset.label}
-                </button>
-              ))}
             </div>
           </div>
         </div>
