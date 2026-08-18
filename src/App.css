@@ -511,6 +511,8 @@
   height: 100%;
   object-fit: contain;
   object-position: center;
+  /* 40% of the reveal theme's own 22px max blur range */
+  filter: blur(8.8px);
 }
 
 .stage-f1track-svg {
@@ -538,8 +540,8 @@
   left: 0;
   padding: 3px 8px;
   border-radius: 6px;
-  background: #0a0a0a;
-  color: #fff;
+  background: #fff;
+  color: #0a0a0a;
   font-weight: 700;
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;

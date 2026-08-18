@@ -11,42 +11,163 @@ const IMG_W = 1920;
 const IMG_H = 1080;
 const LAP_MS = 14000;
 
-// hand-traced anchor points following the circuit's marked corners (01-10), plus a few
-// extra points on the longer straights so the spline through them doesn't cut corners
-const POINTS: [number, number][] = [
-  [1051, 928], // 01 start/finish
-  [508, 538], // 02
-  [232, 392], // 03
-  [620, 200], // pit straight midpoint
-  [1057, 100], // 04
-  [955, 260], // 05
-  [645, 435], // 06
-  [893, 657], // 07
-  [963, 442], // 08
-  [1230, 250], // transition to 09
-  [1500, 190], // 09
-  [1681, 385], // 10
-  [1360, 715], // front straight midpoint, near the finish line marker
+// traced from the actual circuit diagram: the image marks each sector (01-10) in its own
+// colour, so the real racing line was extracted directly by thresholding those sector
+// colours, skeletonizing each coloured stretch to its 1px centerline, and walking the
+// pixels into an ordered chain -- stitched across the small gaps where turn-number labels
+// and sector text interrupt the colour. Far more accurate than eyeballing corner
+// coordinates by hand.
+const TRACK_POINTS: [number, number][] = [
+  [1119, 836],
+  [1099, 855],
+  [1076, 873],
+  [1053, 887],
+  [1030, 873],
+  [1007, 855],
+  [984, 841],
+  [961, 827],
+  [938, 814],
+  [915, 800],
+  [892, 786],
+  [869, 772],
+  [737, 681],
+  [714, 662],
+  [691, 642],
+  [668, 621],
+  [645, 599],
+  [622, 577],
+  [599, 556],
+  [576, 537],
+  [553, 519],
+  [530, 503],
+  [507, 490],
+  [484, 478],
+  [461, 467],
+  [438, 457],
+  [412, 446],
+  [389, 437],
+  [366, 428],
+  [343, 419],
+  [293, 399],
+  [270, 385],
+  [284, 364],
+  [307, 350],
+  [330, 337],
+  [353, 325],
+  [376, 314],
+  [399, 304],
+  [422, 294],
+  [445, 286],
+  [468, 278],
+  [491, 271],
+  [514, 265],
+  [537, 260],
+  [560, 255],
+  [583, 250],
+  [606, 245],
+  [629, 241],
+  [652, 235],
+  [675, 230],
+  [698, 225],
+  [721, 220],
+  [744, 215],
+  [767, 210],
+  [790, 204],
+  [813, 197],
+  [836, 189],
+  [859, 180],
+  [882, 172],
+  [905, 163],
+  [955, 145],
+  [978, 136],
+  [1001, 128],
+  [1024, 125],
+  [1042, 144],
+  [1043, 167],
+  [1038, 190],
+  [1031, 213],
+  [1021, 236],
+  [1007, 259],
+  [989, 282],
+  [966, 303],
+  [943, 319],
+  [920, 329],
+  [897, 337],
+  [745, 374],
+  [722, 384],
+  [700, 404],
+  [687, 427],
+  [683, 450],
+  [685, 473],
+  [695, 496],
+  [717, 517],
+  [740, 535],
+  [763, 553],
+  [786, 570],
+  [809, 587],
+  [833, 608],
+  [856, 616],
+  [879, 619],
+  [902, 614],
+  [925, 601],
+  [944, 578],
+  [952, 555],
+  [958, 532],
+  [966, 509],
+  [979, 486],
+  [997, 463],
+  [1019, 442],
+  [1042, 426],
+  [1065, 415],
+  [1088, 405],
+  [1111, 394],
+  [1134, 384],
+  [1157, 374],
+  [1180, 363],
+  [1203, 353],
+  [1347, 288],
+  [1370, 277],
+  [1393, 267],
+  [1416, 256],
+  [1439, 246],
+  [1462, 236],
+  [1485, 233],
+  [1508, 237],
+  [1554, 278],
+  [1574, 301],
+  [1593, 324],
+  [1612, 347],
+  [1630, 370],
+  [1637, 393],
+  [1625, 416],
+  [1609, 439],
+  [1589, 462],
+  [1567, 485],
+  [1544, 504],
+  [1521, 522],
+  [1498, 540],
+  [1475, 558],
+  [1452, 576],
+  [1429, 595],
+  [1406, 613],
+  [1383, 631],
+  [1360, 649],
+  [1337, 667],
+  [1312, 687],
+  [1289, 705],
+  [1266, 723],
+  [1243, 741],
+  [1220, 759],
+  [1197, 778],
+  [1174, 796],
+  [1151, 814],
+  [1146, 817],
 ];
 
-// closed Catmull-Rom spline through POINTS, converted to cubic beziers -- a smooth loop
-// through the hand-picked anchors rather than a sharp-cornered polyline
 function buildTrackPath(points: [number, number][]): string {
-  const n = points.length;
-  const at = (i: number) => points[((i % n) + n) % n];
-  let d = `M ${points[0][0]} ${points[0][1]} `;
-  for (let i = 0; i < n; i++) {
-    const [x0, y0] = at(i - 1);
-    const [x1, y1] = at(i);
-    const [x2, y2] = at(i + 1);
-    const [x3, y3] = at(i + 2);
-    const c1x = x1 + (x2 - x0) / 6;
-    const c1y = y1 + (y2 - y0) / 6;
-    const c2x = x2 - (x3 - x1) / 6;
-    const c2y = y2 - (y3 - y1) / 6;
-    d += `C ${c1x} ${c1y}, ${c2x} ${c2y}, ${x2} ${y2} `;
-  }
-  return d;
+  const [first, ...rest] = points;
+  const d = [`M ${first[0]} ${first[1]}`, ...rest.map(([x, y]) => `L ${x} ${y}`), "Z"];
+  return d.join(" ");
 }
 
 export function F1Race({ timer }: F1RaceProps) {
@@ -56,7 +177,7 @@ export function F1Race({ timer }: F1RaceProps) {
   const badgeRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
-  const pathD = useMemo(() => buildTrackPath(POINTS), []);
+  const pathD = useMemo(() => buildTrackPath(TRACK_POINTS), []);
 
   // read inside the animation loop via a ref, not a dependency -- the loop's own startAt
   // must stay fixed across the whole lap, so it can't re-run every time remainingSeconds
@@ -85,6 +206,7 @@ export function F1Race({ timer }: F1RaceProps) {
     const path = pathRef.current;
     if (!path || box.w <= 0 || box.h <= 0) return;
     const total = path.getTotalLength();
+    if (total <= 0) return;
     const startAt = Date.now();
 
     // the background image is rendered with object-fit: contain -- map the path's
@@ -138,6 +260,10 @@ export function F1Race({ timer }: F1RaceProps) {
       <div className="stage-f1track-car" ref={carRef} aria-hidden="true">
         🏎️
       </div>
+      {/* no JSX children here -- textContent is set imperatively in the rAF loop below.
+          Rendering a reactive child on the same node React also owns causes React's
+          reconciler and the imperative mutation to fight over the same text node,
+          corrupting it (garbled/truncated text) the next time React re-renders it. */}
       <div className="stage-f1track-badge" ref={badgeRef} />
     </div>
   );
