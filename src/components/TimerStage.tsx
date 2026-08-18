@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
 import { BREAK_PRESETS, FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
-import { NixieClock } from "./NixieClock";
+import { NixiePhotoClock } from "./NixiePhotoClock";
 
 interface TimerStageProps {
   timer: TimerApi;
@@ -57,7 +57,7 @@ export function TimerStage({
     <div className="stage-inner">
       <p className="stage-label">{label}</p>
       {clockVariant === "nixie" ? (
-        <NixieClock value={formatClock(displaySeconds)} />
+        <NixiePhotoClock value={formatClock(displaySeconds)} />
       ) : (
         <p className="clock tabular">{formatClock(displaySeconds)}</p>
       )}
