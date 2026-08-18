@@ -42,7 +42,10 @@ export function Shell() {
   } = useSettings();
   const { identityUserId } = useAuth();
   const { logCompletion } = useTasks();
-  const [tasksOpen, setTasksOpen] = useState(true);
+  // starts closed on phone-sized viewports -- the task panel takes over the whole
+  // screen there (the layout grid collapses to one column below 860px, matching
+  // App.css's own breakpoint), pushing the timer out of view on first load otherwise
+  const [tasksOpen, setTasksOpen] = useState(() => typeof window === "undefined" || window.innerWidth > 860);
   const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
