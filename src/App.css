@@ -181,6 +181,45 @@
   background: var(--page-bg);
 }
 
+.account-menu__rename-input {
+  width: 100%;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 0.86rem;
+  margin-bottom: 8px;
+  background: var(--page-bg);
+  color: var(--page-ink);
+}
+
+.account-menu__rename-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.account-menu__rename-actions .chip {
+  flex: 1;
+  border-color: var(--page-border);
+  color: var(--page-ink);
+  text-align: center;
+  font-size: 0.74rem;
+  padding: 6px 4px;
+}
+
+.account-menu__rename-save {
+  flex: 1;
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border: 1px solid var(--page-ink);
+  border-radius: var(--radius-sm);
+  padding: 6px 4px;
+  font-size: 0.74rem;
+}
+
+.account-menu__rename-save:disabled {
+  opacity: 0.45;
+}
+
 /* ---------- onboarding ---------- */
 
 .onboarding {

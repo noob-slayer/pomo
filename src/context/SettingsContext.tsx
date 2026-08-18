@@ -60,6 +60,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   // on sign-in: pull synced settings (everything but personalBg, which stays per-device),
   // or push local settings up as the starting point if this account has none saved yet.
+  // A signed-in user should never end up blocked on the guest "pick a name" onboarding
+  // gate (e.g. right after a sign-out wiped the local personaName, or on a brand new
+  // account) -- if nothing supplied one, derive a sensible default from their Google
+  // profile here and persist it, rather than making Onboarding prompt for it.
   useEffect(() => {
     if (!user) return;
     if (syncedForUser.current === user.id) return;
@@ -70,11 +74,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       syncedForUser.current = user.id;
 
-      if (remote) {
-        setSettings({ ...settings, ...remote } as Settings);
-      } else {
-        void upsertSettings(user.id, settings as unknown as Record<string, unknown>);
-      }
+      // functional form deliberately: this async fetch can resolve well after other
+      // patch() calls have already landed (e.g. the user renaming themselves while this
+      // was in flight) -- merging onto a `prev` read at execution time, not the `settings`
+      // closed over when the effect started, avoids silently reverting that kind of edit.
+      setSettings((prev) => {
+        const merged: Settings = remote ? ({ ...DEFAULT_SETTINGS, ...prev, ...remote } as Settings) : { ...DEFAULT_SETTINGS, ...prev };
+        if (!merged.personaName) {
+          merged.personaName =
+            (user.user_metadata?.name as string | undefined) ?? user.email?.split("@")[0] ?? "member";
+        }
+        void upsertSettings(user.id, merged as unknown as Record<string, unknown>);
+        return merged;
+      });
     })();
 
     return () => {
