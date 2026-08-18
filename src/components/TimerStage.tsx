@@ -1,25 +1,18 @@
 import { useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
 import { BREAK_PRESETS, FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
-import { NixiePhotoClock } from "./NixiePhotoClock";
 
 interface TimerStageProps {
   timer: TimerApi;
   selectedFocusMinutes: number;
   onSelectFocusMinutes: (minutes: number) => void;
-  clockVariant?: "text" | "nixie";
 }
 
 function sanitizeDigits(value: string, maxLen: number): string {
   return value.replace(/\D/g, "").slice(0, maxLen);
 }
 
-export function TimerStage({
-  timer,
-  selectedFocusMinutes,
-  onSelectFocusMinutes,
-  clockVariant = "text",
-}: TimerStageProps) {
+export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }: TimerStageProps) {
   const [customHours, setCustomHours] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
   const idle = timer.status === "idle";
@@ -56,11 +49,7 @@ export function TimerStage({
   return (
     <div className="stage-inner">
       <p className="stage-label">{label}</p>
-      {clockVariant === "nixie" ? (
-        <NixiePhotoClock value={formatClock(displaySeconds)} />
-      ) : (
-        <p className="clock tabular">{formatClock(displaySeconds)}</p>
-      )}
+      <p className="clock tabular">{formatClock(displaySeconds)}</p>
 
       <div className="controls-row">
         <button type="button" className="btn btn--primary" onClick={handlePrimary}>

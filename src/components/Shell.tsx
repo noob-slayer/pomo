@@ -64,7 +64,7 @@ export function Shell() {
     return Math.max(0, 22 * (1 - progress));
   }, [mode, personalTheme, timer.phase, timer.targetSeconds, timer.remainingSeconds]);
 
-  const showPhotoLayer = mode === "personal" && personalTheme !== "nixie" && !!personalBg;
+  const showPhotoLayer = mode === "personal" && !!personalBg;
 
   return (
     <div className="shell">
@@ -74,12 +74,7 @@ export function Shell() {
         focusMinutes={selectedFocusMinutes}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
-        <main
-          className="stage"
-          style={themeVars}
-          data-mode={mode}
-          data-personal-theme={mode === "personal" ? personalTheme : undefined}
-        >
+        <main className="stage" style={themeVars} data-mode={mode}>
           {showPhotoLayer && (
             <div
               className="stage-photo"
@@ -93,7 +88,6 @@ export function Shell() {
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
-            clockVariant={mode === "personal" && personalTheme === "nixie" ? "nixie" : "text"}
           />
         </main>
         <TaskPanel open={tasksOpen} mode={mode} timer={timer} selectedFocusMinutes={selectedFocusMinutes} />

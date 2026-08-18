@@ -11,7 +11,7 @@ interface TopBarProps {
 }
 
 export function TopBar({ tasksOpen, onToggleTasks, focusMinutes }: TopBarProps) {
-  const { mode, setMode, personalTheme } = useSettings();
+  const { mode, setMode } = useSettings();
 
   return (
     <header className="topbar">
@@ -42,7 +42,7 @@ export function TopBar({ tasksOpen, onToggleTasks, focusMinutes }: TopBarProps) 
         ) : (
           <>
             <PersonalThemeTabs />
-            {personalTheme !== "nixie" && <BackgroundPicker />}
+            <BackgroundPicker />
           </>
         )}
         <ShareWidget focusMinutes={focusMinutes} />

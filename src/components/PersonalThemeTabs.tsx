@@ -4,7 +4,6 @@ import type { PersonalTheme } from "../types";
 const TABS: { value: PersonalTheme; label: string }[] = [
   { value: "photo", label: "photo" },
   { value: "reveal", label: "reveal" },
-  { value: "nixie", label: "nixie" },
 ];
 
 export function PersonalThemeTabs() {
