@@ -190,6 +190,9 @@
   border-color: var(--page-border);
   color: var(--page-ink);
   text-align: center;
+  font-size: 0.72rem;
+  padding: 6px 8px;
+  white-space: nowrap;
 }
 
 .share-panel__label--live {
