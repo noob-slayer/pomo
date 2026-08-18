@@ -87,8 +87,9 @@ export function YoutubeWidget() {
         aria-expanded={expanded}
         aria-label="focus audio"
       >
-        <svg className="yt-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 7.5v9l7.5-4.5-7.5-4.5Z" fill="currentColor" />
+        <svg className="yt-toggle__icon" viewBox="0 0 90 62" aria-hidden="true">
+          <rect x="1" y="1" width="88" height="60" rx="14" fill="#FF0000" />
+          <path d="M36 20 L62 31 L36 42 Z" fill="#fff" />
         </svg>
       </button>
 
