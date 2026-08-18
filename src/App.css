@@ -488,6 +488,8 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
+  /* 10% of the reveal theme's own 22px max blur range -- barely a haze */
+  filter: blur(2.2px);
 }
 
 .stage-succession-overlay {
