@@ -15,6 +15,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "suits", label: "Suits - Life is this" },
   { value: "succession", label: "Succession - theme" },
   { value: "f1", label: "f1 max v lewis title" },
+  { value: "f1track", label: "f1 - austria circuit" },
 ];
 
 export function PersonalThemeTabs() {

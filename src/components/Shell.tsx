@@ -19,6 +19,7 @@ import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
 import { DvdBounce } from "./DvdBounce";
+import { F1Race } from "./F1Race";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -365,6 +366,7 @@ export function Shell() {
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showSuitsLayer = mode === "personal" && personalTheme === "suits";
   const showF1Layer = mode === "personal" && personalTheme === "f1";
+  const showF1TrackLayer = mode === "personal" && personalTheme === "f1track";
   const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
@@ -445,6 +447,7 @@ export function Shell() {
               <div className="stage-f1-overlay" />
             </div>
           )}
+          {showF1TrackLayer && <F1Race timer={timer} />}
           {showSuccessionLayer && (
             <div className="stage-succession-wrap">
               <video
