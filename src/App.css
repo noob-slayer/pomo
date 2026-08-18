@@ -118,6 +118,7 @@
 .account-avatar {
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 50%;
   border: 1px solid var(--page-border);
   display: flex;
@@ -130,9 +131,12 @@
 }
 
 .account-avatar__img {
+  display: block;
   width: 100%;
   height: 100%;
+  border-radius: 50%;
   object-fit: cover;
+  object-position: center;
 }
 
 .account-menu {
@@ -175,6 +179,104 @@
 
 .account-menu__item:hover {
   background: var(--page-bg);
+}
+
+/* ---------- onboarding ---------- */
+
+.onboarding {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(23, 18, 15, 0.5);
+}
+
+.onboarding__card {
+  width: 100%;
+  max-width: 360px;
+  background: var(--page-surface);
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-md);
+  padding: 26px 24px;
+  box-shadow: 0 16px 48px rgba(23, 18, 15, 0.28);
+}
+
+.onboarding__title {
+  margin: 0 0 8px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--page-ink);
+}
+
+.onboarding__body {
+  margin: 0 0 20px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--page-muted);
+}
+
+.onboarding__choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding__choice {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.onboarding__choice:hover {
+  border-color: var(--page-ink);
+}
+
+.onboarding__choice-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--page-ink);
+}
+
+.onboarding__choice-sub {
+  font-size: 0.76rem;
+  color: var(--page-muted);
+}
+
+.onboarding__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.onboarding__input {
+  width: 100%;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  background: var(--page-bg);
+  color: var(--page-ink);
+}
+
+.onboarding__submit {
+  width: 100%;
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border: 1px solid var(--page-ink);
+  border-radius: var(--radius-sm);
+  padding: 10px 0;
+  font-size: 0.92rem;
+}
+
+.onboarding__submit:disabled {
+  opacity: 0.45;
 }
 
 .theme-tabs {

@@ -8,7 +8,7 @@ export interface Task {
   id: string;
   title: string;
   category: string;
-  estimatedPomos: number | null;
+  durationMinutes: number | null;
   mode: Mode;
   done: boolean;
   createdAt: number;

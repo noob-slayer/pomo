@@ -48,6 +48,10 @@ export function StatsView({ mode }: StatsViewProps) {
           <span className="stats-tile__label">avg session</span>
         </div>
         <div className="stats-tile">
+          <span className="stats-tile__value tabular">{formatDuration(stats.totalBreakMinutes)}</span>
+          <span className="stats-tile__label">total break</span>
+        </div>
+        <div className="stats-tile">
           <span className="stats-tile__value tabular">{formatDuration(stats.avgBreakMinutes)}</span>
           <span className="stats-tile__label">avg break</span>
         </div>

@@ -13,6 +13,7 @@ interface Settings {
   personalBg: string | null;
   activeStationId: string; // default station id, or "custom"
   customStation: ResolvedStation | null;
+  personaName: string; // set once during onboarding, used as the display name everywhere
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -23,6 +24,7 @@ const DEFAULT_SETTINGS: Settings = {
   personalBg: null,
   activeStationId: "lofi-2",
   customStation: null,
+  personaName: "",
 };
 
 interface SettingsContextValue extends Settings {
@@ -33,6 +35,7 @@ interface SettingsContextValue extends Settings {
   setPersonalBg: (dataUrl: string | null) => void;
   setActiveStationId: (id: string) => void;
   setCustomStation: (station: ResolvedStation | null) => void;
+  setPersonaName: (name: string) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -86,6 +89,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setActiveStationId: (activeStationId) => patch({ activeStationId, customStation: null }),
     setCustomStation: (customStation) =>
       patch({ customStation, activeStationId: customStation ? "custom" : settings.activeStationId }),
+    setPersonaName: (personaName) => patch({ personaName }),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

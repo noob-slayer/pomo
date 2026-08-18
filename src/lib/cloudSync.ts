@@ -5,6 +5,8 @@ interface TaskRow {
   id: string;
   title: string;
   category: string;
+  // DB column kept as estimated_pomos to avoid a migration; it now stores a plain
+  // duration in minutes rather than a pomo count -- see Task.durationMinutes
   estimated_pomos: number | null;
   mode: Mode;
   done: boolean;
@@ -16,7 +18,7 @@ function rowToTask(row: TaskRow): Task {
     id: row.id,
     title: row.title,
     category: row.category,
-    estimatedPomos: row.estimated_pomos,
+    durationMinutes: row.estimated_pomos,
     mode: row.mode,
     done: row.done,
     createdAt: new Date(row.created_at).getTime(),
@@ -37,7 +39,7 @@ export async function insertTask(userId: string, task: Task): Promise<void> {
     user_id: userId,
     title: task.title,
     category: task.category,
-    estimated_pomos: task.estimatedPomos,
+    estimated_pomos: task.durationMinutes,
     mode: task.mode,
     done: task.done,
     created_at: new Date(task.createdAt).toISOString(),

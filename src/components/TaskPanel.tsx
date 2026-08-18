@@ -45,7 +45,7 @@ export function TaskPanel({
     addTask({
       title: title.trim(),
       category,
-      estimatedPomos: estimate ? Number(estimate) : null,
+      durationMinutes: estimate ? Number(estimate) : null,
       mode,
     });
     setTitle("");
@@ -117,7 +117,7 @@ export function TaskPanel({
           <input
             type="number"
             min={1}
-            placeholder="est. pomos"
+            placeholder="duration (mins)"
             value={estimate}
             onChange={(e) => setEstimate(e.target.value)}
           />
@@ -153,7 +153,7 @@ export function TaskPanel({
                   <p className="task__title">{task.title}</p>
                   <p className="task__meta">
                     {task.category}
-                    {task.estimatedPomos ? ` · ${task.estimatedPomos} est.` : ""}
+                    {task.durationMinutes ? ` · ${task.durationMinutes}m` : ""}
                     {" · "}
                     {pomosForTask(task.id)} logged
                   </p>
@@ -164,7 +164,9 @@ export function TaskPanel({
                   type="button"
                   className="link-btn"
                   disabled={isActive}
-                  onClick={() => timer.startFocus(selectedFocusMinutes, task.id, task.title)}
+                  onClick={() =>
+                    timer.startFocus(task.durationMinutes ?? selectedFocusMinutes, task.id, task.title)
+                  }
                 >
                   {isActive ? "running" : "start pomo"}
                 </button>

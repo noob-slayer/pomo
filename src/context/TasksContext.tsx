@@ -7,7 +7,7 @@ import type { Mode, PomoRecord, Task } from "../types";
 interface NewTaskInput {
   title: string;
   category: string;
-  estimatedPomos: number | null;
+  durationMinutes: number | null;
   mode: Mode;
 }
 
@@ -63,7 +63,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       id: newId(),
       title: input.title,
       category: input.category,
-      estimatedPomos: input.estimatedPomos,
+      durationMinutes: input.durationMinutes,
       mode: input.mode,
       done: false,
       createdAt: Date.now(),

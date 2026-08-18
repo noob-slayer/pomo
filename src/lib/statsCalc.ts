@@ -12,6 +12,7 @@ export interface RecentSession {
 export interface SessionStats {
   totalSessions: number;
   avgSessionMinutes: number;
+  totalBreakMinutes: number;
   avgBreakMinutes: number;
   longestToday: number;
   longestThisWeek: number;
@@ -36,7 +37,8 @@ export function computeSessionStats(history: PomoRecord[], mode: Mode): SessionS
 
   const totalSessions = focus.length;
   const avgSessionMinutes = totalSessions ? focus.reduce((s, r) => s + r.minutes, 0) / totalSessions : 0;
-  const avgBreakMinutes = breaks.length ? breaks.reduce((s, r) => s + r.minutes, 0) / breaks.length : 0;
+  const totalBreakMinutes = breaks.reduce((s, r) => s + r.minutes, 0);
+  const avgBreakMinutes = breaks.length ? totalBreakMinutes / breaks.length : 0;
 
   const now = new Date();
   const todayKey = now.toDateString();
@@ -92,6 +94,7 @@ export function computeSessionStats(history: PomoRecord[], mode: Mode): SessionS
   return {
     totalSessions,
     avgSessionMinutes,
+    totalBreakMinutes,
     avgBreakMinutes,
     longestToday,
     longestThisWeek,

@@ -5,10 +5,10 @@
 // user gesture -- resume()ing a context from inside a later, non-gesture callback (like
 // our timer-completion effect, which fires from setInterval) silently produces no sound
 // even though every node schedules without error. A completion chime can never itself be
-// the triggering gesture, so we keep ONE shared context alive across the whole session,
-// unlocked once during the user's first real tap/click/keypress (see unlockAudio, wired
-// up from a document-level listener in Shell), and reuse that same instance every time a
-// session completes.
+// the triggering gesture, so we keep ONE shared context alive across the whole session
+// and re-nudge it on every gesture (see unlockAudio, wired up from Shell) rather than
+// just once: some browsers auto-suspend an AudioContext again after a period with no
+// actual output, and a single early unlock doesn't survive that.
 let sharedCtx: AudioContext | null = null;
 let activeOscillators: OscillatorNode[] = [];
 let stopTimer: ReturnType<typeof setTimeout> | null = null;
@@ -37,14 +37,29 @@ const REPEAT_EVERY = 1.25; // seconds between the start of each ascending run
 // audible span to ~10.6s
 const TOTAL_DURATION = 10.5; // seconds — "continuous" alert, not a single short beep
 
-// a continuous ~10s alert (the ascending three-note run repeated ~8x), loud enough to
+// a continuous ~10s alert (the ascending three-note run repeated ~9x), loud enough to
 // notice from another room. Call stopChime() to cut it short once the user has already
 // acted on the completion (e.g. dismissed the continue/break prompt).
 export function playChime(): void {
+  const ctx = resolveCtx();
+  if (!ctx) return;
+  // scheduling tones against ctx.currentTime while the context is still "suspended"
+  // schedules them against a clock that isn't actually advancing -- by the time resume()
+  // completes, those start times can already be in the past and get silently dropped.
+  // waiting for resume() to actually finish before reading currentTime and scheduling
+  // fixes that; on an already-running context this branch is skipped entirely.
+  if (ctx.state === "suspended") {
+    ctx
+      .resume()
+      .then(() => schedule(ctx))
+      .catch(() => schedule(ctx));
+  } else {
+    schedule(ctx);
+  }
+}
+
+function schedule(ctx: AudioContext): void {
   try {
-    const ctx = resolveCtx();
-    if (!ctx) return;
-    if (ctx.state === "suspended") void ctx.resume();
     stopChime();
     // notes overlap (ascending run, pass repeated) and each is driven fairly loud, so
     // route everything through a compressor to avoid clipping/distortion when several

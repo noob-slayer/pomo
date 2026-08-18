@@ -18,6 +18,7 @@ import { DailySummary } from "./DailySummary";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
+import { Onboarding } from "./Onboarding";
 
 export function Shell() {
   const {
@@ -53,6 +54,12 @@ export function Shell() {
       playChime();
       setSessionPrompt("choice");
     },
+    // a manual stop mid-session, or a session recovered on reload that hadn't actually
+    // finished yet -- log the partial time actually spent, but no chime/prompt, since the
+    // user (or the interruption) already ended this one, they didn't just complete it
+    onPartialStop: (phase, minutes, taskId, taskTitle) => {
+      logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now() });
+    },
   });
 
   // if a new session starts by any other means (keyboard shortcut, task-panel "start
@@ -65,11 +72,14 @@ export function Shell() {
     }
   }, [timer.status, sessionPrompt]);
 
-  // unlock the completion-chime AudioContext on the very first real interaction with the
-  // page -- see the comment in lib/sound.ts for why the chime itself can't do this later
+  // nudge the completion-chime AudioContext awake on every real interaction with the
+  // page, not just the first -- see the comment in lib/sound.ts: some browsers
+  // re-suspend an idle AudioContext later in the session, and unlockAudio() is a no-op
+  // once the context is already running, so leaving this attached for the whole session
+  // costs nothing while covering that case
   useEffect(() => {
-    document.addEventListener("pointerdown", unlockAudio, { once: true });
-    document.addEventListener("keydown", unlockAudio, { once: true });
+    document.addEventListener("pointerdown", unlockAudio);
+    document.addEventListener("keydown", unlockAudio);
     return () => {
       document.removeEventListener("pointerdown", unlockAudio);
       document.removeEventListener("keydown", unlockAudio);
@@ -163,7 +173,13 @@ export function Shell() {
       // right back up the instant onOpenStats had just opened it.
       const path = event.composedPath();
       if (taskPanelRef.current && path.includes(taskPanelRef.current)) return;
-      if (path.some((el) => el instanceof Element && (el.matches("[data-tasks-toggle]") || el.matches(".account-widget"))))
+      if (
+        path.some(
+          (el) =>
+            el instanceof Element &&
+            (el.matches("[data-tasks-toggle]") || el.matches(".account-widget") || el.matches(".onboarding")),
+        )
+      )
         return;
       setTasksOpen(false);
     };
@@ -297,6 +313,7 @@ export function Shell() {
       </div>
       <YoutubeWidget />
       <Credit />
+      <Onboarding />
     </div>
   );
 }

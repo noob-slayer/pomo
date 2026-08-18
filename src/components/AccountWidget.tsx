@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useSettings } from "../context/SettingsContext";
 import { useClickAway } from "../hooks/useClickAway";
 import { getGuestAvatarSeed, guestAvatarColor, guestAvatarEmoji } from "../lib/avatar";
 import { IconStats, IconLogin, IconLogout } from "./icons";
@@ -10,13 +11,16 @@ interface AccountWidgetProps {
 
 export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
   const { user, loading, configured, signInWithGoogle, signOut } = useAuth();
+  const { personaName } = useSettings();
   const [open, setOpen] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
   useClickAway(widgetRef, () => setOpen(false), open);
 
-  if (!configured || loading) return null;
+  // the avatar/stats shortcut is useful even without Supabase configured (guest-only
+  // mode) -- only the sign in/out option itself depends on `configured`
+  if (loading) return null;
 
-  const label = user ? ((user.user_metadata?.name as string | undefined) ?? user.email ?? "account") : "guest";
+  const label = personaName || (user ? ((user.user_metadata?.name as string | undefined) ?? user.email ?? "account") : "guest");
   const avatarUrl = user
     ? ((user.user_metadata?.avatar_url ?? user.user_metadata?.picture) as string | undefined)
     : undefined;
@@ -48,31 +52,32 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
             <IconStats />
             stats
           </button>
-          {user ? (
-            <button
-              type="button"
-              className="account-menu__item"
-              onClick={() => {
-                setOpen(false);
-                void signOut();
-              }}
-            >
-              <IconLogout />
-              sign out
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="account-menu__item"
-              onClick={() => {
-                setOpen(false);
-                void signInWithGoogle();
-              }}
-            >
-              <IconLogin />
-              sign in
-            </button>
-          )}
+          {configured &&
+            (user ? (
+              <button
+                type="button"
+                className="account-menu__item"
+                onClick={() => {
+                  setOpen(false);
+                  void signOut();
+                }}
+              >
+                <IconLogout />
+                sign out
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="account-menu__item"
+                onClick={() => {
+                  setOpen(false);
+                  void signInWithGoogle();
+                }}
+              >
+                <IconLogin />
+                sign in
+              </button>
+            ))}
         </div>
       )}
     </div>
