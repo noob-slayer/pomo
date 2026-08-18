@@ -11,7 +11,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "photo", label: "photo" },
   { value: "reveal", label: "reveal" },
   { value: "lofi", label: "lofi" },
-  { value: "dvd", label: "dvd logo" },
+  { value: "dvd", label: "the office - dvd logo" },
   { value: "ytbg", label: "youtube" },
   { value: "suits", label: "Suits - Life is this" },
 ];
