@@ -6,9 +6,9 @@ interface DvdBounceProps {
   timer: TimerApi;
 }
 
-const LOGO_W = 140;
-const LOGO_H = 64;
-const SPEED_PX_PER_SEC = 90;
+const LOGO_W = 128;
+const LOGO_H = 96;
+const SPEED_PX_PER_SEC = 103.5; // 90 * 1.15
 
 // the classic screensaver swaps colour on every wall touch -- cycling through the app's
 // own theme swatches (rather than arbitrary colours) keeps that "exact same colour theme"
@@ -117,7 +117,6 @@ export function DvdBounce({ timer }: DvdBounceProps) {
         const yBounces = Math.floor((traj.vy * elapsed) / hb);
         const c = PALETTE[(xBounces + yBounces) % PALETTE.length];
         logoRef.current.style.background = c.bg;
-        logoRef.current.style.color = c.ink;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -128,7 +127,8 @@ export function DvdBounce({ timer }: DvdBounceProps) {
   return (
     <div className="stage-dvd-wrap" ref={containerRef}>
       <div className="stage-dvd-logo" ref={logoRef} style={{ width: LOGO_W, height: LOGO_H }}>
-        pomo
+        <span className="stage-dvd-logo__dvd">DVD</span>
+        <span className="stage-dvd-logo__video">VIDEO</span>
       </div>
     </div>
   );
