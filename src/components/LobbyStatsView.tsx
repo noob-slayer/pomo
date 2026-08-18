@@ -56,6 +56,7 @@ export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
             <span className="lobby-stats-row__name">{s.personaName}</span>
             <span className="lobby-stats-row__meta">
               {s.sessions} sessions · {s.daysActive} day{s.daysActive === 1 ? "" : "s"} active
+              {s.currentTask ? ` · latest: ${s.currentTask}` : ""}
             </span>
             <span className="lobby-stats-row__value tabular">{formatDuration(s.focusMinutes)}</span>
           </li>
@@ -73,7 +74,7 @@ export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
                 {d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).toLowerCase()}
               </span>
               <span className="stats-log__what">
-                {a.personaName} · {a.phase === "break" ? "break" : "focus"}
+                {a.personaName} · {a.phase === "break" ? "break" : (a.taskTitle ?? "focus")}
               </span>
               <span className="stats-log__minutes tabular">{formatDuration(a.minutes)}</span>
             </li>

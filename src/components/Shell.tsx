@@ -53,23 +53,26 @@ export function Shell() {
 
   // best-effort: mirror a completion into the active lobby's stats too, if any. Never
   // blocks or affects the personal history write above -- a lobby-log failure shouldn't
-  // break the core timer/history flow.
-  const logToLobbyIfActive = (phase: "focus" | "break", minutes: number) => {
+  // break the core timer/history flow. taskTitle travels along so the team view can show
+  // what each member is actually working on, not just anonymous "focus" time -- most
+  // visible in sync-mode lobbies, where everyone's clock runs together but each member
+  // still picks their own task.
+  const logToLobbyIfActive = (phase: "focus" | "break", minutes: number, taskTitle: string | null) => {
     if (!currentLobby) return;
-    void logLobbySession(currentLobby.id, identityKey, displayName, phase, minutes);
+    void logLobbySession(currentLobby.id, identityKey, displayName, phase, minutes, taskTitle);
     setLobbyRefreshToken((v) => v + 1);
   };
 
   const rawTimer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now() });
-      logToLobbyIfActive("focus", minutes);
+      logToLobbyIfActive("focus", minutes, taskTitle);
       playChime();
       setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
       logCompletion({ taskId: null, taskTitle: null, mode, phase: "break", minutes, completedAt: Date.now() });
-      logToLobbyIfActive("break", minutes);
+      logToLobbyIfActive("break", minutes, null);
       playChime();
       setSessionPrompt("choice");
     },
@@ -78,7 +81,7 @@ export function Shell() {
     // user (or the interruption) already ended this one, they didn't just complete it
     onPartialStop: (phase, minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now() });
-      logToLobbyIfActive(phase, minutes);
+      logToLobbyIfActive(phase, minutes, taskTitle);
     },
   });
 

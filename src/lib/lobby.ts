@@ -24,6 +24,7 @@ export interface LobbyMemberStat {
   focusMinutes: number;
   breakMinutes: number;
   sessions: number;
+  currentTask: string | null; // most recent focus session's task name, if any
 }
 
 export interface LobbyAllTimeStat extends LobbyMemberStat {
@@ -36,6 +37,7 @@ export interface LobbyActivityEntry {
   personaName: string;
   phase: Phase;
   minutes: number;
+  taskTitle: string | null;
   completedAt: number;
 }
 
@@ -60,6 +62,7 @@ interface LobbySessionRow {
   persona_name: string;
   phase: Phase;
   minutes: number;
+  task_title: string | null;
   completed_at: string;
 }
 
@@ -160,11 +163,12 @@ export async function logLobbySession(
   personaName: string,
   phase: Phase,
   minutes: number,
+  taskTitle: string | null = null,
 ): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase
     .from("lobby_sessions")
-    .insert({ lobby_id: lobbyId, identity_key: identityKey, persona_name: personaName, phase, minutes });
+    .insert({ lobby_id: lobbyId, identity_key: identityKey, persona_name: personaName, phase, minutes, task_title: taskTitle });
   if (error) console.error("logLobbySession failed", error);
 }
 
@@ -176,14 +180,22 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
   startOfDay.setHours(0, 0, 0, 0);
   const { data, error } = await supabase
     .from("lobby_sessions")
-    .select("identity_key, persona_name, phase, minutes")
+    .select("identity_key, persona_name, phase, minutes, task_title, completed_at")
     .eq("lobby_id", lobbyId)
-    .gte("completed_at", startOfDay.toISOString());
+    .gte("completed_at", startOfDay.toISOString())
+    .order("completed_at"); // ascending, so the last row seen per member is their latest
   if (error) console.error("fetchTodayLobbyStats failed", error);
 
   const map = new Map<string, LobbyMemberStat>();
   for (const m of members) {
-    map.set(m.identityKey, { identityKey: m.identityKey, personaName: m.personaName, focusMinutes: 0, breakMinutes: 0, sessions: 0 });
+    map.set(m.identityKey, {
+      identityKey: m.identityKey,
+      personaName: m.personaName,
+      focusMinutes: 0,
+      breakMinutes: 0,
+      sessions: 0,
+      currentTask: null,
+    });
   }
   for (const r of (data ?? []) as LobbySessionRow[]) {
     const entry = map.get(r.identity_key) ?? {
@@ -192,10 +204,12 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
       focusMinutes: 0,
       breakMinutes: 0,
       sessions: 0,
+      currentTask: null,
     };
     if (r.phase === "focus") {
       entry.focusMinutes += r.minutes;
       entry.sessions += 1;
+      entry.currentTask = r.task_title;
     } else {
       entry.breakMinutes += r.minutes;
     }
@@ -211,8 +225,9 @@ export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMemb
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("lobby_sessions")
-    .select("identity_key, persona_name, phase, minutes, completed_at")
-    .eq("lobby_id", lobbyId);
+    .select("identity_key, persona_name, phase, minutes, task_title, completed_at")
+    .eq("lobby_id", lobbyId)
+    .order("completed_at"); // ascending, so the last row seen per member is their latest
   if (error) console.error("fetchAllTimeLobbyStats failed", error);
 
   const map = new Map<string, LobbyAllTimeStat & { days: Set<string> }>();
@@ -223,6 +238,7 @@ export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMemb
       focusMinutes: 0,
       breakMinutes: 0,
       sessions: 0,
+      currentTask: null,
       daysActive: 0,
       days: new Set(),
     });
@@ -234,12 +250,14 @@ export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMemb
       focusMinutes: 0,
       breakMinutes: 0,
       sessions: 0,
+      currentTask: null,
       daysActive: 0,
       days: new Set<string>(),
     };
     if (r.phase === "focus") {
       entry.focusMinutes += r.minutes;
       entry.sessions += 1;
+      entry.currentTask = r.task_title;
     } else {
       entry.breakMinutes += r.minutes;
     }
@@ -257,7 +275,7 @@ export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Pro
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("lobby_sessions")
-    .select("id, identity_key, persona_name, phase, minutes, completed_at")
+    .select("id, identity_key, persona_name, phase, minutes, task_title, completed_at")
     .eq("lobby_id", lobbyId)
     .order("completed_at", { ascending: false })
     .limit(limit);
@@ -268,6 +286,7 @@ export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Pro
     personaName: r.persona_name,
     phase: r.phase,
     minutes: r.minutes,
+    taskTitle: r.task_title,
     completedAt: new Date(r.completed_at).getTime(),
   }));
 }

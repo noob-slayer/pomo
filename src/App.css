@@ -452,7 +452,13 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+}
+
+.lobby-summary__member {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 .lobby-summary__row {
@@ -474,6 +480,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 120px;
+}
+
+.lobby-summary__task {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--stage-ink-muted);
+  opacity: 0.8;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .lobby-widget {

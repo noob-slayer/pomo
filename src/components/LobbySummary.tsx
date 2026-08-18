@@ -40,15 +40,15 @@ export function LobbySummary({ lobby, refreshToken }: LobbySummaryProps) {
       <p className="lobby-summary__title">{lobby.name}</p>
       <ul className="lobby-summary__list">
         {stats.map((s) => (
-          <li
-            key={s.identityKey}
-            className={s.identityKey === identityKey ? "lobby-summary__row lobby-summary__row--me" : "lobby-summary__row"}
-          >
-            <span className="lobby-summary__name">{s.personaName}</span>
-            <span className="lobby-summary__value tabular">
-              {formatDuration(s.focusMinutes)}
-              {s.breakMinutes > 0 ? ` · ${formatDuration(s.breakMinutes)} break` : ""}
-            </span>
+          <li key={s.identityKey} className="lobby-summary__member">
+            <div className={s.identityKey === identityKey ? "lobby-summary__row lobby-summary__row--me" : "lobby-summary__row"}>
+              <span className="lobby-summary__name">{s.personaName}</span>
+              <span className="lobby-summary__value tabular">
+                {formatDuration(s.focusMinutes)}
+                {s.breakMinutes > 0 ? ` · ${formatDuration(s.breakMinutes)} break` : ""}
+              </span>
+            </div>
+            {s.currentTask && <p className="lobby-summary__task">{s.currentTask}</p>}
           </li>
         ))}
       </ul>
