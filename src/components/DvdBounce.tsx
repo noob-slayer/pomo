@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
+import { WORK_THEMES, WORK_THEME_ORDER } from "../lib/themes";
 
 interface DvdBounceProps {
   timer: TimerApi;
@@ -8,6 +9,11 @@ interface DvdBounceProps {
 const LOGO_W = 140;
 const LOGO_H = 64;
 const SPEED_PX_PER_SEC = 90;
+
+// the classic screensaver swaps colour on every wall touch -- cycling through the app's
+// own theme swatches (rather than arbitrary colours) keeps that "exact same colour theme"
+// as everywhere else in the app
+const PALETTE = WORK_THEME_ORDER.map((key) => WORK_THEMES[key]);
 
 interface Trajectory {
   vx: number; // px/sec, always >= 0 -- direction comes from the fold, not the sign
@@ -104,6 +110,14 @@ export function DvdBounce({ timer }: DvdBounceProps) {
         const x = foldTriangle(traj.vx * elapsed, wb);
         const y = foldTriangle(traj.vy * elapsed, hb);
         logoRef.current.style.transform = `translate(${x}px, ${y}px)`;
+
+        // one colour step per wall touch (x-walls and y-walls both count, same as the
+        // original screensaver flipping colour on every edge hit)
+        const xBounces = Math.floor((traj.vx * elapsed) / wb);
+        const yBounces = Math.floor((traj.vy * elapsed) / hb);
+        const c = PALETTE[(xBounces + yBounces) % PALETTE.length];
+        logoRef.current.style.background = c.bg;
+        logoRef.current.style.color = c.ink;
       }
       raf = requestAnimationFrame(tick);
     };

@@ -473,8 +473,8 @@
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: var(--stage-ink);
-  color: var(--stage-bg);
+  background: #8a234e;
+  color: #f6efee;
   font-weight: 700;
   font-size: 1.15rem;
   letter-spacing: 0.02em;
