@@ -1,5 +1,7 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
 import { useLocalStorage } from "../lib/storage";
+import { fetchSettings, upsertSettings } from "../lib/cloudSync";
+import { useAuth } from "./AuthContext";
 import type { Mode, PersonalTheme, WorkTheme } from "../types";
 
 interface CustomStation {
@@ -38,9 +40,42 @@ interface SettingsContextValue extends Settings {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [settings, setSettings] = useLocalStorage<Settings>("pomo:settings", DEFAULT_SETTINGS);
+  const syncedForUser = useRef<string | null>(null);
 
-  const patch = (partial: Partial<Settings>) => setSettings((prev) => ({ ...prev, ...partial }));
+  // on sign-in: pull synced settings (everything but personalBg, which stays per-device),
+  // or push local settings up as the starting point if this account has none saved yet.
+  useEffect(() => {
+    if (!user) return;
+    if (syncedForUser.current === user.id) return;
+    let cancelled = false;
+
+    (async () => {
+      const remote = await fetchSettings(user.id);
+      if (cancelled) return;
+      syncedForUser.current = user.id;
+
+      if (remote) {
+        setSettings((prev) => ({ ...prev, ...remote }) as Settings);
+      } else {
+        void upsertSettings(user.id, settings as unknown as Record<string, unknown>);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
+  const patch = (partial: Partial<Settings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      if (user) void upsertSettings(user.id, next as unknown as Record<string, unknown>);
+      return next;
+    });
+  };
 
   const value: SettingsContextValue = {
     ...settings,

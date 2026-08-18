@@ -108,6 +108,21 @@
   border-color: var(--page-ink);
 }
 
+.account-widget {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.86rem;
+}
+
+.account-widget__name {
+  color: var(--page-muted);
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .theme-tabs {
   display: flex;
   gap: 4px;

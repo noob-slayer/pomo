@@ -3,6 +3,7 @@ import { ThemeSwatches } from "./ThemeSwatches";
 import { BackgroundPicker } from "./BackgroundPicker";
 import { PersonalThemeTabs } from "./PersonalThemeTabs";
 import { ShareWidget } from "./ShareWidget";
+import { AccountWidget } from "./AccountWidget";
 
 interface TopBarProps {
   tasksOpen: boolean;
@@ -46,6 +47,7 @@ export function TopBar({ tasksOpen, onToggleTasks, focusMinutes }: TopBarProps) 
           </>
         )}
         <ShareWidget focusMinutes={focusMinutes} />
+        <AccountWidget />
         <button
           type="button"
           className="tasks-toggle"
