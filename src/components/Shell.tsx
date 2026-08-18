@@ -366,7 +366,8 @@ export function Shell() {
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showSuitsLayer = mode === "personal" && personalTheme === "suits";
   const showF1Layer = mode === "personal" && personalTheme === "f1";
-  const showF1TrackLayer = mode === "personal" && personalTheme === "f1track";
+  // dev-only feature, still being tuned -- see the matching gate in PersonalThemeTabs
+  const showF1TrackLayer = import.meta.env.DEV && mode === "personal" && personalTheme === "f1track";
   const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow

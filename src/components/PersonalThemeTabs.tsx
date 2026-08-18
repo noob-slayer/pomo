@@ -15,7 +15,9 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "suits", label: "Suits - Life is this" },
   { value: "succession", label: "Succession - theme" },
   { value: "f1", label: "f1 max v lewis title" },
-  { value: "f1track", label: "f1 - austria circuit" },
+  // still being tuned -- import.meta.env.DEV keeps it available while working on it
+  // locally, without shipping it to the live site
+  ...(import.meta.env.DEV ? [{ value: "f1track" as const, label: "f1 - austria circuit" }] : []),
 ];
 
 export function PersonalThemeTabs() {
