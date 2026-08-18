@@ -54,7 +54,9 @@
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 18px;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  justify-content: flex-end;
 }
 
 .swatches {
@@ -375,6 +377,53 @@
   text-align: center;
   padding: 6px 4px;
   font-family: var(--font-mono);
+}
+
+/* phone-only (not iPad — that already reads well at the wider clamp size): the clock
+   was hitting its size floor while buttons/chips stayed full-size, so controls visually
+   outweighed the clock. Scale the clock up and the controls down to rebalance. */
+@media (max-width: 600px) {
+  .stage {
+    padding: 6vh 6vw;
+  }
+
+  .clock {
+    font-size: clamp(4.6rem, 24vw, 7.5rem);
+    margin-bottom: 22px;
+  }
+
+  .controls-row {
+    gap: 8px;
+    margin-bottom: 26px;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    font-size: 0.86rem;
+  }
+
+  .btn--primary {
+    min-width: 84px;
+  }
+
+  .preset-groups {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .chip {
+    padding: 5px 12px;
+    font-size: 0.78rem;
+  }
+
+  .custom-input {
+    padding: 5px 10px;
+    font-size: 0.78rem;
+  }
+
+  .custom-input--sm {
+    width: 38px;
+  }
 }
 
 .custom-duration .chip {

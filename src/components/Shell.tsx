@@ -4,7 +4,7 @@ import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
 import { useTimer } from "../hooks/useTimer";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
+import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
@@ -127,9 +127,9 @@ export function Shell() {
 
   const theme =
     mode === "work"
-      ? WORK_THEMES[workTheme]
+      ? resolveWorkTheme(workTheme)
       : personalTheme === "colour"
-        ? WORK_THEMES[personalColorTheme]
+        ? resolveWorkTheme(personalColorTheme)
         : PERSONAL_THEME;
 
   const themeVars = useMemo<CSSProperties>(

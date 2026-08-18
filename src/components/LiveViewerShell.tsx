@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { joinRoom, type LiveTick } from "../lib/liveSession";
-import { WORK_THEMES, PERSONAL_THEME } from "../lib/themes";
+import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { formatClock } from "../lib/durations";
 import { stationEmbedSrc } from "../lib/stations";
 import { Credit } from "./Credit";
@@ -21,7 +21,7 @@ export function LiveViewerShell({ roomCode }: LiveViewerShellProps) {
     };
   }, [roomCode]);
 
-  const theme = tick && tick.mode === "work" ? WORK_THEMES[tick.workTheme ?? "burgundy"] : PERSONAL_THEME;
+  const theme = tick && tick.mode === "work" ? resolveWorkTheme(tick.workTheme) : PERSONAL_THEME;
 
   const themeVars = useMemo<CSSProperties>(
     () =>

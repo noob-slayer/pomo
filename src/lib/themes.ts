@@ -18,6 +18,12 @@ export const WORK_THEMES: Record<WorkTheme, ThemeColors> = {
 
 export const WORK_THEME_ORDER: WorkTheme[] = ["burgundy", "forest", "vistara", "slate", "goldenpink"];
 
+// tolerant lookup: falls back to burgundy for any key that isn't a real WorkTheme
+// (e.g. undefined from a localStorage/remote-settings blob predating a newer field)
+export function resolveWorkTheme(key: string | undefined | null): ThemeColors {
+  return (key && WORK_THEMES[key as WorkTheme]) || WORK_THEMES.burgundy;
+}
+
 export const PERSONAL_THEME: ThemeColors = {
   label: "personal",
   bg: "#181211",

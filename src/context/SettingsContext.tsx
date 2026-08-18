@@ -39,7 +39,10 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [settings, setSettings] = useLocalStorage<Settings>("pomo:settings", DEFAULT_SETTINGS);
+  const [storedSettings, setSettings] = useLocalStorage<Settings>("pomo:settings", DEFAULT_SETTINGS);
+  // stored settings may predate fields added later (e.g. personalColorTheme) — merge over
+  // defaults so a field missing from an old localStorage blob never resolves to undefined
+  const settings: Settings = { ...DEFAULT_SETTINGS, ...storedSettings };
   const syncedForUser = useRef<string | null>(null);
 
   // on sign-in: pull synced settings (everything but personalBg, which stays per-device),
@@ -55,7 +58,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       syncedForUser.current = user.id;
 
       if (remote) {
-        setSettings((prev) => ({ ...prev, ...remote }) as Settings);
+        setSettings({ ...settings, ...remote } as Settings);
       } else {
         void upsertSettings(user.id, settings as unknown as Record<string, unknown>);
       }
@@ -68,11 +71,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   const patch = (partial: Partial<Settings>) => {
-    setSettings((prev) => {
-      const next = { ...prev, ...partial };
-      if (user) void upsertSettings(user.id, next as unknown as Record<string, unknown>);
-      return next;
-    });
+    const next = { ...settings, ...partial };
+    if (user) void upsertSettings(user.id, next as unknown as Record<string, unknown>);
+    setSettings(next);
   };
 
   const value: SettingsContextValue = {
