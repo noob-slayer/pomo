@@ -400,7 +400,8 @@ export function Shell() {
 
   return (
     <div className="shell" style={themeVars}>
-      {timer.status !== "running" && (
+      <div className={timer.status === "running" ? "topbar-zone topbar-zone--auto-hide" : "topbar-zone"}>
+        <div className="topbar-hover-trigger" />
         <TopBar
           tasksOpen={tasksOpen}
           onToggleTasks={() => setTasksOpen((v) => !v)}
@@ -415,7 +416,7 @@ export function Shell() {
             resetTaskAutoHide();
           }}
         />
-      )}
+      </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" data-mode={mode} data-personal-theme={mode === "personal" ? personalTheme : undefined}>
           {showPhotoLayer && (
