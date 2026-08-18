@@ -39,6 +39,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     if (!supabase) return;
     await supabase.auth.signOut();
+    // tasks/history/settings (including personaName, currentLobby, themes) are cached in
+    // localStorage regardless of sign-in state -- that's what lets a signed-in user's
+    // data render instantly without waiting on a fetch. But it means simply clearing the
+    // Supabase session leaves all of *this* account's data sitting there, fully visible,
+    // for whoever uses the browser next -- exactly what was reported ("still seeing sign
+    // in + task history with my persona name, but I am logged out"). Clear the local
+    // mirrors too, then reload: the various useLocalStorage-backed contexts only read
+    // localStorage once on mount, so clearing the keys alone wouldn't update the
+    // already-rendered UI without a fresh load.
+    try {
+      window.localStorage.removeItem("pomo:tasks");
+      window.localStorage.removeItem("pomo:history");
+      window.localStorage.removeItem("pomo:settings");
+      window.localStorage.removeItem("pomo:activeSession");
+    } catch {
+      // storage unavailable -- the reload below still forces a clean re-fetch of nothing,
+      // since there's no session left to sync from anyway
+    }
+    window.location.reload();
   };
 
   return (
