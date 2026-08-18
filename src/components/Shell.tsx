@@ -360,7 +360,7 @@ export function Shell() {
         }}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
-        <main className="stage" data-mode={mode}>
+        <main className="stage" data-mode={mode} data-personal-theme={mode === "personal" ? personalTheme : undefined}>
           {showPhotoLayer && (
             <div
               className="stage-photo"

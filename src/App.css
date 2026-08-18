@@ -446,9 +446,8 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
-  /* ~10-20% of the reveal theme's own 22px max blur range -- a light haze, not
-     obscuring the loop */
-  filter: blur(4px);
+  /* 5% of the reveal theme's own 22px max blur range -- barely a haze */
+  filter: blur(1.1px);
 }
 
 .stage-lofi-overlay {
@@ -462,6 +461,14 @@
   z-index: 1;
   max-width: 640px;
   width: 100%;
+}
+
+/* lofi's video keeps its "action" (the character, desk) off to one side rather than
+   centered like a photo background, so the timer content shifts left to sit clear of it
+   -- scoped to this theme only, layered on top of (not replacing) the existing dynamic
+   centering that already accounts for the task panel being open/closed */
+.stage[data-personal-theme="lofi"] .stage-inner {
+  transform: translateX(-30%);
 }
 
 .corner-summary {
