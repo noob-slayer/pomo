@@ -368,12 +368,27 @@ export function Shell() {
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
-  // menu counts), so re-attempt play() on mount in case that gesture already elapsed by
-  // the time this layer renders (e.g. the theme was already selected on page load)
+  // menu counts), so if the initial play() attempt gets blocked (e.g. the theme was
+  // already selected on page load, well past that gesture), fall back to starting it on
+  // the next real interaction anywhere on the page instead of leaving it silently stuck
   const successionVideoRef = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     if (!showSuccessionLayer) return;
-    successionVideoRef.current?.play().catch(() => {});
+    const el = successionVideoRef.current;
+    if (!el) return;
+
+    const retry = () => {
+      el.play().catch(() => {});
+    };
+    el.play().catch(() => {
+      document.addEventListener("pointerdown", retry, { once: true });
+      document.addEventListener("keydown", retry, { once: true });
+    });
+
+    return () => {
+      document.removeEventListener("pointerdown", retry);
+      document.removeEventListener("keydown", retry);
+    };
   }, [showSuccessionLayer]);
 
   return (
@@ -432,6 +447,7 @@ export function Shell() {
                 autoPlay
                 loop
                 playsInline
+                preload="auto"
               />
               <div className="stage-succession-overlay" />
             </div>
