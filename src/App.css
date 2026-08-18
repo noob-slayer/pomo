@@ -609,10 +609,33 @@
   font-size: 0.95rem;
 }
 
+.stage-yt-play {
+  position: absolute;
+  inset: 0;
+  /* above TimerStage's own content (unindexed, so it stacks on DOM order alone) so the
+     tap target isn't obscured by the timer controls layered on top of this background */
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage-yt-play svg {
+  width: 30px;
+  height: 30px;
+  padding: 22px;
+  border-radius: 50%;
+  background: #fff;
+  color: #0a0a0a;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
 .stage-yt-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
+  /* sits after the play button in DOM order but is purely decorative -- let taps through */
+  pointer-events: none;
 }
 
 .stage-dvd-wrap {

@@ -6,35 +6,34 @@ interface YtBackgroundProps {
 }
 
 export function YtBackground({ url }: YtBackgroundProps) {
-  // an iframe's autoplay-with-sound only reliably survives when the iframe itself is
-  // created as part of a real user gesture (e.g. the click that submits the link form).
-  // On a cold page load with a link already saved, that gesture is long gone, and there's
-  // no cross-origin .play() to retry the way DvdBounce/Succession's <video> elements do
-  // -- so instead, remount the iframe (bump the key) on the next real interaction
-  // anywhere on the page, giving it a fresh, gesture-tied load.
-  const [reloadKey, setReloadKey] = useState(0);
+  // iOS Safari (and, less predictably, other browsers) only allows an embedded iframe to
+  // autoplay with sound when it's created as the direct result of a tap on that same
+  // element -- a click anywhere else on the page, or a gesture that already happened
+  // several renders ago, doesn't reliably carry over. So rather than guessing, always
+  // require one explicit tap on the video area itself before mounting the iframe; that
+  // tap's synchronous state update is what gives the iframe its gesture credit.
+  const [started, setStarted] = useState(false);
   useEffect(() => {
-    const retry = () => setReloadKey((k) => k + 1);
-    document.addEventListener("pointerdown", retry, { once: true });
-    document.addEventListener("keydown", retry, { once: true });
-    return () => {
-      document.removeEventListener("pointerdown", retry);
-      document.removeEventListener("keydown", retry);
-    };
+    setStarted(false);
   }, [url]);
 
   const parsed = url ? parseYoutubeInput(url) : null;
 
   return (
     <div className="stage-yt-wrap">
-      {parsed ? (
+      {parsed && started ? (
         <iframe
-          key={reloadKey}
           className="stage-yt"
           src={youtubeBackgroundEmbedSrc(parsed)}
           title="background video"
           allow="autoplay; encrypted-media"
         />
+      ) : parsed ? (
+        <button type="button" className="stage-yt-play" onClick={() => setStarted(true)} aria-label="play background video">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 7.5v9l7.5-4.5-7.5-4.5Z" fill="currentColor" />
+          </svg>
+        </button>
       ) : (
         <p className="stage-yt-prompt">paste a youtube link above to set this as your background</p>
       )}
