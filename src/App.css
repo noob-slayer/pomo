@@ -47,7 +47,8 @@
   z-index: 100;
 }
 
-.topbar-zone--auto-hide:hover .topbar {
+.topbar-zone--auto-hide:hover .topbar,
+.topbar-zone--auto-hide.topbar-zone--revealed .topbar {
   transform: translateY(0);
 }
 

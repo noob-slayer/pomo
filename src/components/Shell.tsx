@@ -47,7 +47,9 @@ export function Shell() {
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
+  const [topbarRevealed, setTopbarRevealed] = useState(false);
   const taskAutoHideRef = useRef<number | null>(null);
+  const topbarAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
 
@@ -318,6 +320,35 @@ export function Shell() {
     return () => document.removeEventListener("click", handleClick);
   }, [tasksOpen]);
 
+  // the auto-hidden top bar reveals on hover for mouse/trackpad (pure CSS, see
+  // .topbar-zone--auto-hide:hover in App.css), but touch devices have no hover concept --
+  // a tap on iOS can trigger a *visual* :hover state without registering as a real click,
+  // leaving the bar unresponsive to a second tap. This mirrors the task panel's own
+  // reveal/auto-hide/click-away pattern above so touch taps work the same reliable way.
+  const revealTopbar = () => {
+    setTopbarRevealed(true);
+    if (topbarAutoHideRef.current) window.clearTimeout(topbarAutoHideRef.current);
+    topbarAutoHideRef.current = window.setTimeout(() => setTopbarRevealed(false), 6000);
+  };
+
+  useEffect(() => {
+    if (timer.status !== "running") {
+      setTopbarRevealed(false);
+      if (topbarAutoHideRef.current) window.clearTimeout(topbarAutoHideRef.current);
+    }
+  }, [timer.status]);
+
+  useEffect(() => {
+    if (!topbarRevealed) return;
+    const handleClick = (event: MouseEvent) => {
+      const path = event.composedPath();
+      if (path.some((el) => el instanceof Element && el.matches(".topbar-zone"))) return;
+      setTopbarRevealed(false);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [topbarRevealed]);
+
   const theme =
     mode === "work"
       ? resolveWorkTheme(workTheme)
@@ -400,7 +431,16 @@ export function Shell() {
 
   return (
     <div className="shell" style={themeVars}>
-      <div className={timer.status === "running" ? "topbar-zone topbar-zone--auto-hide" : "topbar-zone"}>
+      <div
+        className={
+          timer.status === "running"
+            ? topbarRevealed
+              ? "topbar-zone topbar-zone--auto-hide topbar-zone--revealed"
+              : "topbar-zone topbar-zone--auto-hide"
+            : "topbar-zone"
+        }
+        onPointerDown={timer.status === "running" ? revealTopbar : undefined}
+      >
         <div className="topbar-hover-trigger" />
         <TopBar
           tasksOpen={tasksOpen}
