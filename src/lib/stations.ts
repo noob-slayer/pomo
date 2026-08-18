@@ -4,7 +4,10 @@ import type { Station } from "../types";
 // users can override with their own youtube link at any time.
 export const DEFAULT_STATIONS: Station[] = [
   { id: "synthwave", label: "synthwave radio", videoId: "b9IctXpyPCE" },
-  { id: "lofi-2", label: "lofi beats to relax/study to", videoId: "5qap5aO4i9A" },
+  // the old id (5qap5aO4i9A) went dead -- Lofi Girl rotates the actual video id behind
+  // their perpetual livestream periodically, so this one (pulled from
+  // youtube.com/@LofiGirl/live) can go stale again the same way eventually
+  { id: "lofi-2", label: "lofi beats to relax/study to", videoId: "0muHFBSiybw" },
   { id: "cafe", label: "coffee shop ambience", videoId: "lzXucw7xcE8" },
   { id: "deep-focus", label: "chill hiphop, deep focus", videoId: "v8XAikhbTMs" },
 ];
