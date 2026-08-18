@@ -13,7 +13,7 @@ import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import { useLocalStorage } from "../lib/storage";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
-import { TaskPanel } from "./TaskPanel";
+import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
@@ -33,6 +33,7 @@ export function Shell() {
   } = useSettings();
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
+  const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [roomCode, setRoomCode] = useLocalStorage<string | null>("pomo:roomCode", null);
@@ -152,9 +153,18 @@ export function Shell() {
   useEffect(() => {
     if (!tasksOpen) return;
     const handleClick = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (taskPanelRef.current?.contains(target)) return;
-      if ((target as Element).closest?.("[data-tasks-toggle]")) return;
+      // composedPath() is captured at dispatch time, before any handler-triggered DOM
+      // mutation -- using it (rather than event.target + closest(), which walks the
+      // *live* DOM) matters here specifically because clicking the account menu's "stats"
+      // item also closes that menu (setOpen(false)) in the same click. React 18 flushes
+      // that removal before this document-level listener runs, so by then event.target
+      // is already detached and closest() can't find its former ".account-widget"
+      // ancestor -- silently breaking the exemption below and closing the task panel
+      // right back up the instant onOpenStats had just opened it.
+      const path = event.composedPath();
+      if (taskPanelRef.current && path.includes(taskPanelRef.current)) return;
+      if (path.some((el) => el instanceof Element && (el.matches("[data-tasks-toggle]") || el.matches(".account-widget"))))
+        return;
       setTasksOpen(false);
     };
     document.addEventListener("click", handleClick);
@@ -227,6 +237,11 @@ export function Shell() {
         roomCode={roomCode}
         onStartHosting={startHosting}
         onStopHosting={stopHosting}
+        onOpenStats={() => {
+          setPanelTab("stats");
+          setTasksOpen(true);
+          resetTaskAutoHide();
+        }}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" data-mode={mode}>
@@ -276,6 +291,8 @@ export function Shell() {
           selectedFocusMinutes={selectedFocusMinutes}
           onActivity={resetTaskAutoHide}
           panelRef={taskPanelRef}
+          tab={panelTab}
+          onTabChange={setPanelTab}
         />
       </div>
       <YoutubeWidget />

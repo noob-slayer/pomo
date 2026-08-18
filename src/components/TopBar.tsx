@@ -11,9 +11,17 @@ interface TopBarProps {
   roomCode: string | null;
   onStartHosting: () => string;
   onStopHosting: () => void;
+  onOpenStats: () => void;
 }
 
-export function TopBar({ tasksOpen, onToggleTasks, roomCode, onStartHosting, onStopHosting }: TopBarProps) {
+export function TopBar({
+  tasksOpen,
+  onToggleTasks,
+  roomCode,
+  onStartHosting,
+  onStopHosting,
+  onOpenStats,
+}: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
@@ -49,7 +57,7 @@ export function TopBar({ tasksOpen, onToggleTasks, roomCode, onStartHosting, onS
           </>
         )}
         <ShareWidget roomCode={roomCode} onStartHosting={onStartHosting} onStopHosting={onStopHosting} />
-        <AccountWidget />
+        <AccountWidget onOpenStats={onOpenStats} />
         <button
           type="button"
           className="tasks-toggle"

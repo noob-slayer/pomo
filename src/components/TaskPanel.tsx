@@ -3,7 +3,10 @@ import { useTasks } from "../context/TasksContext";
 import type { TimerApi } from "../hooks/useTimer";
 import type { Mode } from "../types";
 import { HistoryView } from "./HistoryView";
+import { StatsView } from "./StatsView";
 import { CATEGORY_OPTIONS } from "../lib/categories";
+
+export type PanelTab = "tasks" | "history" | "stats";
 
 interface TaskPanelProps {
   open: boolean;
@@ -12,11 +15,21 @@ interface TaskPanelProps {
   selectedFocusMinutes: number;
   onActivity: () => void;
   panelRef: RefObject<HTMLElement | null>;
+  tab: PanelTab;
+  onTabChange: (tab: PanelTab) => void;
 }
 
-export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity, panelRef }: TaskPanelProps) {
+export function TaskPanel({
+  open,
+  mode,
+  timer,
+  selectedFocusMinutes,
+  onActivity,
+  panelRef,
+  tab,
+  onTabChange,
+}: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
-  const [tab, setTab] = useState<"tasks" | "history">("tasks");
   const [title, setTitle] = useState("");
   const [categoryChoice, setCategoryChoice] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -54,7 +67,7 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
           role="tab"
           aria-selected={tab === "tasks"}
           className={tab === "tasks" ? "panel-tabs__item panel-tabs__item--active" : "panel-tabs__item"}
-          onClick={() => setTab("tasks")}
+          onClick={() => onTabChange("tasks")}
         >
           tasks
         </button>
@@ -63,14 +76,25 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity,
           role="tab"
           aria-selected={tab === "history"}
           className={tab === "history" ? "panel-tabs__item panel-tabs__item--active" : "panel-tabs__item"}
-          onClick={() => setTab("history")}
+          onClick={() => onTabChange("history")}
         >
           history
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === "stats"}
+          className={tab === "stats" ? "panel-tabs__item panel-tabs__item--active" : "panel-tabs__item"}
+          onClick={() => onTabChange("stats")}
+        >
+          stats
         </button>
       </div>
 
       {tab === "history" ? (
         <HistoryView mode={mode} />
+      ) : tab === "stats" ? (
+        <StatsView mode={mode} />
       ) : (
         <>
       <form className="task-form" onSubmit={handleAdd}>

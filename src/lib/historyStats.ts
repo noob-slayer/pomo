@@ -23,7 +23,7 @@ export interface HistorySummary {
   days: DayStat[];
 }
 
-export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mode): HistorySummary {
+export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mode, days = 7): HistorySummary {
   const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
   const breaks = history.filter((r) => r.mode === mode && r.phase === "break");
   const totalMinutes = focus.reduce((sum, r) => sum + r.minutes, 0);
@@ -53,13 +53,13 @@ export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mod
     .map(([category, v]) => ({ category, ...v }))
     .sort((a, b) => b.minutes - a.minutes);
 
-  const days: DayStat[] = [];
-  for (let i = 6; i >= 0; i--) {
+  const dayStats: DayStat[] = [];
+  for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const key = d.toDateString();
     const dayRecords = focus.filter((r) => new Date(r.completedAt).toDateString() === key);
-    days.push({
+    dayStats.push({
       key,
       label: d.toLocaleDateString(undefined, { weekday: "short" }).toLowerCase(),
       count: dayRecords.length,
@@ -74,6 +74,6 @@ export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mod
     todayMinutes: today.reduce((sum, r) => sum + r.minutes, 0),
     todayBreakMinutes: todayBreaks.reduce((sum, r) => sum + r.minutes, 0),
     byCategory,
-    days,
+    days: dayStats,
   };
 }
