@@ -338,6 +338,43 @@
   color: var(--page-bg);
 }
 
+.fun-menu {
+  position: relative;
+}
+
+.fun-menu__panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 6px;
+  min-width: 110px;
+  background: var(--page-surface);
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  box-shadow: 0 8px 24px rgba(33, 26, 23, 0.14);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fun-menu__item {
+  padding: 6px 10px;
+  border-radius: 3px;
+  font-size: 0.84rem;
+  color: var(--page-ink);
+  text-align: left;
+}
+
+.fun-menu__item:hover {
+  background: var(--page-bg);
+}
+
+.fun-menu__item--active {
+  font-weight: 600;
+}
+
 
 /* ---------- layout ---------- */
 

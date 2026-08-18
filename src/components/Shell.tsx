@@ -302,6 +302,7 @@ export function Shell() {
             (el.matches("[data-tasks-toggle]") ||
               el.matches(".account-widget") ||
               el.matches(".lobby-widget") ||
+              el.matches(".fun-menu") ||
               el.matches(".onboarding")),
         )
       )
