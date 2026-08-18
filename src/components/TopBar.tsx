@@ -2,26 +2,16 @@ import { useSettings } from "../context/SettingsContext";
 import { ThemeSwatches, PersonalColorSwatches } from "./ThemeSwatches";
 import { BackgroundPicker } from "./BackgroundPicker";
 import { PersonalThemeTabs } from "./PersonalThemeTabs";
-import { ShareWidget } from "./ShareWidget";
+import { LobbyWidget } from "./LobbyWidget";
 import { AccountWidget } from "./AccountWidget";
 
 interface TopBarProps {
   tasksOpen: boolean;
   onToggleTasks: () => void;
-  roomCode: string | null;
-  onStartHosting: () => string;
-  onStopHosting: () => void;
   onOpenStats: () => void;
 }
 
-export function TopBar({
-  tasksOpen,
-  onToggleTasks,
-  roomCode,
-  onStartHosting,
-  onStopHosting,
-  onOpenStats,
-}: TopBarProps) {
+export function TopBar({ tasksOpen, onToggleTasks, onOpenStats }: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
@@ -56,7 +46,7 @@ export function TopBar({
             {personalTheme === "colour" ? <PersonalColorSwatches /> : <BackgroundPicker />}
           </>
         )}
-        <ShareWidget roomCode={roomCode} onStartHosting={onStartHosting} onStopHosting={onStopHosting} />
+        <LobbyWidget />
         <AccountWidget onOpenStats={onOpenStats} />
         <button
           type="button"

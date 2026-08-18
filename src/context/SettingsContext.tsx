@@ -5,6 +5,12 @@ import { useAuth } from "./AuthContext";
 import type { ResolvedStation } from "../lib/stations";
 import type { Mode, PersonalTheme, WorkTheme } from "../types";
 
+export interface CurrentLobby {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface Settings {
   mode: Mode;
   workTheme: WorkTheme;
@@ -14,6 +20,7 @@ interface Settings {
   activeStationId: string; // default station id, or "custom"
   customStation: ResolvedStation | null;
   personaName: string; // set once during onboarding, used as the display name everywhere
+  currentLobby: CurrentLobby | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -25,6 +32,7 @@ const DEFAULT_SETTINGS: Settings = {
   activeStationId: "lofi-2",
   customStation: null,
   personaName: "",
+  currentLobby: null,
 };
 
 interface SettingsContextValue extends Settings {
@@ -36,6 +44,7 @@ interface SettingsContextValue extends Settings {
   setActiveStationId: (id: string) => void;
   setCustomStation: (station: ResolvedStation | null) => void;
   setPersonaName: (name: string) => void;
+  setCurrentLobby: (lobby: CurrentLobby | null) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -90,6 +99,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setCustomStation: (customStation) =>
       patch({ customStation, activeStationId: customStation ? "custom" : settings.activeStationId }),
     setPersonaName: (personaName) => patch({ personaName }),
+    setCurrentLobby: (currentLobby) => patch({ currentLobby }),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

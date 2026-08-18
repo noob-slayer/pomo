@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
 import { useTimer } from "../hooks/useTimer";
@@ -7,14 +7,14 @@ import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
-import { generateRoomCode, hostRoom, broadcastTick } from "../lib/liveSession";
-import { resolveStation } from "../lib/stations";
+import { resolveIdentityKey } from "../lib/identity";
+import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
-import { useLocalStorage } from "../lib/storage";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
+import { LobbySummary } from "./LobbySummary";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -27,30 +27,44 @@ export function Shell() {
     personalTheme,
     personalColorTheme,
     personalBg,
-    activeStationId,
-    customStation,
+    personaName,
+    currentLobby,
+    setCurrentLobby,
     setMode,
     setWorkTheme,
   } = useSettings();
+  const { user } = useAuth();
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
-  const [roomCode, setRoomCode] = useLocalStorage<string | null>("pomo:roomCode", null);
-  const [hostReady, setHostReady] = useState(false);
-  const hostChannelRef = useRef<RealtimeChannel | null>(null);
+  const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
   const taskAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
+
+  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const displayName = personaName || "guest";
+
+  // best-effort: mirror a completion into the active lobby's stats too, if any. Never
+  // blocks or affects the personal history write above -- a lobby-log failure shouldn't
+  // break the core timer/history flow.
+  const logToLobbyIfActive = (phase: "focus" | "break", minutes: number) => {
+    if (!currentLobby) return;
+    void logLobbySession(currentLobby.id, identityKey, displayName, phase, minutes);
+    setLobbyRefreshToken((v) => v + 1);
+  };
 
   const timer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now() });
+      logToLobbyIfActive("focus", minutes);
       playChime();
       setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
       logCompletion({ taskId: null, taskTitle: null, mode, phase: "break", minutes, completedAt: Date.now() });
+      logToLobbyIfActive("break", minutes);
       playChime();
       setSessionPrompt("choice");
     },
@@ -59,6 +73,7 @@ export function Shell() {
     // user (or the interruption) already ended this one, they didn't just complete it
     onPartialStop: (phase, minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now() });
+      logToLobbyIfActive(phase, minutes);
     },
   });
 
@@ -103,40 +118,22 @@ export function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startHosting = (): string => {
-    if (roomCode) return roomCode;
-    const code = generateRoomCode();
-    hostChannelRef.current = hostRoom(code, setHostReady);
-    setRoomCode(code);
-    return code;
-  };
-
-  const stopHosting = () => {
-    hostChannelRef.current?.unsubscribe();
-    hostChannelRef.current = null;
-    setHostReady(false);
-    setRoomCode(null);
-  };
-
-  // the room code persists in localStorage so a refresh doesn't invalidate a link
-  // already shared with someone else -- reconnect the broadcast channel for it here,
-  // since the channel subscription itself (unlike the code) can't survive a reload.
-  // nulling the ref on cleanup matters even though this only runs once in production:
-  // React StrictMode mounts every effect twice in dev (mount -> cleanup -> mount), and
-  // without clearing the ref the second mount would see a stale unsubscribed channel
-  // and skip reconnecting entirely.
+  // pick up a lobby invite link (?lobby=CODE): look the lobby up, join it under the
+  // current identity, make it the active lobby, then clean the url
   useEffect(() => {
-    if (roomCode && !hostChannelRef.current) {
-      hostChannelRef.current = hostRoom(roomCode, setHostReady);
-    }
-    return () => {
-      hostChannelRef.current?.unsubscribe();
-      hostChannelRef.current = null;
-    };
+    const code = parseLobbyCodeFromLocation();
+    if (!code) return;
+    (async () => {
+      const lobby = await findLobbyByCode(code);
+      if (!lobby) return;
+      await joinLobby(lobby.id, identityKey, displayName);
+      setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name });
+    })();
+    clearLobbyFromLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // task panel auto-hides 5s after opening; resets on any interaction inside it
+  // task panel auto-hides 12s after opening; resets on any interaction inside it
   const resetTaskAutoHide = () => {
     if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
     taskAutoHideRef.current = window.setTimeout(() => setTasksOpen(false), 12000);
@@ -165,19 +162,22 @@ export function Shell() {
     const handleClick = (event: MouseEvent) => {
       // composedPath() is captured at dispatch time, before any handler-triggered DOM
       // mutation -- using it (rather than event.target + closest(), which walks the
-      // *live* DOM) matters here specifically because clicking the account menu's "stats"
-      // item also closes that menu (setOpen(false)) in the same click. React 18 flushes
-      // that removal before this document-level listener runs, so by then event.target
-      // is already detached and closest() can't find its former ".account-widget"
-      // ancestor -- silently breaking the exemption below and closing the task panel
-      // right back up the instant onOpenStats had just opened it.
+      // *live* DOM) matters here specifically because clicking a dropdown item (account
+      // menu's "stats", lobby panel's create/join/leave) also closes that dropdown in the
+      // same click. React 18 flushes that removal before this document-level listener
+      // runs, so by then event.target is already detached and closest() can't find its
+      // former ancestor -- silently breaking the exemption below and closing the task
+      // panel right back up the instant an action had just opened it.
       const path = event.composedPath();
       if (taskPanelRef.current && path.includes(taskPanelRef.current)) return;
       if (
         path.some(
           (el) =>
             el instanceof Element &&
-            (el.matches("[data-tasks-toggle]") || el.matches(".account-widget") || el.matches(".onboarding")),
+            (el.matches("[data-tasks-toggle]") ||
+              el.matches(".account-widget") ||
+              el.matches(".lobby-widget") ||
+              el.matches(".onboarding")),
         )
       )
         return;
@@ -186,36 +186,6 @@ export function Shell() {
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
   }, [tasksOpen]);
-
-  // while hosting, broadcast the current timer state on every change (the timer's own
-  // 1s tick drives this effect too, so viewers get roughly one update per second)
-  useEffect(() => {
-    if (!roomCode || !hostChannelRef.current || !hostReady) return;
-    broadcastTick(hostChannelRef.current, {
-      phase: timer.phase,
-      status: timer.status,
-      targetSeconds: timer.targetSeconds,
-      remainingSeconds: timer.remainingSeconds,
-      elapsedSeconds: timer.elapsedSeconds,
-      taskTitle: timer.activeTaskTitle,
-      mode,
-      workTheme: mode === "work" ? workTheme : undefined,
-      station: resolveStation(activeStationId, customStation),
-    });
-  }, [
-    roomCode,
-    hostReady,
-    timer.phase,
-    timer.status,
-    timer.targetSeconds,
-    timer.remainingSeconds,
-    timer.elapsedSeconds,
-    timer.activeTaskTitle,
-    mode,
-    workTheme,
-    activeStationId,
-    customStation,
-  ]);
 
   const theme =
     mode === "work"
@@ -250,9 +220,6 @@ export function Shell() {
       <TopBar
         tasksOpen={tasksOpen}
         onToggleTasks={() => setTasksOpen((v) => !v)}
-        roomCode={roomCode}
-        onStartHosting={startHosting}
-        onStopHosting={stopHosting}
         onOpenStats={() => {
           setPanelTab("stats");
           setTasksOpen(true);
@@ -275,7 +242,10 @@ export function Shell() {
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
           />
-          <DailySummary mode={mode} />
+          <div className="corner-summary">
+            <DailySummary mode={mode} />
+            {currentLobby && <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} />}
+          </div>
           {sessionPrompt && (
             <SessionPrompt
               stage={sessionPrompt}
