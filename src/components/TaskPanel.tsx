@@ -18,6 +18,7 @@ interface TaskPanelProps {
   mode: Mode;
   timer: TimerApi;
   selectedFocusMinutes: number;
+  onActivity: () => void;
 }
 
 const EMPTY_PARTS: TimeParts = { hour12: "", minute: "", period: "am" };
@@ -60,7 +61,7 @@ function TimeField({
   );
 }
 
-export function TaskPanel({ open, mode, timer, selectedFocusMinutes }: TaskPanelProps) {
+export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [tab, setTab] = useState<"tasks" | "history">("tasks");
   const [title, setTitle] = useState("");
@@ -90,7 +91,11 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes }: TaskPanel
   };
 
   return (
-    <aside className={open ? "task-panel task-panel--open" : "task-panel"}>
+    <aside
+      className={open ? "task-panel task-panel--open" : "task-panel"}
+      onClick={onActivity}
+      onInput={onActivity}
+    >
       <div className="panel-tabs" role="tablist">
         <button
           type="button"

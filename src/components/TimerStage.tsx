@@ -35,13 +35,13 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }
     else timer.startFocus(selectedFocusMinutes);
   };
 
-  const handleCustomStart = () => {
+  const handleCustomSet = () => {
     const hours = Number(customHours) || 0;
     const minutes = Number(customMinutes) || 0;
     const total = hours * 60 + minutes;
     if (total <= 0) return;
     onSelectFocusMinutes(total);
-    timer.startFocus(total);
+    timer.setPendingMinutes(total);
     setCustomHours("");
     setCustomMinutes("");
   };
@@ -77,7 +77,7 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }
                   }
                   onClick={() => {
                     onSelectFocusMinutes(minutes);
-                    timer.startFocus(minutes);
+                    timer.setPendingMinutes(minutes);
                   }}
                 >
                   {minutes}m
@@ -91,7 +91,7 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }
                 placeholder="hh"
                 value={customHours}
                 onChange={(e) => setCustomHours(sanitizeDigits(e.target.value, 2))}
-                onKeyDown={(e) => e.key === "Enter" && handleCustomStart()}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomSet()}
               />
               <span className="custom-duration__sep">:</span>
               <input
@@ -100,15 +100,15 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes }
                 placeholder="mm"
                 value={customMinutes}
                 onChange={(e) => setCustomMinutes(sanitizeDigits(e.target.value, 2))}
-                onKeyDown={(e) => e.key === "Enter" && handleCustomStart()}
+                onKeyDown={(e) => e.key === "Enter" && handleCustomSet()}
               />
               <button
                 type="button"
                 className="chip"
                 disabled={!customHours && !customMinutes}
-                onClick={handleCustomStart}
+                onClick={handleCustomSet}
               >
-                start custom
+                set custom
               </button>
             </div>
           </div>

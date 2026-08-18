@@ -44,6 +44,16 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remainingSeconds, status, targetSeconds, phase]);
 
+  // updates the displayed duration while idle, without starting the countdown
+  const setPendingMinutes = (minutes: number) => {
+    if (status !== "idle") return;
+    lastMinutesRef.current = minutes;
+    setPhase("focus");
+    setTargetSeconds(minutes * 60);
+    setRemainingSeconds(minutes * 60);
+    setElapsedSeconds(0);
+  };
+
   const startFocus = (minutes: number, taskId: string | null = null, taskTitle: string | null = null) => {
     lastMinutesRef.current = minutes;
     setPhase("focus");
@@ -101,6 +111,7 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
     elapsedSeconds,
     activeTaskId,
     activeTaskTitle,
+    setPendingMinutes,
     startFocus,
     startBreak,
     pause,

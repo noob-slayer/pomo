@@ -23,6 +23,7 @@ export function Shell() {
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [hostReady, setHostReady] = useState(false);
   const hostChannelRef = useRef<RealtimeChannel | null>(null);
+  const taskAutoHideRef = useRef<number | null>(null);
 
   const timer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
@@ -66,6 +67,23 @@ export function Shell() {
   };
 
   useEffect(() => () => void hostChannelRef.current?.unsubscribe(), []);
+
+  // task panel auto-hides 5s after opening; resets on any interaction inside it
+  const resetTaskAutoHide = () => {
+    if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
+    taskAutoHideRef.current = window.setTimeout(() => setTasksOpen(false), 5000);
+  };
+
+  useEffect(() => {
+    if (!tasksOpen) {
+      if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
+      return;
+    }
+    resetTaskAutoHide();
+    return () => {
+      if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
+    };
+  }, [tasksOpen]);
 
   // while hosting, broadcast the current timer state on every change (the timer's own
   // 1s tick drives this effect too, so viewers get roughly one update per second)
@@ -147,7 +165,13 @@ export function Shell() {
             onSelectFocusMinutes={setSelectedFocusMinutes}
           />
         </main>
-        <TaskPanel open={tasksOpen} mode={mode} timer={timer} selectedFocusMinutes={selectedFocusMinutes} />
+        <TaskPanel
+          open={tasksOpen}
+          mode={mode}
+          timer={timer}
+          selectedFocusMinutes={selectedFocusMinutes}
+          onActivity={resetTaskAutoHide}
+        />
       </div>
       <YoutubeWidget />
     </div>

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useSettings } from "../context/SettingsContext";
 import { DEFAULT_STATIONS, parseYoutubeInput, resolveStation, stationEmbedSrc } from "../lib/stations";
+import { useClickAway } from "../hooks/useClickAway";
 
 const AUTO_HIDE_MS = 5000;
 
@@ -10,6 +11,8 @@ export function YoutubeWidget() {
   const [hasPlayed, setHasPlayed] = useState(false);
   const [customUrl, setCustomUrl] = useState("");
   const [customError, setCustomError] = useState(false);
+  const widgetRef = useRef<HTMLDivElement>(null);
+  useClickAway(widgetRef, () => setExpanded(false), expanded);
 
   const embedSrc = stationEmbedSrc(resolveStation(activeStationId, customStation));
 
@@ -40,7 +43,7 @@ export function YoutubeWidget() {
   };
 
   return (
-    <div className={expanded ? "yt-widget yt-widget--open" : "yt-widget"}>
+    <div className={expanded ? "yt-widget yt-widget--open" : "yt-widget"} ref={widgetRef}>
       {expanded && (
         <div className="yt-panel">
           <p className="yt-panel__label">focus audio</p>
