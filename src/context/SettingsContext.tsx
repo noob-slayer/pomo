@@ -18,6 +18,7 @@ interface Settings {
   personalTheme: PersonalTheme;
   personalColorTheme: WorkTheme;
   personalBg: string | null;
+  ytBgUrl: string | null; // custom youtube link for the "yt" background theme
   activeStationId: string; // default station id, or "custom"
   customStation: ResolvedStation | null;
   personaName: string; // set once during onboarding, used as the display name everywhere
@@ -30,6 +31,7 @@ const DEFAULT_SETTINGS: Settings = {
   personalTheme: "photo",
   personalColorTheme: "vistara",
   personalBg: null,
+  ytBgUrl: null,
   activeStationId: "lofi-2",
   customStation: null,
   personaName: "",
@@ -42,6 +44,7 @@ interface SettingsContextValue extends Settings {
   setPersonalTheme: (theme: PersonalTheme) => void;
   setPersonalColorTheme: (theme: WorkTheme) => void;
   setPersonalBg: (dataUrl: string | null) => void;
+  setYtBgUrl: (url: string | null) => void;
   setActiveStationId: (id: string) => void;
   setCustomStation: (station: ResolvedStation | null) => void;
   setPersonaName: (name: string) => void;
@@ -119,6 +122,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setPersonalTheme: (personalTheme) => patch({ personalTheme }),
     setPersonalColorTheme: (personalColorTheme) => patch({ personalColorTheme }),
     setPersonalBg: (personalBg) => patch({ personalBg }),
+    setYtBgUrl: (ytBgUrl) => patch({ ytBgUrl }),
     setActiveStationId: (activeStationId) => patch({ activeStationId, customStation: null }),
     setCustomStation: (customStation) =>
       patch({ customStation, activeStationId: customStation ? "custom" : settings.activeStationId }),

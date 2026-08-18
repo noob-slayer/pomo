@@ -20,6 +20,7 @@ import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
 import { DvdBounce } from "./DvdBounce";
 import { F1Race } from "./F1Race";
+import { YtBackground } from "./YtBackground";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -32,6 +33,7 @@ export function Shell() {
     personalTheme,
     personalColorTheme,
     personalBg,
+    ytBgUrl,
     personaName,
     currentLobby,
     setCurrentLobby,
@@ -369,6 +371,7 @@ export function Shell() {
   // dev-only feature, still being tuned -- see the matching gate in PersonalThemeTabs
   const showF1TrackLayer = import.meta.env.DEV && mode === "personal" && personalTheme === "f1track";
   const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
+  const showYtLayer = mode === "personal" && personalTheme === "yt";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
@@ -449,6 +452,7 @@ export function Shell() {
             </div>
           )}
           {showF1TrackLayer && <F1Race timer={timer} />}
+          {showYtLayer && <YtBackground url={ytBgUrl} />}
           {showSuccessionLayer && (
             <div className="stage-succession-wrap">
               <video

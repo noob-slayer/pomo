@@ -1,6 +1,7 @@
 import { useSettings } from "../context/SettingsContext";
 import { ThemeSwatches, PersonalColorSwatches } from "./ThemeSwatches";
 import { BackgroundPicker } from "./BackgroundPicker";
+import { YtLinkForm } from "./YtLinkForm";
 import { PersonalThemeTabs } from "./PersonalThemeTabs";
 import { LobbyWidget } from "./LobbyWidget";
 import { AccountWidget } from "./AccountWidget";
@@ -48,6 +49,8 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats 
               <PersonalColorSwatches />
             ) : personalTheme === "photo" ? (
               <BackgroundPicker />
+            ) : personalTheme === "yt" ? (
+              <YtLinkForm />
             ) : null}
           </>
         )}

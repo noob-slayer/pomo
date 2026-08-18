@@ -572,6 +572,49 @@
   background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
 }
 
+.stage-yt-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.stage-yt {
+  /* an iframe can't be object-fit: cover'd, so oversize it to a 16:9 box big enough to
+     always cover the container regardless of its aspect ratio, then crop via overflow
+     hidden on the wrap above -- the standard "fill the background with an embed" trick */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100vw;
+  height: 56.25vw; /* 16:9 */
+  min-width: 177.78vh; /* 16:9 */
+  min-height: 100vh;
+  transform: translate(-50%, -50%);
+  border: 0;
+  pointer-events: none;
+  /* 10% of the reveal theme's own 22px max blur range -- barely a haze */
+  filter: blur(2.2px);
+}
+
+.stage-yt-prompt {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 15%;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.95rem;
+}
+
+.stage-yt-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
+}
+
 .stage-dvd-wrap {
   position: absolute;
   inset: 0;
@@ -1394,6 +1437,29 @@
   margin: 8px 0 0;
   font-size: 0.76rem;
   color: #8a2e2e;
+}
+
+.yt-link-form {
+  position: relative;
+  display: flex;
+  gap: 6px;
+}
+
+.yt-link-form__input {
+  width: 190px;
+  border: 1px solid var(--page-border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--page-ink);
+}
+
+.yt-link-form .yt-error {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  white-space: nowrap;
 }
 
 .yt-frame {
