@@ -17,6 +17,7 @@ import { TimerStage } from "./TimerStage";
 import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
+import { DvdBounce } from "./DvdBounce";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -342,6 +343,7 @@ export function Shell() {
   const showPhotoLayer =
     mode === "personal" && (personalTheme === "photo" || personalTheme === "reveal") && !!personalBg;
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
+  const showDvdLayer = mode === "personal" && personalTheme === "dvd";
 
   return (
     <div className="shell" style={themeVars}>
@@ -376,6 +378,7 @@ export function Shell() {
               <div className="stage-lofi-overlay" />
             </div>
           )}
+          {showDvdLayer && <DvdBounce timer={timer} />}
           <TimerStage
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}
