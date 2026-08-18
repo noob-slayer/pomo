@@ -9,6 +9,7 @@ interface Settings {
   mode: Mode;
   workTheme: WorkTheme;
   personalTheme: PersonalTheme;
+  personalColorTheme: WorkTheme;
   personalBg: string | null;
   activeStationId: string; // default station id, or "custom"
   customStation: ResolvedStation | null;
@@ -18,6 +19,7 @@ const DEFAULT_SETTINGS: Settings = {
   mode: "work",
   workTheme: "burgundy",
   personalTheme: "photo",
+  personalColorTheme: "vistara",
   personalBg: null,
   activeStationId: "lofi-2",
   customStation: null,
@@ -27,6 +29,7 @@ interface SettingsContextValue extends Settings {
   setMode: (mode: Mode) => void;
   setWorkTheme: (theme: WorkTheme) => void;
   setPersonalTheme: (theme: PersonalTheme) => void;
+  setPersonalColorTheme: (theme: WorkTheme) => void;
   setPersonalBg: (dataUrl: string | null) => void;
   setActiveStationId: (id: string) => void;
   setCustomStation: (station: ResolvedStation | null) => void;
@@ -77,6 +80,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setMode: (mode) => patch({ mode }),
     setWorkTheme: (workTheme) => patch({ workTheme }),
     setPersonalTheme: (personalTheme) => patch({ personalTheme }),
+    setPersonalColorTheme: (personalColorTheme) => patch({ personalColorTheme }),
     setPersonalBg: (personalBg) => patch({ personalBg }),
     setActiveStationId: (activeStationId) => patch({ activeStationId, customStation: null }),
     setCustomStation: (customStation) =>

@@ -3,6 +3,7 @@ import { useTasks } from "../context/TasksContext";
 import type { TimerApi } from "../hooks/useTimer";
 import type { Mode } from "../types";
 import { HistoryView } from "./HistoryView";
+import { CATEGORY_OPTIONS } from "../lib/categories";
 import {
   HOUR_OPTIONS_12,
   MINUTE_OPTIONS,
@@ -65,7 +66,8 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity 
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [tab, setTab] = useState<"tasks" | "history">("tasks");
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
+  const [categoryChoice, setCategoryChoice] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [estimate, setEstimate] = useState("");
   const [startParts, setStartParts] = useState<TimeParts>(() => nearestTimeParts());
   const [endParts, setEndParts] = useState<TimeParts>(EMPTY_PARTS);
@@ -75,16 +77,19 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity 
   const handleAdd = (e: FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
+    const category =
+      categoryChoice === "custom" ? customCategory.trim() || "general" : categoryChoice || "general";
     addTask({
       title: title.trim(),
-      category: category.trim() || "general",
+      category,
       estimatedPomos: estimate ? Number(estimate) : null,
       startTime: partsToValue(startParts),
       endTime: partsToValue(endParts),
       mode,
     });
     setTitle("");
-    setCategory("");
+    setCategoryChoice("");
+    setCustomCategory("");
     setEstimate("");
     setStartParts(nearestTimeParts());
     setEndParts(EMPTY_PARTS);
@@ -129,11 +134,15 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity 
           onChange={(e) => setTitle(e.target.value)}
         />
         <div className="task-form__row">
-          <input
-            placeholder="category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
+          <select value={categoryChoice} onChange={(e) => setCategoryChoice(e.target.value)}>
+            <option value="">category</option>
+            {CATEGORY_OPTIONS.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            <option value="custom">custom</option>
+          </select>
           <input
             type="number"
             min={1}
@@ -142,6 +151,13 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity 
             onChange={(e) => setEstimate(e.target.value)}
           />
         </div>
+        {categoryChoice === "custom" && (
+          <input
+            placeholder="custom category"
+            value={customCategory}
+            onChange={(e) => setCustomCategory(e.target.value)}
+          />
+        )}
         <TimeField label="start" parts={startParts} onChange={setStartParts} />
         <TimeField label="end" parts={endParts} onChange={setEndParts} />
         <button type="submit" className="btn btn--full">

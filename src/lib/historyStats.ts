@@ -24,6 +24,7 @@ export interface HistorySummary {
 
 export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mode): HistorySummary {
   const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
+  const breaks = history.filter((r) => r.mode === mode && r.phase === "break");
   const totalMinutes = focus.reduce((sum, r) => sum + r.minutes, 0);
 
   const todayKey = new Date().toDateString();
@@ -37,6 +38,14 @@ export function summarizeHistory(history: PomoRecord[], tasks: Task[], mode: Mod
     entry.count += 1;
     entry.minutes += r.minutes;
     catMap.set(category, entry);
+  }
+  // breaks aren't tied to a task/category, but time spent on them should still show up
+  // in the same summary — "if break is for 5 mins, it should also reflect"
+  if (breaks.length > 0) {
+    catMap.set("break", {
+      count: breaks.length,
+      minutes: breaks.reduce((sum, r) => sum + r.minutes, 0),
+    });
   }
   const byCategory = [...catMap.entries()]
     .map(([category, v]) => ({ category, ...v }))

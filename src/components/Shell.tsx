@@ -15,8 +15,17 @@ import { TaskPanel } from "./TaskPanel";
 import { YoutubeWidget } from "./YoutubeWidget";
 
 export function Shell() {
-  const { mode, workTheme, personalTheme, personalBg, activeStationId, customStation, setMode, setWorkTheme } =
-    useSettings();
+  const {
+    mode,
+    workTheme,
+    personalTheme,
+    personalColorTheme,
+    personalBg,
+    activeStationId,
+    customStation,
+    setMode,
+    setWorkTheme,
+  } = useSettings();
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
@@ -115,7 +124,12 @@ export function Shell() {
     customStation,
   ]);
 
-  const theme = mode === "work" ? WORK_THEMES[workTheme] : PERSONAL_THEME;
+  const theme =
+    mode === "work"
+      ? WORK_THEMES[workTheme]
+      : personalTheme === "colour"
+        ? WORK_THEMES[personalColorTheme]
+        : PERSONAL_THEME;
 
   const themeVars = useMemo<CSSProperties>(
     () =>
@@ -136,7 +150,7 @@ export function Shell() {
     return Math.max(0, 22 * (1 - progress));
   }, [mode, personalTheme, timer.phase, timer.targetSeconds, timer.remainingSeconds]);
 
-  const showPhotoLayer = mode === "personal" && !!personalBg;
+  const showPhotoLayer = mode === "personal" && personalTheme !== "colour" && !!personalBg;
 
   return (
     <div className="shell">

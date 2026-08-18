@@ -1,5 +1,5 @@
 import { useSettings } from "../context/SettingsContext";
-import { ThemeSwatches } from "./ThemeSwatches";
+import { ThemeSwatches, PersonalColorSwatches } from "./ThemeSwatches";
 import { BackgroundPicker } from "./BackgroundPicker";
 import { PersonalThemeTabs } from "./PersonalThemeTabs";
 import { ShareWidget } from "./ShareWidget";
@@ -22,7 +22,7 @@ export function TopBar({
   onStartHosting,
   onStopHosting,
 }: TopBarProps) {
-  const { mode, setMode } = useSettings();
+  const { mode, personalTheme, setMode } = useSettings();
 
   return (
     <header className="topbar">
@@ -53,7 +53,7 @@ export function TopBar({
         ) : (
           <>
             <PersonalThemeTabs />
-            <BackgroundPicker />
+            {personalTheme === "colour" ? <PersonalColorSwatches /> : <BackgroundPicker />}
           </>
         )}
         <ShareWidget
