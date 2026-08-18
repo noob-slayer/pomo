@@ -1,6 +1,17 @@
 export type Mode = "work" | "personal";
 export type WorkTheme = "burgundy" | "forest" | "vistara" | "slate" | "goldenpink";
-export type PersonalTheme = "photo" | "reveal" | "colour" | "lofi" | "dvd" | "suits" | "succession" | "f1" | "f1track" | "yt";
+export type PersonalTheme =
+  | "photo"
+  | "reveal"
+  | "colour"
+  | "lofi"
+  | "dvd"
+  | "suits"
+  | "succession"
+  | "f1"
+  | "f1track"
+  | "yt"
+  | "forest1";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 

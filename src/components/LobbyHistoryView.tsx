@@ -9,9 +9,9 @@ import { LobbyStatsView } from "./LobbyStatsView";
 // whichever one happens to be active -- a picker (when there's more than one) plus that
 // lobby's full stats, with a "rejoin" action for anything that isn't the active lobby.
 export function LobbyHistoryView() {
-  const { user } = useAuth();
+  const { identityUserId } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
-  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
 
   const [lobbies, setLobbies] = useState<Lobby[] | null>(null);

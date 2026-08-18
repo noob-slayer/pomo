@@ -14,9 +14,9 @@ interface LobbySummaryProps {
 const POLL_MS = 8000;
 
 export function LobbySummary({ lobby, refreshToken }: LobbySummaryProps) {
-  const { user } = useAuth();
+  const { identityUserId } = useAuth();
   const [stats, setStats] = useState<LobbyMemberStat[]>([]);
-  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const identityKey = resolveIdentityKey(identityUserId);
 
   useEffect(() => {
     let cancelled = false;

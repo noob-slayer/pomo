@@ -40,7 +40,7 @@ export function Shell() {
     setMode,
     setWorkTheme,
   } = useSettings();
-  const { user } = useAuth();
+  const { identityUserId } = useAuth();
   const { logCompletion } = useTasks();
   const [tasksOpen, setTasksOpen] = useState(true);
   const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
@@ -53,7 +53,7 @@ export function Shell() {
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
 
-  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
   const inSyncLobby = currentLobby?.mode === "sync";
 
@@ -403,6 +403,7 @@ export function Shell() {
   const showF1TrackLayer = import.meta.env.DEV && mode === "personal" && personalTheme === "f1track";
   const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
   const showYtLayer = mode === "personal" && personalTheme === "yt";
+  const showForest1Layer = mode === "personal" && personalTheme === "forest1";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
@@ -480,6 +481,13 @@ export function Shell() {
             <div className="stage-lofi-wrap">
               <video className="stage-lofi" src="/lofi-bg.mp4" autoPlay muted loop playsInline />
               <div className="stage-lofi-overlay" />
+            </div>
+          )}
+          {showForest1Layer && (
+            <div className="stage-forest1-wrap">
+              {/* a GIF loops natively via a plain <img> -- no autoplay/mute attributes needed */}
+              <img className="stage-forest1" src="/forest1-bg.gif" alt="" />
+              <div className="stage-forest1-overlay" />
             </div>
           )}
           {showSuitsLayer && (

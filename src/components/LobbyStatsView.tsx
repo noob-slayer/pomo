@@ -18,11 +18,11 @@ interface LobbyStatsViewProps {
 const POLL_MS = 8000;
 
 export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
-  const { user } = useAuth();
+  const { identityUserId } = useAuth();
   const [stats, setStats] = useState<LobbyAllTimeStat[]>([]);
   const [activity, setActivity] = useState<LobbyActivityEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const identityKey = resolveIdentityKey(identityUserId);
 
   // this view had no refresh at all before -- once loaded on mount, another member's
   // sessions never showed up unless you switched tabs away and back, which could easily

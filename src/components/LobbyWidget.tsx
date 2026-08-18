@@ -13,7 +13,7 @@ interface LobbyWidgetProps {
 }
 
 export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
-  const { user } = useAuth();
+  const { user, identityUserId } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<PanelView>("menu");
@@ -26,7 +26,7 @@ export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
   const widgetRef = useRef<HTMLDivElement>(null);
   useClickAway(widgetRef, () => setOpen(false), open);
 
-  const identityKey = resolveIdentityKey(user?.id ?? null);
+  const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
 
   const handleCreate = async () => {
