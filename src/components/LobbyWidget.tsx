@@ -3,17 +3,22 @@ import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { useClickAway } from "../hooks/useClickAway";
 import { resolveIdentityKey } from "../lib/identity";
-import { createLobby, findLobbyByCode, joinLobby, leaveLobby, buildLobbyUrl } from "../lib/lobby";
+import { createLobby, findLobbyByCode, joinLobby, leaveLobby, buildLobbyUrl, type LobbyMode } from "../lib/lobby";
 import { whatsappShareUrl } from "../lib/share";
 
 type PanelView = "menu" | "create" | "join";
 
-export function LobbyWidget() {
+interface LobbyWidgetProps {
+  onOpenTeamStats: () => void;
+}
+
+export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
   const { user } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<PanelView>("menu");
   const [nameInput, setNameInput] = useState("");
+  const [modeInput, setModeInput] = useState<LobbyMode>("individual");
   const [codeInput, setCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,14 +34,15 @@ export function LobbyWidget() {
     if (!trimmed || busy) return;
     setBusy(true);
     setError(null);
-    const lobby = await createLobby(trimmed, identityKey, displayName);
+    const lobby = await createLobby(trimmed, modeInput, identityKey, displayName);
     setBusy(false);
     if (!lobby) {
       setError("couldn't create the lobby — try again");
       return;
     }
-    setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name });
+    setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name, mode: lobby.mode });
     setNameInput("");
+    setModeInput("individual");
     setView("menu");
   };
 
@@ -53,7 +59,7 @@ export function LobbyWidget() {
     }
     await joinLobby(lobby.id, identityKey, displayName);
     setBusy(false);
-    setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name });
+    setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name, mode: lobby.mode });
     setCodeInput("");
     setView("menu");
   };
@@ -96,7 +102,10 @@ export function LobbyWidget() {
           {currentLobby ? (
             <>
               <p className="lobby-panel__label">
-                {currentLobby.name} — share the link so others can join as themselves, running their own timers
+                {currentLobby.name} · <span className="lobby-panel__mode">{currentLobby.mode}</span> —{" "}
+                {currentLobby.mode === "sync"
+                  ? "share the link so others can join — everyone's clock stays in lockstep"
+                  : "share the link so others can join as themselves, running their own timers"}
               </p>
               <input
                 className="lobby-panel__link"
@@ -115,6 +124,16 @@ export function LobbyWidget() {
                   leave
                 </button>
               </div>
+              <button
+                type="button"
+                className="lobby-panel__stats-link"
+                onClick={() => {
+                  onOpenTeamStats();
+                  setOpen(false);
+                }}
+              >
+                view team stats →
+              </button>
             </>
           ) : view === "menu" ? (
             <>
@@ -144,6 +163,24 @@ export function LobbyWidget() {
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && void handleCreate()}
               />
+              <div className="lobby-panel__mode-choices">
+                <button
+                  type="button"
+                  className={modeInput === "individual" ? "lobby-panel__mode-choice lobby-panel__mode-choice--active" : "lobby-panel__mode-choice"}
+                  onClick={() => setModeInput("individual")}
+                >
+                  <span className="lobby-panel__mode-choice-title">individual</span>
+                  <span className="lobby-panel__mode-choice-sub">everyone keeps their own timer</span>
+                </button>
+                <button
+                  type="button"
+                  className={modeInput === "sync" ? "lobby-panel__mode-choice lobby-panel__mode-choice--active" : "lobby-panel__mode-choice"}
+                  onClick={() => setModeInput("sync")}
+                >
+                  <span className="lobby-panel__mode-choice-title">sync</span>
+                  <span className="lobby-panel__mode-choice-sub">one shared clock — anyone can start/pause/stop it</span>
+                </button>
+              </div>
               {error && <p className="lobby-panel__error">{error}</p>}
               <div className="lobby-panel__row">
                 <button type="button" className="chip" onClick={() => setView("menu")}>

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
-import { useTimer } from "../hooks/useTimer";
+import { useTimer, type TimerApi } from "../hooks/useTimer";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
+import { connectLobbySync, broadcastSyncAction, writeSyncState, readSyncState, type SyncAction } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
@@ -42,9 +44,11 @@ export function Shell() {
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
   const taskAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
+  const syncChannelRef = useRef<RealtimeChannel | null>(null);
 
   const identityKey = resolveIdentityKey(user?.id ?? null);
   const displayName = personaName || "guest";
+  const inSyncLobby = currentLobby?.mode === "sync";
 
   // best-effort: mirror a completion into the active lobby's stats too, if any. Never
   // blocks or affects the personal history write above -- a lobby-log failure shouldn't
@@ -55,7 +59,7 @@ export function Shell() {
     setLobbyRefreshToken((v) => v + 1);
   };
 
-  const timer = useTimer({
+  const rawTimer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
       logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now() });
       logToLobbyIfActive("focus", minutes);
@@ -76,6 +80,124 @@ export function Shell() {
       logToLobbyIfActive(phase, minutes);
     },
   });
+
+  // always-fresh handle on rawTimer for the sync-broadcast effect below, whose own
+  // closure (keyed only on the lobby id/mode) would otherwise go stale: rawTimer's own
+  // pause/resume/stop/reset read status/remainingSeconds/etc. from *their* closure over
+  // useTimer's internal state, so calling a version captured at connect-time, long after
+  // that render, would silently act on outdated values.
+  const rawTimerRef = useRef(rawTimer);
+  useEffect(() => {
+    rawTimerRef.current = rawTimer;
+  });
+
+  const broadcastIfSync = (action: SyncAction) => {
+    if (inSyncLobby && syncChannelRef.current) broadcastSyncAction(syncChannelRef.current, action);
+  };
+
+  // only startFocus/startBreak/stop have statically-known resulting values (no stale
+  // read needed), so those are the only actions that also update the persisted
+  // sync_state a late joiner catches up from -- see connectLobbySync's effect below
+  const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId = null, taskTitle = null) => {
+    rawTimer.startFocus(minutes, taskId, taskTitle);
+    if (inSyncLobby && currentLobby) {
+      const action: SyncAction = { type: "startFocus", minutes };
+      broadcastIfSync(action);
+      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+    }
+  };
+  const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
+    rawTimer.startBreak(minutes);
+    if (inSyncLobby && currentLobby) {
+      const action: SyncAction = { type: "startBreak", minutes };
+      broadcastIfSync(action);
+      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+    }
+  };
+  const syncedPause: TimerApi["pause"] = () => {
+    rawTimer.pause();
+    broadcastIfSync({ type: "pause" });
+  };
+  const syncedResume: TimerApi["resume"] = () => {
+    rawTimer.resume();
+    broadcastIfSync({ type: "resume" });
+  };
+  const syncedStop: TimerApi["stop"] = () => {
+    rawTimer.stop();
+    if (inSyncLobby && currentLobby) {
+      const action: SyncAction = { type: "stop" };
+      broadcastIfSync(action);
+      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+    }
+  };
+  const syncedReset: TimerApi["reset"] = () => {
+    rawTimer.reset();
+    broadcastIfSync({ type: "reset" });
+  };
+  const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
+    if (rawTimer.status === "running") syncedPause();
+    else if (rawTimer.status === "paused") syncedResume();
+    else syncedStartFocus(fallbackMinutes);
+  };
+
+  const timer: TimerApi = {
+    ...rawTimer,
+    startFocus: syncedStartFocus,
+    startBreak: syncedStartBreak,
+    pause: syncedPause,
+    resume: syncedResume,
+    stop: syncedStop,
+    reset: syncedReset,
+    togglePrimary: syncedTogglePrimary,
+  };
+
+  // connect/reconnect the sync broadcast channel whenever the active lobby (or its mode)
+  // changes. Any member's start/pause/resume/stop/reset is applied here to the local
+  // timer -- last action received wins, no locking, task selection stays local (the
+  // broadcast never carries taskId/taskTitle). A fresh join also catches up to whatever
+  // was most recently written to sync_state, so joining mid-session doesn't leave you
+  // stuck idle until the next action happens to fire.
+  useEffect(() => {
+    syncChannelRef.current?.unsubscribe();
+    syncChannelRef.current = null;
+    if (!currentLobby || currentLobby.mode !== "sync") return;
+
+    const applyAction = (action: SyncAction) => {
+      const t = rawTimerRef.current;
+      if (action.type === "startFocus") t.startFocus(action.minutes);
+      else if (action.type === "startBreak") t.startBreak(action.minutes);
+      else if (action.type === "pause") t.pause();
+      else if (action.type === "resume") t.resume();
+      else if (action.type === "stop") t.stop();
+      else if (action.type === "reset") t.reset();
+    };
+
+    syncChannelRef.current = connectLobbySync(currentLobby.id, applyAction);
+
+    (async () => {
+      const state = await readSyncState(currentLobby.id);
+      if (!state) return;
+      const elapsedMinutes = (Date.now() - state.at) / 60000;
+      if (state.action.type === "startFocus") {
+        const remaining = state.action.minutes - elapsedMinutes;
+        if (remaining > 0.05) rawTimerRef.current.startFocus(remaining);
+      } else if (state.action.type === "startBreak") {
+        if (state.action.minutes === null) {
+          rawTimerRef.current.startBreak(null);
+        } else {
+          const remaining = state.action.minutes - elapsedMinutes;
+          if (remaining > 0.05) rawTimerRef.current.startBreak(remaining);
+        }
+      }
+      // "stop" (or nothing written yet) -> nothing in progress, stay idle
+    })();
+
+    return () => {
+      syncChannelRef.current?.unsubscribe();
+      syncChannelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLobby?.id, currentLobby?.mode]);
 
   // if a new session starts by any other means (keyboard shortcut, task-panel "start
   // pomo", etc.) while the prompt is still up, dismiss it rather than leaving it stacked
@@ -127,7 +249,7 @@ export function Shell() {
       const lobby = await findLobbyByCode(code);
       if (!lobby) return;
       await joinLobby(lobby.id, identityKey, displayName);
-      setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name });
+      setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name, mode: lobby.mode });
     })();
     clearLobbyFromLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -225,6 +347,11 @@ export function Shell() {
           setTasksOpen(true);
           resetTaskAutoHide();
         }}
+        onOpenTeamStats={() => {
+          setPanelTab("team");
+          setTasksOpen(true);
+          resetTaskAutoHide();
+        }}
       />
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
         <main className="stage" data-mode={mode}>
@@ -279,6 +406,7 @@ export function Shell() {
           panelRef={taskPanelRef}
           tab={panelTab}
           onTabChange={setPanelTab}
+          currentLobby={currentLobby}
         />
       </div>
       <YoutubeWidget />

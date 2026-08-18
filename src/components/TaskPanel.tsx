@@ -2,11 +2,13 @@ import { useState, type FormEvent, type RefObject } from "react";
 import { useTasks } from "../context/TasksContext";
 import type { TimerApi } from "../hooks/useTimer";
 import type { Mode } from "../types";
+import type { CurrentLobby } from "../context/SettingsContext";
 import { HistoryView } from "./HistoryView";
 import { StatsView } from "./StatsView";
+import { LobbyStatsView } from "./LobbyStatsView";
 import { CATEGORY_OPTIONS } from "../lib/categories";
 
-export type PanelTab = "tasks" | "history" | "stats";
+export type PanelTab = "tasks" | "history" | "stats" | "team";
 
 interface TaskPanelProps {
   open: boolean;
@@ -17,6 +19,7 @@ interface TaskPanelProps {
   panelRef: RefObject<HTMLElement | null>;
   tab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
+  currentLobby: CurrentLobby | null;
 }
 
 export function TaskPanel({
@@ -28,6 +31,7 @@ export function TaskPanel({
   panelRef,
   tab,
   onTabChange,
+  currentLobby,
 }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [title, setTitle] = useState("");
@@ -89,12 +93,25 @@ export function TaskPanel({
         >
           stats
         </button>
+        {currentLobby && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "team"}
+            className={tab === "team" ? "panel-tabs__item panel-tabs__item--active" : "panel-tabs__item"}
+            onClick={() => onTabChange("team")}
+          >
+            team
+          </button>
+        )}
       </div>
 
       {tab === "history" ? (
         <HistoryView mode={mode} />
       ) : tab === "stats" ? (
         <StatsView mode={mode} />
+      ) : tab === "team" && currentLobby ? (
+        <LobbyStatsView lobby={currentLobby} />
       ) : (
         <>
       <form className="task-form" onSubmit={handleAdd}>

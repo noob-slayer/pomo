@@ -26,6 +26,19 @@ export interface LobbyMemberStat {
   sessions: number;
 }
 
+export interface LobbyAllTimeStat extends LobbyMemberStat {
+  daysActive: number;
+}
+
+export interface LobbyActivityEntry {
+  id: string;
+  identityKey: string;
+  personaName: string;
+  phase: Phase;
+  minutes: number;
+  completedAt: number;
+}
+
 interface LobbyRow {
   id: string;
   code: string;
@@ -42,10 +55,12 @@ interface LobbyMemberRow {
 }
 
 interface LobbySessionRow {
+  id: string;
   identity_key: string;
   persona_name: string;
   phase: Phase;
   minutes: number;
+  completed_at: string;
 }
 
 const CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789"; // no ambiguous chars (0/o, 1/l/i)
@@ -60,12 +75,17 @@ function rowToLobby(row: LobbyRow): Lobby {
   return { id: row.id, code: row.code, name: row.name, mode: row.mode, createdAt: new Date(row.created_at).getTime() };
 }
 
-export async function createLobby(name: string, identityKey: string, personaName: string): Promise<Lobby | null> {
+export async function createLobby(
+  name: string,
+  mode: LobbyMode,
+  identityKey: string,
+  personaName: string,
+): Promise<Lobby | null> {
   if (!supabase) return null;
   const code = generateLobbyCode();
   const { data, error } = await supabase
     .from("lobbies")
-    .insert({ code, name, mode: "individual", created_by: identityKey, creator_persona: personaName })
+    .insert({ code, name, mode, created_by: identityKey, creator_persona: personaName })
     .select()
     .single();
   if (error || !data) {
@@ -183,6 +203,73 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
     map.set(r.identity_key, entry);
   }
   return [...map.values()].sort((a, b) => b.focusMinutes - a.focusMinutes);
+}
+
+// all-time per-member totals -- the "team stat" view, so members can look back on a
+// lobby's history no matter how many days it's been since the last session
+export async function fetchAllTimeLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyAllTimeStat[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("lobby_sessions")
+    .select("identity_key, persona_name, phase, minutes, completed_at")
+    .eq("lobby_id", lobbyId);
+  if (error) console.error("fetchAllTimeLobbyStats failed", error);
+
+  const map = new Map<string, LobbyAllTimeStat & { days: Set<string> }>();
+  for (const m of members) {
+    map.set(m.identityKey, {
+      identityKey: m.identityKey,
+      personaName: m.personaName,
+      focusMinutes: 0,
+      breakMinutes: 0,
+      sessions: 0,
+      daysActive: 0,
+      days: new Set(),
+    });
+  }
+  for (const r of (data ?? []) as LobbySessionRow[]) {
+    const entry = map.get(r.identity_key) ?? {
+      identityKey: r.identity_key,
+      personaName: r.persona_name,
+      focusMinutes: 0,
+      breakMinutes: 0,
+      sessions: 0,
+      daysActive: 0,
+      days: new Set<string>(),
+    };
+    if (r.phase === "focus") {
+      entry.focusMinutes += r.minutes;
+      entry.sessions += 1;
+    } else {
+      entry.breakMinutes += r.minutes;
+    }
+    entry.personaName = r.persona_name;
+    entry.days.add(new Date(r.completed_at).toDateString());
+    map.set(r.identity_key, entry);
+  }
+  return [...map.values()]
+    .map(({ days, ...rest }) => ({ ...rest, daysActive: days.size }))
+    .sort((a, b) => b.focusMinutes - a.focusMinutes);
+}
+
+// a recent-activity log across every member, most recent first -- who did what, when
+export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Promise<LobbyActivityEntry[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("lobby_sessions")
+    .select("id, identity_key, persona_name, phase, minutes, completed_at")
+    .eq("lobby_id", lobbyId)
+    .order("completed_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) return [];
+  return (data as LobbySessionRow[]).map((r) => ({
+    id: r.id,
+    identityKey: r.identity_key,
+    personaName: r.persona_name,
+    phase: r.phase,
+    minutes: r.minutes,
+    completedAt: new Date(r.completed_at).getTime(),
+  }));
 }
 
 export function buildLobbyUrl(code: string): string {

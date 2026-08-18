@@ -9,9 +9,10 @@ interface TopBarProps {
   tasksOpen: boolean;
   onToggleTasks: () => void;
   onOpenStats: () => void;
+  onOpenTeamStats: () => void;
 }
 
-export function TopBar({ tasksOpen, onToggleTasks, onOpenStats }: TopBarProps) {
+export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats }: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
@@ -46,7 +47,7 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats }: TopBarProps) {
             {personalTheme === "colour" ? <PersonalColorSwatches /> : <BackgroundPicker />}
           </>
         )}
-        <LobbyWidget />
+        <LobbyWidget onOpenTeamStats={onOpenTeamStats} />
         <AccountWidget onOpenStats={onOpenStats} />
         <button
           type="button"

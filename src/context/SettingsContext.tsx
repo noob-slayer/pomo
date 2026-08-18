@@ -9,6 +9,7 @@ export interface CurrentLobby {
   id: string;
   code: string;
   name: string;
+  mode: "individual" | "sync";
 }
 
 interface Settings {

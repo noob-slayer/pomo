@@ -552,6 +552,61 @@
   color: var(--page-muted);
 }
 
+.lobby-panel__mode {
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  color: var(--page-ink);
+}
+
+.lobby-panel__stats-link {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--page-border);
+  font-size: 0.8rem;
+  color: var(--page-ink);
+  text-align: left;
+}
+
+.lobby-panel__stats-link:hover {
+  text-decoration: underline;
+}
+
+.lobby-panel__mode-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.lobby-panel__mode-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+
+.lobby-panel__mode-choice--active {
+  border-color: var(--page-ink);
+  background: var(--page-bg);
+}
+
+.lobby-panel__mode-choice-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--page-ink);
+}
+
+.lobby-panel__mode-choice-sub {
+  font-size: 0.7rem;
+  color: var(--page-muted);
+}
+
 .stage-label {
   margin: 0 0 10px;
   font-size: 0.95rem;
@@ -1233,6 +1288,53 @@
 .stats-log__minutes {
   color: var(--page-muted);
   white-space: nowrap;
+}
+
+/* ---------- lobby stats (team) ---------- */
+
+.lobby-stats-board {
+  list-style: none;
+  margin: 0 0 4px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lobby-stats-row {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  gap: 2px 10px;
+  align-items: baseline;
+}
+
+.lobby-stats-row--me .lobby-stats-row__name,
+.lobby-stats-row--me .lobby-stats-row__value {
+  font-weight: 700;
+  color: var(--page-ink);
+}
+
+.lobby-stats-row__rank {
+  color: var(--page-muted);
+  font-size: 0.78rem;
+}
+
+.lobby-stats-row__name {
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-stats-row__value {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.lobby-stats-row__meta {
+  grid-column: 2 / 3;
+  font-size: 0.72rem;
+  color: var(--page-muted);
 }
 
 /* ---------- credit ---------- */
