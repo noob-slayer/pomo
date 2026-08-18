@@ -16,17 +16,45 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
   const [activeTaskTitle, setActiveTaskTitle] = useState<string | null>(null);
   const lastMinutesRef = useRef(25);
 
-  // ticking
+  // wall-clock anchors, not tick counts — setInterval gets throttled or fully suspended
+  // while a tab is backgrounded or a device is asleep, so counting down by decrementing
+  // once per "tick" silently stops (or drifts) across a standby period. Deriving the
+  // displayed value from Date.now() vs a fixed target timestamp self-corrects the moment
+  // a tick finally does fire (or the tab becomes visible again), no matter how long the
+  // gap was.
+  const endAtRef = useRef<number | null>(null); // ms epoch — countdown target (targetSeconds !== null)
+  const startedAtRef = useRef<number | null>(null); // ms epoch — open-ended break start
+
+  const recompute = () => {
+    if (targetSeconds === null) {
+      if (startedAtRef.current === null) return;
+      setElapsedSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000));
+    } else {
+      if (endAtRef.current === null) return;
+      setRemainingSeconds(Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000)));
+    }
+  };
+
+  // while running: recompute on an interval, and immediately whenever the tab/device
+  // wakes up, instead of waiting for the next tick (which could be up to a second late,
+  // or — after a real sleep — arrive only once the interval resumes at all)
   useEffect(() => {
     if (status !== "running") return;
-    const id = setInterval(() => {
-      if (targetSeconds === null) {
-        setElapsedSeconds((s) => s + 1);
-      } else {
-        setRemainingSeconds((s) => Math.max(0, s - 1));
-      }
-    }, 1000);
-    return () => clearInterval(id);
+    recompute();
+    const id = setInterval(recompute, 1000);
+    const onWake = () => {
+      if (document.visibilityState === "visible") recompute();
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("focus", onWake);
+    window.addEventListener("pageshow", onWake);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("focus", onWake);
+      window.removeEventListener("pageshow", onWake);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, targetSeconds]);
 
   // completion watcher
@@ -34,6 +62,7 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
     if (status !== "running" || targetSeconds === null || remainingSeconds > 0) return;
     const minutes = lastMinutesRef.current;
     setStatus("idle");
+    endAtRef.current = null;
     if (phase === "focus") {
       onFocusComplete(minutes, activeTaskId, activeTaskTitle);
       setActiveTaskId(null);
@@ -62,6 +91,8 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
     setTargetSeconds(minutes * 60);
     setRemainingSeconds(minutes * 60);
     setElapsedSeconds(0);
+    endAtRef.current = Date.now() + minutes * 60 * 1000;
+    startedAtRef.current = null;
     setStatus("running");
   };
 
@@ -73,16 +104,30 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
       lastMinutesRef.current = 0;
       setTargetSeconds(null);
       setElapsedSeconds(0);
+      startedAtRef.current = Date.now();
+      endAtRef.current = null;
     } else {
       lastMinutesRef.current = minutes;
       setTargetSeconds(minutes * 60);
       setRemainingSeconds(minutes * 60);
+      endAtRef.current = Date.now() + minutes * 60 * 1000;
+      startedAtRef.current = null;
     }
     setStatus("running");
   };
 
   const pause = () => setStatus((s) => (s === "running" ? "paused" : s));
-  const resume = () => setStatus((s) => (s === "paused" ? "running" : s));
+
+  // resuming re-anchors the wall-clock target/start to right now, using whatever
+  // remaining/elapsed value was last displayed (frozen since pause() just stops the
+  // recompute loop — the state values themselves don't drift while paused)
+  const resume = () =>
+    setStatus((s) => {
+      if (s !== "paused") return s;
+      if (targetSeconds === null) startedAtRef.current = Date.now() - elapsedSeconds * 1000;
+      else endAtRef.current = Date.now() + remainingSeconds * 1000;
+      return "running";
+    });
 
   const stop = () => {
     setStatus("idle");
@@ -90,11 +135,18 @@ export function useTimer({ onFocusComplete, onBreakComplete }: UseTimerOptions) 
     setElapsedSeconds(0);
     setActiveTaskId(null);
     setActiveTaskTitle(null);
+    endAtRef.current = null;
+    startedAtRef.current = null;
   };
 
   const reset = () => {
-    setRemainingSeconds(targetSeconds ?? lastMinutesRef.current * 60);
+    const fullSeconds = targetSeconds ?? 0;
+    setRemainingSeconds(fullSeconds);
     setElapsedSeconds(0);
+    if (status === "running") {
+      if (targetSeconds === null) startedAtRef.current = Date.now();
+      else endAtRef.current = Date.now() + fullSeconds * 1000;
+    }
   };
 
   const togglePrimary = (fallbackMinutes: number) => {

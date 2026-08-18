@@ -34,6 +34,7 @@ export function Shell() {
   const [hostReady, setHostReady] = useState(false);
   const hostChannelRef = useRef<RealtimeChannel | null>(null);
   const taskAutoHideRef = useRef<number | null>(null);
+  const taskPanelRef = useRef<HTMLElement | null>(null);
 
   const timer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
@@ -93,6 +94,25 @@ export function Shell() {
     return () => {
       if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
     };
+  }, [tasksOpen]);
+
+  // clicking anywhere outside the panel (and outside its own toggle button, which has
+  // its own open/close handling) closes it immediately, on top of the 5s auto-hide.
+  // deliberately listens on "click", not "mousedown": closing the panel changes the
+  // grid layout (unlike a floating dropdown), and on mousedown that reflow can happen
+  // *before* mouseup, shifting whatever the user was actually trying to click out from
+  // under the cursor. "click" fires against a target already resolved at dispatch time,
+  // so the element's own onClick always runs first, unaffected by the reflow that follows.
+  useEffect(() => {
+    if (!tasksOpen) return;
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (taskPanelRef.current?.contains(target)) return;
+      if ((target as Element).closest?.("[data-tasks-toggle]")) return;
+      setTasksOpen(false);
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
   }, [tasksOpen]);
 
   // while hosting, broadcast the current timer state on every change (the timer's own
@@ -158,7 +178,6 @@ export function Shell() {
       <TopBar
         tasksOpen={tasksOpen}
         onToggleTasks={() => setTasksOpen((v) => !v)}
-        focusMinutes={selectedFocusMinutes}
         roomCode={roomCode}
         onStartHosting={startHosting}
         onStopHosting={stopHosting}
@@ -186,6 +205,7 @@ export function Shell() {
           timer={timer}
           selectedFocusMinutes={selectedFocusMinutes}
           onActivity={resetTaskAutoHide}
+          panelRef={taskPanelRef}
         />
       </div>
       <YoutubeWidget />

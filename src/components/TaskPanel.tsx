@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type RefObject } from "react";
 import { useTasks } from "../context/TasksContext";
 import type { TimerApi } from "../hooks/useTimer";
 import type { Mode } from "../types";
@@ -20,6 +20,7 @@ interface TaskPanelProps {
   timer: TimerApi;
   selectedFocusMinutes: number;
   onActivity: () => void;
+  panelRef: RefObject<HTMLElement | null>;
 }
 
 const EMPTY_PARTS: TimeParts = { hour12: "", minute: "", period: "am" };
@@ -62,7 +63,7 @@ function TimeField({
   );
 }
 
-export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity }: TaskPanelProps) {
+export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity, panelRef }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [tab, setTab] = useState<"tasks" | "history">("tasks");
   const [title, setTitle] = useState("");
@@ -97,6 +98,7 @@ export function TaskPanel({ open, mode, timer, selectedFocusMinutes, onActivity 
 
   return (
     <aside
+      ref={panelRef}
       className={open ? "task-panel task-panel--open" : "task-panel"}
       onClick={onActivity}
       onInput={onActivity}

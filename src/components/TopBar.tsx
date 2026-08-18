@@ -8,20 +8,12 @@ import { AccountWidget } from "./AccountWidget";
 interface TopBarProps {
   tasksOpen: boolean;
   onToggleTasks: () => void;
-  focusMinutes: number;
   roomCode: string | null;
   onStartHosting: () => string;
   onStopHosting: () => void;
 }
 
-export function TopBar({
-  tasksOpen,
-  onToggleTasks,
-  focusMinutes,
-  roomCode,
-  onStartHosting,
-  onStopHosting,
-}: TopBarProps) {
+export function TopBar({ tasksOpen, onToggleTasks, roomCode, onStartHosting, onStopHosting }: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
@@ -56,18 +48,14 @@ export function TopBar({
             {personalTheme === "colour" ? <PersonalColorSwatches /> : <BackgroundPicker />}
           </>
         )}
-        <ShareWidget
-          focusMinutes={focusMinutes}
-          roomCode={roomCode}
-          onStartHosting={onStartHosting}
-          onStopHosting={onStopHosting}
-        />
+        <ShareWidget roomCode={roomCode} onStartHosting={onStartHosting} onStopHosting={onStopHosting} />
         <AccountWidget />
         <button
           type="button"
           className="tasks-toggle"
           onClick={onToggleTasks}
           aria-pressed={tasksOpen}
+          data-tasks-toggle
         >
           tasks
         </button>

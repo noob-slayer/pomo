@@ -1,7 +1,8 @@
 .shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
 }
 
 /* ---------- topbar ---------- */
@@ -210,10 +211,13 @@
 /* ---------- layout ---------- */
 
 .layout {
+  position: relative;
   flex: 1;
   display: grid;
   grid-template-columns: 1fr 320px;
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
+  overflow: hidden;
 }
 
 .layout--full {
@@ -231,14 +235,16 @@
 
 .stage {
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--stage-bg);
   color: var(--stage-ink);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8vh 8vw;
-  min-height: 60vh;
+  padding: 6vh 8vw;
+  height: 100%;
+  min-height: 0;
 }
 
 .stage-photo {
@@ -450,16 +456,37 @@
   padding: 24px 22px;
   overflow-y: auto;
   display: none;
+  height: 100%;
 }
 
 .task-panel--open {
   display: block;
 }
 
+/* below the 2-column breakpoint, the panel can't sit beside the stage without either
+   squeezing it or growing the page taller than the viewport (the scrolling the user
+   didn't want) — so it becomes a full-screen overlay instead, taken out of grid flow
+   entirely, scrolling only within itself if its own content needs more room */
 @media (max-width: 860px) {
-  .task-panel--open {
+  .task-panel {
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: var(--page-bg);
     border-left: none;
     border-top: 1px solid var(--page-border);
+    transform: translateY(100%);
+    transition: transform 0.22s ease;
+  }
+
+  .task-panel--open {
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 860px) and (prefers-reduced-motion: reduce) {
+  .task-panel {
+    transition: none;
   }
 }
 
@@ -788,6 +815,10 @@
 
 /* ---------- credit ---------- */
 
+/* the stage now always fills the full viewport below the topbar (the task panel is
+   either a side column with its own scroll, or a full-screen overlay — it never grows
+   the page), so the credit line always sits over the stage's own colored background at
+   every width and can just use its ink color directly, matching the clock */
 .credit {
   position: fixed;
   left: 16px;
@@ -796,8 +827,7 @@
   align-items: center;
   gap: 10px;
   font-size: 0.72rem;
-  color: var(--page-muted);
-  opacity: 0.75;
+  color: var(--stage-ink-muted);
   z-index: 5;
   pointer-events: none;
 }
@@ -809,27 +839,5 @@
 }
 
 .credit__coffee:hover {
-  color: var(--page-ink);
-}
-
-/* on desktop the credit line sits fixed over the stage's own colored background, so it
-   needs the stage's ink color to stay readable/match the clock, not the page's neutral
-   grey — below the 860px breakpoint it moves into the plain page background instead
-   (after the stacked task panel), where page-muted is the correct color to use */
-@media (min-width: 861px) {
-  .credit {
-    color: var(--stage-ink-muted);
-  }
-
-  .credit__coffee:hover {
-    color: var(--stage-ink);
-  }
-}
-
-@media (max-width: 860px) {
-  .credit {
-    position: static;
-    justify-content: center;
-    padding: 14px 16px;
-  }
+  color: var(--stage-ink);
 }
