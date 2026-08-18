@@ -364,6 +364,17 @@ export function Shell() {
   const showLofiLayer = mode === "personal" && personalTheme === "lofi";
   const showDvdLayer = mode === "personal" && personalTheme === "dvd";
   const showSuitsLayer = mode === "personal" && personalTheme === "suits";
+  const showSuccessionLayer = mode === "personal" && personalTheme === "succession";
+
+  // unlike the other video backdrops, this one keeps its audio -- browsers only allow
+  // autoplay-with-sound right after a real user gesture (picking this option from the
+  // menu counts), so re-attempt play() on mount in case that gesture already elapsed by
+  // the time this layer renders (e.g. the theme was already selected on page load)
+  const successionVideoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (!showSuccessionLayer) return;
+    successionVideoRef.current?.play().catch(() => {});
+  }, [showSuccessionLayer]);
 
   return (
     <div className="shell" style={themeVars}>
@@ -410,6 +421,19 @@ export function Shell() {
             <div className="stage-suits-wrap">
               <video className="stage-suits" src="/suits-bg.mp4" autoPlay muted loop playsInline />
               <div className="stage-suits-overlay" />
+            </div>
+          )}
+          {showSuccessionLayer && (
+            <div className="stage-succession-wrap">
+              <video
+                ref={successionVideoRef}
+                className="stage-succession"
+                src="/succession-bg.mp4"
+                autoPlay
+                loop
+                playsInline
+              />
+              <div className="stage-succession-overlay" />
             </div>
           )}
           {showDvdLayer && <DvdBounce timer={timer} />}
