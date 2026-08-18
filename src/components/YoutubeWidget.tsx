@@ -1,6 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useSettings } from "../context/SettingsContext";
 import { DEFAULT_STATIONS, parseYoutubeInput, resolveStation, stationEmbedSrc } from "../lib/stations";
+
+const AUTO_HIDE_MS = 5000;
 
 export function YoutubeWidget() {
   const { activeStationId, setActiveStationId, customStation, setCustomStation } = useSettings();
@@ -10,6 +12,14 @@ export function YoutubeWidget() {
   const [customError, setCustomError] = useState(false);
 
   const embedSrc = stationEmbedSrc(resolveStation(activeStationId, customStation));
+
+  // auto-hide the panel after a few seconds — resets while the user is actively picking
+  // a station or typing a link, so it doesn't vanish mid-interaction
+  useEffect(() => {
+    if (!expanded) return;
+    const id = setTimeout(() => setExpanded(false), AUTO_HIDE_MS);
+    return () => clearTimeout(id);
+  }, [expanded, activeStationId, customStation, customUrl]);
 
   const handleSelectStation = (id: string) => {
     setActiveStationId(id);

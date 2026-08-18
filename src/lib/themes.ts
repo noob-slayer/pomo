@@ -9,7 +9,7 @@ export interface ThemeColors {
 }
 
 export const WORK_THEMES: Record<WorkTheme, ThemeColors> = {
-  burgundy: { label: "burgundy", bg: "#6e1e2c", ink: "#f6efee", inkMuted: "rgba(246,239,238,.66)", line: "rgba(246,239,238,.3)" },
+  burgundy: { label: "burgundy", bg: "#3a1407", ink: "#f6efee", inkMuted: "rgba(246,239,238,.66)", line: "rgba(246,239,238,.3)" },
   forest: { label: "forest green", bg: "#2e4a3c", ink: "#f1f5f2", inkMuted: "rgba(241,245,242,.66)", line: "rgba(241,245,242,.3)" },
   vistara: { label: "vistara blue", bg: "#1f3a5c", ink: "#edf2f7", inkMuted: "rgba(237,242,247,.66)", line: "rgba(237,242,247,.3)" },
   slate: { label: "slate grey", bg: "#53555b", ink: "#f2f1ef", inkMuted: "rgba(242,241,239,.66)", line: "rgba(242,241,239,.3)" },

@@ -234,12 +234,9 @@
   color: var(--stage-ink);
   display: flex;
   align-items: center;
+  justify-content: center;
   padding: 8vh 8vw;
   min-height: 60vh;
-}
-
-.layout--full .stage {
-  justify-content: center;
 }
 
 .stage-photo {
