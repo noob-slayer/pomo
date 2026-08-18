@@ -96,7 +96,7 @@ export function Shell() {
   // task panel auto-hides 5s after opening; resets on any interaction inside it
   const resetTaskAutoHide = () => {
     if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
-    taskAutoHideRef.current = window.setTimeout(() => setTasksOpen(false), 5000);
+    taskAutoHideRef.current = window.setTimeout(() => setTasksOpen(false), 12000);
   };
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export function Shell() {
   }, [tasksOpen]);
 
   // clicking anywhere outside the panel (and outside its own toggle button, which has
-  // its own open/close handling) closes it immediately, on top of the 5s auto-hide.
+  // its own open/close handling) closes it immediately, on top of the 12s auto-hide.
   // deliberately listens on "click", not "mousedown": closing the panel changes the
   // grid layout (unlike a floating dropdown), and on mousedown that reflow can happen
   // *before* mouseup, shifting whatever the user was actually trying to click out from
