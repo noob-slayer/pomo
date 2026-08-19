@@ -2476,6 +2476,14 @@
   margin-bottom: 18px;
 }
 
+/* the goals row only ever holds 2 cards (weekly, daily) -- letting them stretch to fill
+   the same 1fr-per-card rule as the 3-up row above would blow them up noticeably wider
+   than their siblings there, capping width keeps every card across both rows reading as
+   the same size family */
+.stats-hero--goals {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 260px));
+}
+
 .stats-hero__card {
   display: flex;
   flex-direction: column;
