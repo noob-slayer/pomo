@@ -239,6 +239,10 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                   <span className="stats-hero__label">focused, all time</span>
                   {equivalent && <span className="stats-hero__sub">{equivalent}</span>}
                 </div>
+              </div>
+
+              <p className="history-section__label">goals</p>
+              <div className="stats-hero stats-hero--goals">
                 <div className="stats-hero__card">
                   {editingGoal ? (
                     <form className="stats-goal-form" onSubmit={handleSaveGoal}>

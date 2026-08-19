@@ -24,6 +24,7 @@ import {
   type KudosNotification,
 } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
+import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
 import { computeBadges, readSeenBadges, writeSeenBadges, type Badge } from "../lib/statsExtras";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
@@ -102,6 +103,7 @@ export function Shell() {
       logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now(), completed: true });
       logToLobbyIfActive("focus", minutes, taskTitle);
       playChime();
+      notifyCompletion("focus", taskTitle);
       setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
@@ -116,6 +118,7 @@ export function Shell() {
       });
       logToLobbyIfActive("break", minutes, null);
       playChime();
+      notifyCompletion("break", null);
       setSessionPrompt("choice");
     },
     // a manual stop mid-session, or a session recovered on reload that hadn't actually
@@ -148,6 +151,7 @@ export function Shell() {
   // sync_state a late joiner catches up from -- see connectLobbySync's effect below
   const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId = null, taskTitle = null) => {
     rawTimer.startFocus(minutes, taskId, taskTitle);
+    requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
       const action: SyncAction = { type: "startFocus", minutes };
       broadcastIfSync(action);
@@ -156,6 +160,7 @@ export function Shell() {
   };
   const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
     rawTimer.startBreak(minutes);
+    requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
       const action: SyncAction = { type: "startBreak", minutes };
       broadcastIfSync(action);
