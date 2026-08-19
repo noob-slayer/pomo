@@ -12,7 +12,17 @@ import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
-import { connectLobbySync, broadcastSyncAction, writeSyncState, readSyncState, type SyncAction } from "../lib/lobbySync";
+import {
+  connectLobbySync,
+  broadcastSyncAction,
+  writeSyncState,
+  readSyncState,
+  connectKudosNotifications,
+  sendKudosOnChannel,
+  broadcastKudos,
+  type SyncAction,
+  type KudosNotification,
+} from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
@@ -29,6 +39,7 @@ import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
 import { Onboarding } from "./Onboarding";
+import { IconFlame } from "./icons";
 
 export function Shell() {
   const {
@@ -56,11 +67,14 @@ export function Shell() {
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
+  const [kudosToast, setKudosToast] = useState<KudosNotification | null>(null);
+  const kudosToastTimeoutRef = useRef<number | null>(null);
   const [topbarRevealed, setTopbarRevealed] = useState(false);
   const taskAutoHideRef = useRef<number | null>(null);
   const topbarAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
+  const kudosChannelRef = useRef<{ lobbyId: string; channel: RealtimeChannel } | null>(null);
 
   const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
@@ -217,6 +231,38 @@ export function Shell() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, currentLobby?.mode]);
+
+  // live "you got kudos" toast -- connected whenever a lobby is active, regardless of
+  // individual/sync mode (unlike the sync channel above, which only matters in sync mode).
+  // Purely a same-session nudge on top of the real database write (see
+  // lib/lobbySync.ts's connectKudosNotifications) -- missing this because the tab wasn't
+  // open just means no toast, the kudos itself is never lost.
+  useEffect(() => {
+    if (!currentLobby) return;
+    const channel = connectKudosNotifications(currentLobby.id, (notification) => {
+      if (notification.toIdentityKey !== identityKey) return;
+      if (kudosToastTimeoutRef.current) window.clearTimeout(kudosToastTimeoutRef.current);
+      setKudosToast(notification);
+      kudosToastTimeoutRef.current = window.setTimeout(() => setKudosToast(null), 5000);
+    });
+    if (channel) kudosChannelRef.current = { lobbyId: currentLobby.id, channel };
+    return () => {
+      channel?.unsubscribe();
+      kudosChannelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLobby?.id, identityKey]);
+
+  // reuses the channel above when kudos are given on the currently-active lobby (the
+  // common case), falling back to a one-off channel otherwise -- see sendKudosOnChannel's
+  // comment in lib/lobbySync.ts for why reuse isn't just an optimization here
+  const sendKudos = (lobbyId: string, notification: KudosNotification) => {
+    if (kudosChannelRef.current?.lobbyId === lobbyId) {
+      sendKudosOnChannel(kudosChannelRef.current.channel, notification);
+    } else {
+      broadcastKudos(lobbyId, notification);
+    }
+  };
 
   // if a new session starts by any other means (keyboard shortcut, task-panel "start
   // pomo", etc.) while the prompt is still up, dismiss it rather than leaving it stacked
@@ -620,7 +666,18 @@ export function Shell() {
         />
       </div>
       <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
-      <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} />
+      <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} onGiveKudos={sendKudos} />
+      {kudosToast && (
+        <div className="kudos-toast" role="status">
+          <span className="kudos-toast__icon">
+            <IconFlame />
+          </span>
+          <p className="kudos-toast__body">
+            <span className="kudos-toast__who">{kudosToast.fromPersonaName}</span> gave you kudos
+            {kudosToast.taskTitle ? ` for "${kudosToast.taskTitle}"` : ""}
+          </p>
+        </div>
+      )}
       <YoutubeWidget />
       <Credit />
       <Onboarding />

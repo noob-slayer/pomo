@@ -15,19 +15,21 @@ import {
   type LobbyActivityEntry,
 } from "../lib/lobby";
 import { fetchLobbyKudos, giveKudos, removeKudos, type KudosEntry } from "../lib/kudos";
+import type { KudosNotification } from "../lib/lobbySync";
 import { formatDuration } from "../lib/durations";
 import { IconFlame } from "./icons";
 
 interface TeamStatsPageProps {
   open: boolean;
   onClose: () => void;
+  onGiveKudos: (lobbyId: string, notification: KudosNotification) => void;
 }
 
 type LeaderboardRange = "week" | "all";
 
 const POLL_MS = 8000;
 
-export function TeamStatsPage({ open, onClose }: TeamStatsPageProps) {
+export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps) {
   const { identityUserId } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
   const identityKey = resolveIdentityKey(identityUserId);
@@ -106,7 +108,8 @@ export function TeamStatsPage({ open, onClose }: TeamStatsPageProps) {
     kudosBySession.set(k.sessionId, entry);
   }
 
-  const toggleKudos = async (sessionId: string) => {
+  const toggleKudos = async (entry: LobbyActivityEntry) => {
+    const sessionId = entry.id;
     if (!selected || pendingKudos.has(sessionId)) return;
     const mine = kudosBySession.get(sessionId)?.mine ?? false;
     setPendingKudos((prev) => new Set(prev).add(sessionId));
@@ -139,6 +142,16 @@ export function TeamStatsPage({ open, onClose }: TeamStatsPageProps) {
       // the inverse of whatever optimistic edit was just applied
       const rows = await fetchLobbyKudos(selected.id);
       setKudos(rows);
+      return;
+    }
+    // notify the recipient in real time, if they're currently in this lobby too -- the
+    // database write above is the source of truth regardless, this is just the live nudge
+    if (!mine) {
+      onGiveKudos(selected.id, {
+        toIdentityKey: entry.identityKey,
+        fromPersonaName: displayName,
+        taskTitle: entry.taskTitle,
+      });
     }
   };
 
@@ -279,7 +292,7 @@ export function TeamStatsPage({ open, onClose }: TeamStatsPageProps) {
                             <button
                               type="button"
                               className={k?.mine ? "kudos-btn kudos-btn--active" : "kudos-btn"}
-                              onClick={() => void toggleKudos(a.id)}
+                              onClick={() => void toggleKudos(a)}
                               aria-pressed={!!k?.mine}
                               aria-label={k?.mine ? "remove kudos" : "give kudos"}
                             >
