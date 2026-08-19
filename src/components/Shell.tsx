@@ -59,7 +59,7 @@ export function Shell() {
     setWorkTheme,
   } = useSettings();
   const { identityUserId, loading: authLoading } = useAuth();
-  const { history, logCompletion } = useTasks();
+  const { history, logCompletion, historyReady } = useTasks();
   // starts closed on phone-sized viewports -- the task panel takes over the whole
   // screen there (the layout grid collapses to one column below 860px, matching
   // App.css's own breakpoint), pushing the timer out of view on first load otherwise
@@ -278,6 +278,11 @@ export function Shell() {
   // for reacting to *someone else's* session; crossing your own personal-best/badge
   // threshold is arguably the higher-leverage moment and was previously silent.
   useEffect(() => {
+    // history starts empty and gets replaced once a signed-in user's cloud data finishes
+    // loading -- evaluating against that transient pre-sync state would seed "seen" against
+    // an incomplete history, then see long-since-earned badges as newly achieved the moment
+    // the real history arrives right after. Wait until it's settled for this identity.
+    if (!historyReady) return;
     const badges = computeBadges(history, mode);
     const achievedIds = badges.filter((b) => b.achieved).map((b) => b.id);
     const seen = readSeenBadges(mode);
@@ -292,7 +297,7 @@ export function Shell() {
       badgeToastTimeoutRef.current = window.setTimeout(() => setBadgeToast(null), 5000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history, mode]);
+  }, [history, mode, historyReady]);
 
   // reuses the channel above when kudos are given on the currently-active lobby (the
   // common case), falling back to a one-off channel otherwise -- see sendKudosOnChannel's
