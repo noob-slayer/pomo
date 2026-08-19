@@ -20,7 +20,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   ...(import.meta.env.DEV ? [{ value: "f1track" as const, label: "f1 - austria circuit" }] : []),
   { value: "yt", label: "youtube" },
   { value: "forest1", label: "forest 1" },
-  { value: "splitflap", label: "split-flap" },
+  { value: "splitflap", label: "split - flap" },
   { value: "japan", label: "japan - curtain" },
   { value: "matrix", label: "matrix" },
 ];

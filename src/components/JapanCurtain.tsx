@@ -15,20 +15,23 @@ const IMG_H = 1536;
 
 // how far the crop window is nudged within the source image, as a fraction of the crop's
 // own width -- see getCoverCrop(). Applied identically wherever the background is drawn.
-const BG_SHIFT_FRAC = 0.14;
+// This photo's gate already sits well right-of-center on its own (unlike the previous,
+// symmetrically-centered one that needed an artificial push), so no extra shift here.
+const BG_SHIFT_FRAC = 0;
 
-// measured directly from the photo's own pixels (scanning for the vermillion-red
-// pillars/beams), as fractions of the SOURCE IMAGE width -- not the canvas. The cover-fit
-// crop has two branches (crop left/right vs. crop top/bottom, depending on how the
-// canvas's aspect ratio compares to the photo's), and which one applies changes at
-// runtime as the stage resizes (e.g. opening/closing the task panel). A fixed
-// canvas-fraction offset only tracked one branch correctly and snapped out of alignment
-// in the other, so the opening's on-canvas position is now derived from these
-// image-space fractions through whatever the *current* crop rectangle actually is (see
+// measured directly from THIS photo's own pixels (scanning for the vermillion-red
+// pillars and the lower crossbeam, the same way as before -- see the color-scan approach
+// noted for whoever swaps the photo again), as fractions of the SOURCE IMAGE width/height,
+// not the canvas. The gate here sits off-center and at an angle, further right than the
+// previous photo's. The cover-fit crop has two branches (crop left/right vs. crop
+// top/bottom, depending on how the canvas's aspect ratio compares to the photo's), and
+// which one applies changes at runtime as the stage resizes (e.g. opening/closing the
+// task panel) -- the opening's on-canvas position is derived from these image-space
+// fractions through whatever the *current* crop rectangle actually is (see
 // curtainGeometry()), which stays correct across both branches and any shift applied.
-const OPENING_LEFT_FRAC = 0.355;
-const OPENING_RIGHT_FRAC = 0.645;
-const RAIL_Y_FRAC = 0.38;
+const OPENING_LEFT_FRAC = 0.52;
+const OPENING_RIGHT_FRAC = 0.805;
+const RAIL_Y_FRAC = 0.34;
 
 const STRANDS = 22;
 const BEADS_PER_STRAND = 11;
