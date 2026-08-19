@@ -85,10 +85,10 @@ export function PublicProfilePage({ slug }: PublicProfilePageProps) {
           <>
             <div className="stats-hero">
               <div className="stats-hero__card">
-                <span className="stats-hero__icon">
+                <span className="stats-hero__value stats-hero__value--with-icon tabular">
                   <IconFlame />
+                  {streaks.current}
                 </span>
-                <span className="stats-hero__value tabular">{streaks.current}</span>
                 <span className="stats-hero__label">day streak</span>
                 <span className="stats-hero__sub">longest {streaks.longest}</span>
               </div>

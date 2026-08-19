@@ -29,10 +29,10 @@ export function StatsView({ mode, onOpenFull }: StatsViewProps) {
     <div className="stats-teaser">
       <div className="stats-teaser__row">
         <div className="stats-teaser__stat">
-          <span className="stats-teaser__icon">
+          <span className="stats-teaser__value stats-teaser__value--with-icon tabular">
             <IconFlame />
+            {streaks.current}
           </span>
-          <span className="stats-teaser__value tabular">{streaks.current}</span>
           <span className="stats-teaser__label">day streak</span>
         </div>
         <div className="stats-teaser__stat">
