@@ -16,6 +16,7 @@ import {
   connectLobbySync,
   broadcastSyncAction,
   writeSyncState,
+  clearSyncState,
   readSyncState,
   connectKudosNotifications,
   sendKudosOnChannel,
@@ -146,46 +147,71 @@ export function Shell() {
     if (inSyncLobby && syncChannelRef.current) broadcastSyncAction(syncChannelRef.current, action);
   };
 
-  // only startFocus/startBreak/stop have statically-known resulting values (no stale
-  // read needed), so those are the only actions that also update the persisted
-  // sync_state a late joiner catches up from -- see connectLobbySync's effect below
+  // every sync-relevant action writes a full state snapshot, not just start/stop -- a
+  // pause/resume/reset that only broadcast live (with nothing persisted) left the server's
+  // sync_state stale, so anyone reloading afterward caught up against a snapshot that had
+  // no idea a pause had ever happened, silently counting the paused time as if the timer
+  // had kept running the whole time. See LobbySyncState's own comment in lib/lobbySync.ts.
+  const persistSyncSnapshot = (
+    status: "running" | "paused",
+    phase: TimerApi["phase"],
+    targetSeconds: number | null,
+    remainingSeconds: number,
+    elapsedSeconds: number,
+  ) => {
+    if (!inSyncLobby || !currentLobby) return;
+    void writeSyncState(currentLobby.id, { phase, status, targetSeconds, remainingSeconds, elapsedSeconds, at: Date.now() });
+  };
+
   const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId = null, taskTitle = null) => {
     rawTimer.startFocus(minutes, taskId, taskTitle);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
-      const action: SyncAction = { type: "startFocus", minutes };
-      broadcastIfSync(action);
-      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+      broadcastIfSync({ type: "startFocus", minutes });
+      persistSyncSnapshot("running", "focus", minutes * 60, minutes * 60, 0);
     }
   };
   const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
     rawTimer.startBreak(minutes);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
-      const action: SyncAction = { type: "startBreak", minutes };
-      broadcastIfSync(action);
-      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+      broadcastIfSync({ type: "startBreak", minutes });
+      if (minutes === null) persistSyncSnapshot("running", "break", null, 0, 0);
+      else persistSyncSnapshot("running", "break", minutes * 60, minutes * 60, 0);
     }
   };
   const syncedPause: TimerApi["pause"] = () => {
+    // read before calling pause() -- pause() only flips status, it doesn't touch these
+    // values, so the pre-call closure already holds exactly what should be persisted
+    const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
     rawTimer.pause();
     broadcastIfSync({ type: "pause" });
+    persistSyncSnapshot("paused", phase, targetSeconds, remainingSeconds, elapsedSeconds);
   };
   const syncedResume: TimerApi["resume"] = () => {
+    // same reasoning as pause(): resume() re-anchors endAt/startedAt to now but doesn't
+    // change the frozen remaining/elapsed values themselves
+    const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
     rawTimer.resume();
     broadcastIfSync({ type: "resume" });
+    persistSyncSnapshot("running", phase, targetSeconds, remainingSeconds, elapsedSeconds);
   };
   const syncedStop: TimerApi["stop"] = () => {
     rawTimer.stop();
     if (inSyncLobby && currentLobby) {
-      const action: SyncAction = { type: "stop" };
-      broadcastIfSync(action);
-      void writeSyncState(currentLobby.id, { action, at: Date.now() });
+      broadcastIfSync({ type: "stop" });
+      void clearSyncState(currentLobby.id);
     }
   };
   const syncedReset: TimerApi["reset"] = () => {
+    // reset() preserves whatever status/phase/targetSeconds already were -- only the
+    // countdown itself goes back to full
+    const { status, phase, targetSeconds } = rawTimer;
     rawTimer.reset();
     broadcastIfSync({ type: "reset" });
+    if (inSyncLobby && currentLobby && status !== "idle") {
+      persistSyncSnapshot(status, phase, targetSeconds, targetSeconds ?? 0, 0);
+    }
   };
   const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
     if (rawTimer.status === "running") syncedPause();
@@ -229,20 +255,49 @@ export function Shell() {
 
     (async () => {
       const state = await readSyncState(currentLobby.id);
-      if (!state) return;
-      const elapsedMinutes = (Date.now() - state.at) / 60000;
-      if (state.action.type === "startFocus") {
-        const remaining = state.action.minutes - elapsedMinutes;
-        if (remaining > 0.05) rawTimerRef.current.startFocus(remaining);
-      } else if (state.action.type === "startBreak") {
-        if (state.action.minutes === null) {
-          rawTimerRef.current.startBreak(null);
-        } else {
-          const remaining = state.action.minutes - elapsedMinutes;
-          if (remaining > 0.05) rawTimerRef.current.startBreak(remaining);
-        }
+      if (!state) return; // nothing in progress -- stay idle
+      const t = rawTimerRef.current;
+      // task info intentionally stays null here -- see SyncAction's own comment: each
+      // member keeps choosing their own task name, only the clock stays in lockstep
+      if (state.status === "paused") {
+        t.restoreSnapshot({
+          phase: state.phase,
+          status: "paused",
+          targetSeconds: state.targetSeconds,
+          remainingSeconds: state.remainingSeconds,
+          elapsedSeconds: state.elapsedSeconds,
+          activeTaskId: null,
+          activeTaskTitle: null,
+        });
+        return;
       }
-      // "stop" (or nothing written yet) -> nothing in progress, stay idle
+      const elapsedSinceSec = (Date.now() - state.at) / 1000;
+      if (state.targetSeconds === null) {
+        // open-ended break -- elapsed keeps growing, nothing to run out of
+        t.restoreSnapshot({
+          phase: state.phase,
+          status: "running",
+          targetSeconds: null,
+          remainingSeconds: 0,
+          elapsedSeconds: state.elapsedSeconds + elapsedSinceSec,
+          activeTaskId: null,
+          activeTaskTitle: null,
+        });
+        return;
+      }
+      const remaining = state.remainingSeconds - elapsedSinceSec;
+      if (remaining > 3) {
+        t.restoreSnapshot({
+          phase: state.phase,
+          status: "running",
+          targetSeconds: state.targetSeconds,
+          remainingSeconds: remaining,
+          elapsedSeconds: 0,
+          activeTaskId: null,
+          activeTaskTitle: null,
+        });
+      }
+      // else: it finished while this client was away -- stay idle
     })();
 
     return () => {

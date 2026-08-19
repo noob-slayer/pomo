@@ -365,6 +365,57 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     else startFocus(fallbackMinutes);
   };
 
+  // adopts an externally-computed state wholesale, instead of acting relative to "right
+  // now" the way startFocus/pause/resume do -- for lobby sync catching this client up to
+  // the lobby's actual current state (on join, or on reload), where the caller has already
+  // done its own elapsed-time math against a server snapshot and just needs every field set
+  // directly, without this hook's own action methods re-deriving (and conflicting with) it
+  const restoreSnapshot = (snapshot: {
+    phase: Phase;
+    status: Status;
+    targetSeconds: number | null;
+    remainingSeconds: number;
+    elapsedSeconds: number;
+    activeTaskId: string | null;
+    activeTaskTitle: string | null;
+  }) => {
+    const { phase: p, status: s, targetSeconds: ts, remainingSeconds: rs, elapsedSeconds: es, activeTaskId: tid, activeTaskTitle: ttl } = snapshot;
+    setPhase(p);
+    setStatus(s);
+    setTargetSeconds(ts);
+    setRemainingSeconds(rs);
+    setElapsedSeconds(es);
+    setActiveTaskId(tid);
+    setActiveTaskTitle(ttl);
+    if (ts !== null && ts > 0) lastMinutesRef.current = Math.round(ts / 60);
+
+    let endAt: number | null = null;
+    let startedAt: number | null = null;
+    if (s === "running") {
+      if (ts === null) startedAt = Date.now() - es * 1000;
+      else endAt = Date.now() + rs * 1000;
+    }
+    endAtRef.current = endAt;
+    startedAtRef.current = startedAt;
+
+    if (s === "idle") {
+      clearPersistedSession();
+    } else {
+      writePersistedSession({
+        phase: p,
+        status: s,
+        targetSeconds: ts,
+        endAt,
+        startedAt,
+        remainingSeconds: rs,
+        elapsedSeconds: es,
+        activeTaskId: tid,
+        activeTaskTitle: ttl,
+        lastMinutes: lastMinutesRef.current,
+      });
+    }
+  };
+
   return {
     phase,
     status,
@@ -382,6 +433,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     reset,
     togglePrimary,
     getLiveSeconds,
+    restoreSnapshot,
   };
 }
 
