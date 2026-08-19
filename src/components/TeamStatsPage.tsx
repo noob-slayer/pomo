@@ -234,8 +234,8 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
   };
 
   return (
-    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="team stats">
-      <div className="stats-page team-stats-page">
+    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="team stats" onClick={onClose}>
+      <div className="stats-page team-stats-page" onClick={(e) => e.stopPropagation()}>
         <header className="stats-page__header">
           <h1 className="stats-page__title">team stats</h1>
           <button type="button" className="stats-page__close" onClick={onClose} aria-label="close">
