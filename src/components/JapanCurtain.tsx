@@ -14,17 +14,20 @@ const OPENING_LEFT_FRAC = 0.355;
 const OPENING_RIGHT_FRAC = 0.645;
 const RAIL_Y_FRAC = 0.38;
 
-const STRANDS = 15;
-const BEADS_PER_STRAND = 8;
-const GAP = 40;
-const GRAVITY = 0.32;
-const DAMPING = 0.985;
+const STRANDS = 22;
+const BEADS_PER_STRAND = 11;
+const GAP = 30;
+const GRAVITY = 0.36;
+// lower than the original (0.985) -- that much retained velocity per frame made the
+// curtain feel like it was drifting in honey; settles and reacts noticeably faster now
+const DAMPING = 0.94;
 const RELAX_PASSES = 6;
 const STRETCH = 1.12;
 const COMPRESS = 0.88;
 const MOUSE_RADIUS = 100;
-const MOUSE_FORCE = 1.7;
-const FONT_SIZE = 26;
+const MOUSE_FORCE = 2;
+const FONT_SIZE = 18;
+const GRAB_RADIUS = 17; // scaled down with FONT_SIZE so the hit area still matches the glyph
 
 class Point {
   x: number;
@@ -190,7 +193,7 @@ export function JapanCurtain() {
     function onDown(e: MouseEvent | TouchEvent) {
       setMouse(e);
       let closest: Point | null = null;
-      let closestD = 24;
+      let closestD = GRAB_RADIUS;
       strands.forEach((s) =>
         s.points.forEach((p) => {
           const d = Math.hypot(p.x - mouse.x, p.y - mouse.y);
@@ -575,7 +578,9 @@ export function JapanCurtain() {
       }
 
       strands.forEach((s) => {
-        const windX = Math.sin(t / 1500 + s.phase) * 0.035;
+        // faster period (was t/1500) and bigger amplitude (was 0.035) -- the original
+        // sway was so slow and subtle it barely read as motion at all
+        const windX = Math.sin(t / 650 + s.phase) * 0.09;
         s.points.forEach((p) => p.integrate(windX));
         for (let i = 0; i < RELAX_PASSES; i++) s.links.forEach((l) => l.solve());
       });
