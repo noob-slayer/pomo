@@ -3,7 +3,14 @@ import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { useClickAway } from "../hooks/useClickAway";
 import { getGuestAvatarSeed, guestAvatarColor, guestAvatarEmoji } from "../lib/avatar";
-import { IconStats, IconLogin, IconLogout, IconEdit } from "./icons";
+import {
+  fetchMyPublicProfile,
+  enablePublicProfile,
+  disablePublicProfile,
+  buildPublicProfileUrl,
+  type PublicProfileSettings,
+} from "../lib/publicProfile";
+import { IconStats, IconLogin, IconLogout, IconEdit, IconShare } from "./icons";
 
 interface AccountWidgetProps {
   onOpenStats: () => void;
@@ -15,6 +22,9 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
   const [open, setOpen] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [renameInput, setRenameInput] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [profile, setProfile] = useState<PublicProfileSettings | null | "loading">("loading");
+  const [copied, setCopied] = useState(false);
   const widgetRef = useRef<HTMLDivElement>(null);
   useClickAway(widgetRef, () => setOpen(false), open);
 
@@ -39,6 +49,36 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
     if (!trimmed) return;
     setPersonaName(trimmed);
     setRenaming(false);
+  };
+
+  const startSharing = async () => {
+    setSharing(true);
+    setProfile("loading");
+    if (!user) return;
+    setProfile(await fetchMyPublicProfile(user.id));
+  };
+
+  const handleEnableSharing = async () => {
+    if (!user) return;
+    setProfile("loading");
+    setProfile(await enablePublicProfile(user.id, personaName || "member"));
+  };
+
+  const handleDisableSharing = async () => {
+    if (!user || !profile || profile === "loading") return;
+    const ok = await disablePublicProfile(user.id);
+    if (ok) setProfile({ ...profile, enabled: false });
+  };
+
+  const copyProfileLink = async () => {
+    if (!profile || profile === "loading") return;
+    try {
+      await navigator.clipboard.writeText(buildPublicProfileUrl(profile.slug));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      // clipboard blocked -- the link is still visible in the input to copy manually
+    }
   };
 
   return (
@@ -72,6 +112,47 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
               </button>
             </div>
           </form>
+        ) : sharing ? (
+          <div className="account-menu">
+            <p className="account-menu__label">share profile</p>
+            {profile === "loading" ? (
+              <p className="account-menu__hint">loading…</p>
+            ) : profile && profile.enabled ? (
+              <>
+                <p className="account-menu__hint">
+                  anyone with this link can see your work-mode streak, hours, and badges — no task names, no
+                  personal-mode data.
+                </p>
+                <input
+                  className="account-menu__rename-input"
+                  readOnly
+                  value={buildPublicProfileUrl(profile.slug)}
+                  onFocus={(e) => e.target.select()}
+                />
+                <div className="account-menu__rename-actions">
+                  <button type="button" className="chip" onClick={() => void copyProfileLink()}>
+                    {copied ? "copied" : "copy link"}
+                  </button>
+                  <button type="button" className="chip" onClick={() => void handleDisableSharing()}>
+                    make private
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="account-menu__hint">
+                  a public, read-only link showing your work-mode streak, hours, and badges — no task names, no
+                  personal-mode data.
+                </p>
+                <button type="button" className="account-menu__rename-save" onClick={() => void handleEnableSharing()}>
+                  make it public
+                </button>
+              </>
+            )}
+            <button type="button" className="chip" onClick={() => setSharing(false)}>
+              back
+            </button>
+          </div>
         ) : (
           <div className="account-menu">
             <p className="account-menu__label">{label}</p>
@@ -90,6 +171,12 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
               <IconStats />
               stats
             </button>
+            {configured && user && (
+              <button type="button" className="account-menu__item" onClick={() => void startSharing()}>
+                <IconShare />
+                share profile
+              </button>
+            )}
             {configured &&
               (user ? (
                 <button
