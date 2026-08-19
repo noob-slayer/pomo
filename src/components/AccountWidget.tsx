@@ -10,7 +10,8 @@ import {
   buildPublicProfileUrl,
   type PublicProfileSettings,
 } from "../lib/publicProfile";
-import { IconStats, IconLogin, IconLogout, IconEdit, IconShare } from "./icons";
+import { PUSH_SUPPORTED, getPushSubscriptionStatus, subscribeToPush, unsubscribeFromPush } from "../lib/pushNotifications";
+import { IconStats, IconLogin, IconLogout, IconEdit, IconShare, IconBell } from "./icons";
 
 interface AccountWidgetProps {
   onOpenStats: () => void;
@@ -25,6 +26,9 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
   const [sharing, setSharing] = useState(false);
   const [profile, setProfile] = useState<PublicProfileSettings | null | "loading">("loading");
   const [copied, setCopied] = useState(false);
+  const [reminders, setReminders] = useState(false);
+  const [remindersOn, setRemindersOn] = useState<boolean | "loading">("loading");
+  const [remindersError, setRemindersError] = useState<string | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
   useClickAway(widgetRef, () => setOpen(false), open);
 
@@ -79,6 +83,33 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
     } catch {
       // clipboard blocked -- the link is still visible in the input to copy manually
     }
+  };
+
+  const startReminders = async () => {
+    setReminders(true);
+    setRemindersError(null);
+    setRemindersOn("loading");
+    setRemindersOn(await getPushSubscriptionStatus());
+  };
+
+  const handleEnableReminders = async () => {
+    if (!user) return;
+    setRemindersError(null);
+    setRemindersOn("loading");
+    const ok = await subscribeToPush(user.id);
+    if (!ok) {
+      setRemindersError("couldn't enable reminders — check that notifications are allowed for this site");
+      setRemindersOn(false);
+      return;
+    }
+    setRemindersOn(true);
+  };
+
+  const handleDisableReminders = async () => {
+    if (!user) return;
+    setRemindersOn("loading");
+    await unsubscribeFromPush(user.id);
+    setRemindersOn(false);
   };
 
   return (
@@ -153,6 +184,36 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
               back
             </button>
           </div>
+        ) : reminders ? (
+          <div className="account-menu">
+            <p className="account-menu__label">streak reminders</p>
+            {remindersOn === "loading" ? (
+              <p className="account-menu__hint">loading…</p>
+            ) : remindersOn ? (
+              <>
+                <p className="account-menu__hint">
+                  you'll get a notification if your streak is about to end and you haven't focused yet today.
+                </p>
+                <button type="button" className="account-menu__rename-save" onClick={() => void handleDisableReminders()}>
+                  turn off
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="account-menu__hint">
+                  get a push notification (even with pomo closed) if your streak is about to end and you haven't
+                  focused yet today.
+                </p>
+                {remindersError && <p className="lobby-panel__error">{remindersError}</p>}
+                <button type="button" className="account-menu__rename-save" onClick={() => void handleEnableReminders()}>
+                  turn on
+                </button>
+              </>
+            )}
+            <button type="button" className="chip" onClick={() => setReminders(false)}>
+              back
+            </button>
+          </div>
         ) : (
           <div className="account-menu">
             <p className="account-menu__label">{label}</p>
@@ -175,6 +236,12 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
               <button type="button" className="account-menu__item" onClick={() => void startSharing()}>
                 <IconShare />
                 share profile
+              </button>
+            )}
+            {configured && user && PUSH_SUPPORTED && (
+              <button type="button" className="account-menu__item" onClick={() => void startReminders()}>
+                <IconBell />
+                streak reminders
               </button>
             )}
             {configured &&
