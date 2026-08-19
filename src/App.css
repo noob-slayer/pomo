@@ -682,8 +682,8 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
-  /* 5% of the reveal theme's own 22px max blur range -- barely a haze, same treatment as lofi */
-  filter: blur(1.1px);
+  /* 15% of the reveal theme's own 22px max blur range -- 5% (lofi's treatment) + 10% more */
+  filter: blur(3.3px);
 }
 
 .stage-p-overlay {
