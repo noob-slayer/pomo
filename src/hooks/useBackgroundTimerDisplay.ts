@@ -86,11 +86,17 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     canvas.height = 360;
     // Safari's captureStream() has shown a blank/black track when the source canvas is
     // detached from the document -- Chrome tolerates an in-memory-only canvas fine, but
-    // attaching this one (off-screen, same as the video below) is a cheap defensive match
-    // for Safari's stricter requirement.
+    // attaching this one is a cheap defensive match for Safari's stricter requirement.
+    // Positioned within the viewport (not off-screen) and hidden via opacity, not
+    // display:none/translation -- WebKit bug 241152 confirms a muted video (and, by the
+    // same rendering path, its canvas source) goes black specifically when positioned
+    // entirely outside the viewport, and does NOT reproduce as long as any part of the
+    // element is within viewport bounds, regardless of visibility.
     canvas.style.position = "fixed";
-    canvas.style.left = "-9999px";
-    canvas.style.top = "-9999px";
+    canvas.style.bottom = "0";
+    canvas.style.right = "0";
+    canvas.style.opacity = "0";
+    canvas.style.pointerEvents = "none";
     document.body.appendChild(canvas);
     canvasRef.current = canvas;
     // paint one real frame before the stream ever starts, rather than starting capture on
@@ -101,16 +107,19 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     // Chrome's manual requestPictureInPicture() doesn't care whether the source video is
     // visible on the page, but Safari's does: it needs the element to have been laid out
     // with real dimensions at some point, and silently refuses a video that's been
-    // display:none since creation. Real size + positioned off-screen (not display:none)
-    // satisfies both -- properly laid out for Safari, invisible to you either way.
+    // display:none since creation. Real size, in-viewport position, hidden via opacity --
+    // same reasoning as the canvas above (WebKit bug 241152 is literally about exactly
+    // this: a muted video positioned outside the viewport going black).
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
     video.style.position = "fixed";
     video.style.width = "160px";
     video.style.height = "90px";
-    video.style.left = "-9999px";
-    video.style.top = "-9999px";
+    video.style.bottom = "0";
+    video.style.right = "0";
+    video.style.opacity = "0";
+    video.style.pointerEvents = "none";
     document.body.appendChild(video);
     const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(8);
     video.srcObject = stream;
