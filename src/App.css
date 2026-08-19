@@ -2214,7 +2214,7 @@
   pointer-events: none;
 }
 
-.credit__feedback {
+.credit__link {
   /* buttons don't inherit font from their ancestors by default (UA stylesheet gives
      them their own font) -- without this, "features"/"feedback" would render at the
      browser's default button size instead of matching the plain-text credit spans */
@@ -2225,7 +2225,7 @@
   text-underline-offset: 2px;
 }
 
-.credit__feedback:hover {
+.credit__link:hover {
   color: var(--stage-ink);
 }
 

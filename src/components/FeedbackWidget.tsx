@@ -36,7 +36,7 @@ export function FeedbackWidget() {
 
   return (
     <>
-      <button type="button" className="credit__feedback" onClick={() => setOpen(true)}>
+      <button type="button" className="credit__link" onClick={() => setOpen(true)}>
         feedback
       </button>
       {open && (
