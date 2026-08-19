@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
 import { FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
 import { IconPopOut } from "./icons";
+import { SplitFlapClock } from "./SplitFlapClock";
 
 interface TimerStageProps {
   timer: TimerApi;
@@ -10,13 +11,20 @@ interface TimerStageProps {
   // null when the browser doesn't support Picture-in-Picture at all -- the button is
   // simply omitted rather than shown disabled
   onPopOutPip: (() => void) | null;
+  splitFlap: boolean;
 }
 
 function sanitizeDigits(value: string, maxLen: number): string {
   return value.replace(/\D/g, "").slice(0, maxLen);
 }
 
-export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, onPopOutPip }: TimerStageProps) {
+export function TimerStage({
+  timer,
+  selectedFocusMinutes,
+  onSelectFocusMinutes,
+  onPopOutPip,
+  splitFlap,
+}: TimerStageProps) {
   const [customHours, setCustomHours] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
   const idle = timer.status === "idle";
@@ -53,7 +61,7 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, 
   return (
     <div className="stage-inner">
       <p className="stage-label">{label}</p>
-      <p className="clock tabular">{formatClock(displaySeconds)}</p>
+      {splitFlap ? <SplitFlapClock seconds={displaySeconds} /> : <p className="clock tabular">{formatClock(displaySeconds)}</p>}
 
       <div className="controls-row">
         <button type="button" className="btn btn--primary" onClick={handlePrimary}>

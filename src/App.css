@@ -1087,6 +1087,125 @@
   letter-spacing: 0.01em;
 }
 
+/* split-flap "make it fun" theme -- a mechanical airport/train departure-board timer.
+   Each digit is a real flip: the old top half falls away first, then a new bottom half
+   drops in, timed as two separate phases (not one spin) since that two-beat motion is
+   what actually reads as a physical leaf mechanism rather than a generic card flip. */
+.flap-board {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 1vw, 12px);
+  margin: 0 0 32px;
+}
+
+.flap-cell {
+  position: relative;
+  width: clamp(46px, 8.6vw, 92px);
+  height: clamp(70px, 13vw, 140px);
+  perspective: 320px;
+  border-radius: clamp(4px, 0.6vw, 8px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+.flap-sep {
+  width: clamp(10px, 2vw, 20px);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(2.2rem, 6.5vw, 4.6rem);
+  color: rgba(240, 236, 230, 0.55);
+  line-height: 1;
+}
+
+.flap-half,
+.flap-leaf {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  overflow: hidden;
+  background: #242322;
+}
+
+.flap-half--top,
+.flap-leaf--front {
+  top: 0;
+  border-radius: clamp(4px, 0.6vw, 8px) clamp(4px, 0.6vw, 8px) 0 0;
+  background: linear-gradient(180deg, #2c2b29, #201f1e);
+}
+
+.flap-half--bottom,
+.flap-leaf--back {
+  bottom: 0;
+  border-radius: 0 0 clamp(4px, 0.6vw, 8px) clamp(4px, 0.6vw, 8px);
+  background: linear-gradient(180deg, #201f1e, #171716);
+}
+
+.flap-leaf {
+  z-index: 3;
+  backface-visibility: hidden;
+}
+
+.flap-leaf--front {
+  transform-origin: bottom;
+  animation: flapFallOld 200ms cubic-bezier(0.4, 0, 0.7, 0.3) forwards;
+}
+
+.flap-leaf--back {
+  transform-origin: top;
+  transform: rotateX(90deg);
+  animation: flapDropNew 200ms cubic-bezier(0.2, 0.6, 0.3, 1) forwards;
+}
+
+@keyframes flapFallOld {
+  from {
+    transform: rotateX(0deg);
+  }
+  to {
+    transform: rotateX(-90deg);
+  }
+}
+
+@keyframes flapDropNew {
+  from {
+    transform: rotateX(90deg);
+  }
+  to {
+    transform: rotateX(0deg);
+  }
+}
+
+.flap-glyph {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: clamp(70px, 13vw, 140px);
+  line-height: clamp(70px, 13vw, 140px);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(2.4rem, 6.6vw, 4.7rem);
+  color: #f0ece4;
+}
+
+.flap-glyph--bottom {
+  top: calc(clamp(70px, 13vw, 140px) / -2);
+}
+
+.flap-hinge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 3px;
+  transform: translateY(-1.5px);
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: 4;
+  pointer-events: none;
+}
+
 .controls-row {
   display: flex;
   gap: 12px;
