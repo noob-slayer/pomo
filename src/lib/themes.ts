@@ -31,3 +31,14 @@ export const PERSONAL_THEME: ThemeColors = {
   inkMuted: "rgba(239,230,224,.6)",
   line: "rgba(239,230,224,.26)",
 };
+
+// split-flap tiles are pitch matte black -- the generic dark PERSONAL_THEME background
+// leaves them with almost no contrast against the page, so this theme gets its own
+// lighter, warm terminal-wall grey instead
+export const SPLITFLAP_THEME: ThemeColors = {
+  label: "split-flap",
+  bg: "#d8d3c8",
+  ink: "#1a1714",
+  inkMuted: "rgba(26,23,20,.62)",
+  line: "rgba(26,23,20,.22)",
+};

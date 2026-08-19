@@ -6,7 +6,7 @@ import { useTasks } from "../context/TasksContext";
 import { useTimer, type TimerApi } from "../hooks/useTimer";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { useBackgroundTimerDisplay } from "../hooks/useBackgroundTimerDisplay";
-import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
+import { PERSONAL_THEME, SPLITFLAP_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
@@ -360,7 +360,9 @@ export function Shell() {
       ? resolveWorkTheme(workTheme)
       : personalTheme === "colour"
         ? resolveWorkTheme(personalColorTheme)
-        : PERSONAL_THEME;
+        : personalTheme === "splitflap"
+          ? SPLITFLAP_THEME
+          : PERSONAL_THEME;
 
   const themeVars = useMemo<CSSProperties>(
     () =>
