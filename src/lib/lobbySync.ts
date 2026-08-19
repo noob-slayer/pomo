@@ -51,3 +51,55 @@ export async function readSyncState(lobbyId: string): Promise<LobbySyncState | n
   if (error || !row?.sync_state) return null;
   return row.sync_state;
 }
+
+// live "someone kudos'd your session" notifications -- deliberately a separate ephemeral
+// broadcast channel from the sync one above, and connected whenever a lobby is active
+// regardless of individual/sync mode (sync's channel only connects for mode === "sync").
+// The kudos write itself already goes to the database (lobby_session_kudos, read back via
+// polling on the team stats page) -- this broadcast is purely a same-session "notify me
+// right now if I'm around" nudge on top of that, not the source of truth, so a missed
+// broadcast (tab closed, channel not yet connected) just means no toast, never stale data.
+export interface KudosNotification {
+  toIdentityKey: string;
+  fromPersonaName: string;
+  taskTitle: string | null;
+}
+
+function kudosChannelName(lobbyId: string): string {
+  return `pomo-lobby-kudos-${lobbyId}`;
+}
+
+export function connectKudosNotifications(
+  lobbyId: string,
+  onKudos: (notification: KudosNotification) => void,
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  channel.on("broadcast", { event: "kudos" }, ({ payload }) => onKudos(payload as KudosNotification));
+  channel.subscribe();
+  return channel;
+}
+
+// sends on a channel the caller already has open (e.g. Shell's own kudos-notification
+// listener for the active lobby) -- reusing it instead of opening a second one matters:
+// a client can only have one subscription per topic on its single websocket, and joining
+// the same topic twice in the same tab leaves the second .subscribe() call hanging
+// forever (confirmed while building this -- the giver very often has the lobby they're
+// kudos-ing in as their own active lobby too, so this isn't a rare edge case).
+export function sendKudosOnChannel(channel: RealtimeChannel, notification: KudosNotification): void {
+  void channel.send({ type: "broadcast", event: "kudos", payload: notification });
+}
+
+// fallback for lobbies with no channel already open in this tab (e.g. kudos given from
+// the team stats page's lobby-history picker, on a lobby other than the active one) --
+// opens a short-lived one just for this send, waits for it to actually subscribe (a send
+// before that can be silently dropped), then lets it go
+export function broadcastKudos(lobbyId: string, notification: KudosNotification): void {
+  if (!supabase) return;
+  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  channel.subscribe((status) => {
+    if (status !== "SUBSCRIBED") return;
+    sendKudosOnChannel(channel, notification);
+    setTimeout(() => void channel.unsubscribe(), 1000);
+  });
+}
