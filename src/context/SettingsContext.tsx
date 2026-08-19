@@ -25,6 +25,8 @@ interface Settings {
   currentLobby: CurrentLobby | null; // per-device, never synced -- see upsertSettings
   weeklyGoalWorkMinutes: number | null; // null = no goal set; scoped per mode like the rest of stats
   weeklyGoalPersonalMinutes: number | null;
+  dailyGoalWorkMinutes: number | null;
+  dailyGoalPersonalMinutes: number | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -40,6 +42,8 @@ const DEFAULT_SETTINGS: Settings = {
   currentLobby: null,
   weeklyGoalWorkMinutes: null,
   weeklyGoalPersonalMinutes: null,
+  dailyGoalWorkMinutes: null,
+  dailyGoalPersonalMinutes: null,
 };
 
 interface SettingsContextValue extends Settings {
@@ -54,6 +58,7 @@ interface SettingsContextValue extends Settings {
   setPersonaName: (name: string) => void;
   setCurrentLobby: (lobby: CurrentLobby | null) => void;
   setWeeklyGoalMinutes: (mode: Mode, minutes: number | null) => void;
+  setDailyGoalMinutes: (mode: Mode, minutes: number | null) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -135,6 +140,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     setCurrentLobby: (currentLobby) => patch({ currentLobby }),
     setWeeklyGoalMinutes: (mode, minutes) =>
       patch(mode === "work" ? { weeklyGoalWorkMinutes: minutes } : { weeklyGoalPersonalMinutes: minutes }),
+    setDailyGoalMinutes: (mode, minutes) =>
+      patch(mode === "work" ? { dailyGoalWorkMinutes: minutes } : { dailyGoalPersonalMinutes: minutes }),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

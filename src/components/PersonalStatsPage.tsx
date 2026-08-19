@@ -12,6 +12,7 @@ import {
   computeBadges,
   computeCompletionStats,
   computeEstimateAccuracy,
+  computeDailyGoalHistory,
   focusEquivalent,
 } from "../lib/statsExtras";
 import { formatDuration } from "../lib/durations";
@@ -27,6 +28,7 @@ interface PersonalStatsPageProps {
 
 const HEATMAP_DAYS = 18 * 7;
 const TREND_WEEKS = 12;
+const DAILY_GOAL_HISTORY_DAYS = 14;
 const PAGE_BG = "#efeae6";
 const PAGE_INK = "#211a17";
 const PAGE_MUTED = "#6f645f";
@@ -51,9 +53,18 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
 
 export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProps) {
   const { history, tasks } = useTasks();
-  const { weeklyGoalWorkMinutes, weeklyGoalPersonalMinutes, setWeeklyGoalMinutes } = useSettings();
+  const {
+    weeklyGoalWorkMinutes,
+    weeklyGoalPersonalMinutes,
+    setWeeklyGoalMinutes,
+    dailyGoalWorkMinutes,
+    dailyGoalPersonalMinutes,
+    setDailyGoalMinutes,
+  } = useSettings();
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput, setGoalInput] = useState("");
+  const [editingDailyGoal, setEditingDailyGoal] = useState(false);
+  const [dailyGoalInput, setDailyGoalInput] = useState("");
 
   if (!open) return null;
 
@@ -77,6 +88,9 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
   // computeWeeklyTrend's loop ends at i=0 (thisWeekStart)
   const thisCalendarWeekMinutes = trend[trend.length - 1]?.minutes ?? 0;
   const weeklyGoalMinutes = mode === "work" ? weeklyGoalWorkMinutes : weeklyGoalPersonalMinutes;
+  const dailyGoalMinutes = mode === "work" ? dailyGoalWorkMinutes : dailyGoalPersonalMinutes;
+  const dailyGoalHistory =
+    dailyGoalMinutes !== null ? computeDailyGoalHistory(history, mode, dailyGoalMinutes, DAILY_GOAL_HISTORY_DAYS) : null;
 
   const handleSaveGoal = (e: FormEvent) => {
     e.preventDefault();
@@ -89,6 +103,19 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
   const handleClearGoal = () => {
     setWeeklyGoalMinutes(mode, null);
     setEditingGoal(false);
+  };
+
+  const handleSaveDailyGoal = (e: FormEvent) => {
+    e.preventDefault();
+    const hours = Number(dailyGoalInput);
+    if (!hours || hours <= 0) return;
+    setDailyGoalMinutes(mode, Math.round(hours * 60));
+    setEditingDailyGoal(false);
+  };
+
+  const handleClearDailyGoal = () => {
+    setDailyGoalMinutes(mode, null);
+    setEditingDailyGoal(false);
   };
 
   const handleExportCsv = () => {
@@ -278,6 +305,72 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                     </>
                   )}
                 </div>
+                <div className="stats-hero__card">
+                  {editingDailyGoal ? (
+                    <form className="stats-goal-form" onSubmit={handleSaveDailyGoal}>
+                      <input
+                        className="stats-goal-form__input"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        placeholder="hours"
+                        autoFocus
+                        value={dailyGoalInput}
+                        onChange={(e) => setDailyGoalInput(e.target.value)}
+                      />
+                      <div className="stats-goal-form__actions">
+                        <button type="submit" className="chip">
+                          save
+                        </button>
+                        <button type="button" className="chip" onClick={() => setEditingDailyGoal(false)}>
+                          cancel
+                        </button>
+                        {dailyGoalMinutes !== null && (
+                          <button type="button" className="link-btn link-btn--quiet" onClick={handleClearDailyGoal}>
+                            clear goal
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  ) : dailyGoalMinutes === null ? (
+                    <>
+                      <span className="stats-hero__label">daily goal</span>
+                      <button
+                        type="button"
+                        className="stats-teaser__cta"
+                        onClick={() => {
+                          setDailyGoalInput("");
+                          setEditingDailyGoal(true);
+                        }}
+                      >
+                        set a goal
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="stats-hero__value tabular">
+                        {formatDuration(stats.todayMinutes)} / {formatDuration(dailyGoalMinutes)}
+                      </span>
+                      <span className="stats-hero__label">daily goal</span>
+                      <div className="stats-hero__gauge">
+                        <div
+                          className="stats-hero__gauge-fill"
+                          style={{ width: `${Math.min(100, (stats.todayMinutes / dailyGoalMinutes) * 100)}%` }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="stats-hero__edit"
+                        onClick={() => {
+                          setDailyGoalInput(String(Math.round(dailyGoalMinutes / 60)));
+                          setEditingDailyGoal(true);
+                        }}
+                      >
+                        edit
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {comparison.deltaPct !== null && (
@@ -389,6 +482,35 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                 <span>{trend[0]?.label}</span>
                 <span>{trend[trend.length - 1]?.label}</span>
               </div>
+
+              {dailyGoalHistory && (
+                <>
+                  <p className="history-section__label">daily goal · last {DAILY_GOAL_HISTORY_DAYS} days</p>
+                  <div className="stats-compare">avg {dailyGoalHistory.avgPct}% of daily goal met</div>
+                  <div className="stats-weektrend">
+                    {dailyGoalHistory.days.map((day) => (
+                      <div
+                        key={day.key}
+                        className="stats-trend__bar"
+                        title={`${day.date.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toLowerCase()}: ${day.pct}% of goal (${formatDuration(day.minutes)})`}
+                      >
+                        <div
+                          className={day.met ? "stats-trend__fill stats-trend__fill--met" : "stats-trend__fill"}
+                          style={{ height: `${Math.max(3, Math.min(100, day.pct))}%` }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="stats-weektrend__labels">
+                    <span>
+                      {dailyGoalHistory.days[0]?.date
+                        .toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                        .toLowerCase()}
+                    </span>
+                    <span>today</span>
+                  </div>
+                </>
+              )}
 
               <p className="history-section__label">by category</p>
               <ul className="history-categories">

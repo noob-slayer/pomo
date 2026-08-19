@@ -315,6 +315,47 @@ export function computeCompletionStats(history: PomoRecord[], mode: Mode): Compl
   return { totalStarted, totalCompleted, completionRate };
 }
 
+export interface DailyGoalDay {
+  key: string;
+  date: Date;
+  minutes: number;
+  pct: number; // uncapped -- a day where you doubled the goal reads as 200, not clamped
+  met: boolean;
+}
+
+export interface DailyGoalHistory {
+  days: DailyGoalDay[];
+  avgPct: number; // 0-100, each day capped at 100 before averaging -- see computeDailyGoalHistory
+}
+
+// retroactively applies *today's* daily goal to each day in the window -- like the weekly
+// goal ring above, there's no stored history of what the goal used to be on past days, only
+// what it's set to right now. Same tradeoff computeWeekComparison already accepts.
+export function computeDailyGoalHistory(
+  history: PomoRecord[],
+  mode: Mode,
+  dailyGoalMinutes: number,
+  days = 14,
+): DailyGoalHistory {
+  const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
+  const totals = new Map<string, number>();
+  for (const r of focus) totals.set(dayKey(r.completedAt), (totals.get(dayKey(r.completedAt)) ?? 0) + r.minutes);
+
+  const today = startOfDay(new Date());
+  const result: DailyGoalDay[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const key = d.toDateString();
+    const minutes = totals.get(key) ?? 0;
+    const pct = dailyGoalMinutes > 0 ? Math.round((minutes / dailyGoalMinutes) * 100) : 0;
+    result.push({ key, date: d, minutes, pct, met: pct >= 100 });
+  }
+  const avgPct =
+    result.length > 0 ? Math.round(result.reduce((s, d) => s + Math.min(100, d.pct), 0) / result.length) : 0;
+  return { days: result, avgPct };
+}
+
 // a relatable comparison for a raw minute count -- deliberately coarse, not meant to be
 // precise, just to make the number feel concrete
 export function focusEquivalent(totalMinutes: number): string | null {
