@@ -11,32 +11,110 @@ const PIP_SUPPORTED =
 //
 // 1. a live "mm:ss · pomo" tab title -- works everywhere, including iPad Safari, since
 //    it's just the tab label. The universal fallback.
-// 2. an automatic floating Picture-in-Picture window (Chrome/Edge desktop only), by
-//    drawing the countdown onto an offscreen canvas, streaming that into a muted <video>,
-//    and setting autoPictureInPicture on it. The browser then floats/folds that video in
-//    automatically as the tab is hidden/shown, no visibilitychange plumbing of our own --
-//    that auto behaviour is exactly what the attribute exists for. It does still require
-//    the video to have actually started playing at least once from a real user gesture
-//    (browsers gate video.play() the same way as PiP itself), which is what armPip() is
-//    for -- call it synchronously from inside the click/keydown handler that starts or
-//    resumes the timer.
+// 2. an automatic floating Picture-in-Picture window (Chrome/Edge desktop only): a small
+//    on-page mini-timer widget streams its own canvas into a muted <video> with
+//    autoPictureInPicture set, and the browser floats/folds that video automatically as
+//    the tab is hidden/shown. Chrome only makes a video eligible for auto-PiP if it's
+//    actually rendered and visible on the page (not zero-size or opacity:0) -- exactly the
+//    same way Google Meet's own real video tile is what gets floated out, not a hidden
+//    decoy -- so this widget is a real, small, visible corner element, and it's only
+//    created at all in browsers that can do anything with it.
+//
+// Both are driven by their own dedicated setInterval reading getLiveSeconds() (wall-clock
+// math, not React state) rather than piggybacking on this component's re-render cycle --
+// re-renders themselves depend on useTimer's own interval, which browsers throttle hard
+// once a tab is backgrounded, so anything downstream of "wait for a re-render" stalls
+// right along with it instead of continuing to tick.
 export function useBackgroundTimerDisplay(timer: TimerApi) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  const openEnded = timer.targetSeconds === null;
-  const displaySeconds = openEnded ? timer.elapsedSeconds : timer.remainingSeconds;
-  const label = timer.phase === "focus" ? (timer.activeTaskTitle ?? "focus") : "break";
+  const widgetRef = useRef<HTMLDivElement | null>(null);
+  const timerRef = useRef(timer);
+  timerRef.current = timer;
 
   useEffect(() => {
-    const apply = () => {
-      const shouldShow = timer.status === "running" && document.hidden;
-      document.title = shouldShow ? `${formatClock(displaySeconds)} · pomo` : BASE_TITLE;
+    if (!PIP_SUPPORTED) return;
+
+    const widget = document.createElement("div");
+    widget.style.position = "fixed";
+    widget.style.bottom = "16px";
+    widget.style.right = "16px";
+    widget.style.zIndex = "5";
+    widget.style.display = "none";
+    widget.style.pointerEvents = "none";
+    document.body.appendChild(widget);
+    widgetRef.current = widget;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 300;
+    canvas.height = 168;
+    canvasRef.current = canvas;
+
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    (video as HTMLVideoElement & { autoPictureInPicture?: boolean }).autoPictureInPicture = true;
+    video.style.width = "96px";
+    video.style.height = "54px";
+    video.style.borderRadius = "10px";
+    video.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
+    video.style.display = "block";
+    const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(2);
+    video.srcObject = stream;
+    widget.appendChild(video);
+    videoRef.current = video;
+
+    return () => {
+      video.pause();
+      video.srcObject = null;
+      widget.remove();
+      widgetRef.current = null;
+      videoRef.current = null;
+      canvasRef.current = null;
     };
-    apply();
-    document.addEventListener("visibilitychange", apply);
-    return () => document.removeEventListener("visibilitychange", apply);
-  }, [timer.status, displaySeconds]);
+  }, []);
+
+  useEffect(() => {
+    const draw = () => {
+      const t = timerRef.current;
+      const widget = widgetRef.current;
+
+      if (t.status !== "running") {
+        if (widget) widget.style.display = "none";
+        document.title = BASE_TITLE;
+        return;
+      }
+
+      const openEnded = t.targetSeconds === null;
+      const seconds = t.getLiveSeconds();
+      const clock = formatClock(seconds);
+      document.title = document.hidden ? `${clock} · pomo` : BASE_TITLE;
+
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext("2d");
+      if (!widget || !canvas || !ctx) return;
+      widget.style.display = "block";
+
+      const label = t.phase === "focus" ? (t.activeTaskTitle ?? "focus") : openEnded ? "break — elapsed" : "break";
+      ctx.fillStyle = "#211a17";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#f4ede6";
+      ctx.font = "600 44px system-ui, sans-serif";
+      ctx.fillText(clock, canvas.width / 2, 92);
+      ctx.font = "400 18px system-ui, sans-serif";
+      ctx.fillStyle = "rgba(244, 237, 230, 0.72)";
+      ctx.fillText(label, canvas.width / 2, 128);
+    };
+
+    draw();
+    const id = window.setInterval(draw, 1000);
+    document.addEventListener("visibilitychange", draw);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", draw);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -44,54 +122,10 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!PIP_SUPPORTED) return;
-    const canvas = document.createElement("canvas");
-    canvas.width = 320;
-    canvas.height = 180;
-    canvasRef.current = canvas;
-
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    (video as HTMLVideoElement & { autoPictureInPicture?: boolean }).autoPictureInPicture = true;
-    video.style.position = "fixed";
-    video.style.bottom = "0";
-    video.style.right = "0";
-    video.style.width = "1px";
-    video.style.height = "1px";
-    video.style.opacity = "0";
-    video.style.pointerEvents = "none";
-    document.body.appendChild(video);
-    videoRef.current = video;
-
-    const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(2);
-    video.srcObject = stream;
-
-    return () => {
-      video.pause();
-      video.srcObject = null;
-      video.remove();
-      videoRef.current = null;
-      canvasRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
-    ctx.fillStyle = "#211a17";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#f4ede6";
-    ctx.font = "600 44px system-ui, sans-serif";
-    ctx.fillText(formatClock(displaySeconds), canvas.width / 2, 96);
-    ctx.font = "400 18px system-ui, sans-serif";
-    ctx.fillStyle = "rgba(244, 237, 230, 0.72)";
-    ctx.fillText(label, canvas.width / 2, 132);
-  });
-
+  // starts the underlying muted <video> playing, exactly once, from inside a real click --
+  // this is what makes the auto-PiP eligible at all: browsers require the video to already
+  // be playing (itself gated by the click's user-activation) before "auto" can act on it
+  // later without a fresh gesture.
   const armPip = () => {
     const video = videoRef.current;
     if (!video || !video.paused) return;

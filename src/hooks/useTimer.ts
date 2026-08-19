@@ -62,6 +62,19 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     }
   };
 
+  // same wall-clock math as recompute(), but returns the value straight from Date.now()
+  // instead of going through React state -- for callers (like the background-tab display)
+  // that need the truly current number even when this component's own render/interval
+  // loop is being throttled by the browser, not whatever was last committed to state.
+  const getLiveSeconds = (): number => {
+    if (targetSeconds === null) {
+      return startedAtRef.current === null ? elapsedSeconds : Math.floor((Date.now() - startedAtRef.current) / 1000);
+    }
+    return endAtRef.current === null
+      ? remainingSeconds
+      : Math.max(0, Math.round((endAtRef.current - Date.now()) / 1000));
+  };
+
   // while running: recompute on an interval, and immediately whenever the tab/device
   // wakes up, instead of waiting for the next tick (which could be up to a second late,
   // or — after a real sleep — arrive only once the interval resumes at all)
@@ -360,6 +373,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     stop,
     reset,
     togglePrimary,
+    getLiveSeconds,
   };
 }
 
