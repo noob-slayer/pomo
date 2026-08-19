@@ -2186,17 +2186,25 @@
   gap: 2px;
 }
 
-.stats-teaser__icon {
-  width: 15px;
-  height: 15px;
-  color: var(--page-muted);
-  margin-bottom: 2px;
-}
-
 .stats-teaser__value {
   font-family: var(--font-mono);
   font-size: 1.3rem;
   font-weight: 600;
+}
+
+/* same reasoning as .stats-hero__value--with-icon: the flame sits beside the number, not
+   on its own line above it, so the streak stat's number lines up with its siblings' */
+.stats-teaser__value--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stats-teaser__value--with-icon svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--page-muted);
 }
 
 .stats-teaser__label {
@@ -2334,17 +2342,27 @@
   border-radius: var(--radius-md);
 }
 
-.stats-hero__icon {
-  width: 16px;
-  height: 16px;
-  color: var(--page-muted);
-}
-
 .stats-hero__value {
   font-family: var(--font-mono);
   font-size: 1.7rem;
   font-weight: 600;
   line-height: 1.1;
+}
+
+/* the streak card's flame sits beside its number instead of on its own line above it --
+   otherwise that's the one card in the row with an extra element pushing its number down,
+   out of line with every other card's number */
+.stats-hero__value--with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.stats-hero__value--with-icon svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--page-muted);
 }
 
 .stats-hero__label {
