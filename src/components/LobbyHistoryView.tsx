@@ -8,7 +8,11 @@ import { LobbyStatsView } from "./LobbyStatsView";
 // every lobby the current identity has ever joined or logged a session in, not just
 // whichever one happens to be active -- a picker (when there's more than one) plus that
 // lobby's full stats, with a "rejoin" action for anything that isn't the active lobby.
-export function LobbyHistoryView() {
+interface LobbyHistoryViewProps {
+  onOpenFull: () => void;
+}
+
+export function LobbyHistoryView({ onOpenFull }: LobbyHistoryViewProps) {
   const { identityUserId } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
   const identityKey = resolveIdentityKey(identityUserId);
@@ -77,7 +81,7 @@ export function LobbyHistoryView() {
           </button>
         </div>
       )}
-      <LobbyStatsView lobby={selected} />
+      <LobbyStatsView lobby={selected} onOpenFull={onOpenFull} />
     </div>
   );
 }

@@ -58,3 +58,34 @@ export function IconPopOut() {
     </svg>
   );
 }
+
+export function IconFlame() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <path d="M12 2c1 3-2 4-2 7a4 4 0 0 0 8 0c0-1.5-.6-2.4-1-3 .8 1.6 0 3-1.2 3.4C17 8 15 6.5 15 4c2 1 5 4.5 5 8.5A8 8 0 0 1 4 12.5C4 8 8 5 12 2Z" />
+    </svg>
+  );
+}
+
+export function IconTrophy() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <path d="M8 4h8v5a4 4 0 0 1-8 0Z" />
+      <path d="M8 5H5a3 3 0 0 0 3 5" />
+      <path d="M16 5h3a3 3 0 0 1-3 5" />
+      <path d="M12 13v3" />
+      <path d="M9 20h6" />
+      <path d="M10 16h4l.5 4h-5Z" />
+    </svg>
+  );
+}
+
+export function IconDownload() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <path d="M12 3v12" />
+      <polyline points="7 11 12 16 17 11" />
+      <path d="M5 20h14" />
+    </svg>
+  );
+}

@@ -218,19 +218,22 @@ export async function logLobbySession(
   if (error) console.error("logLobbySession failed", error);
 }
 
-// today's per-member totals, merged with the member roster so someone who hasn't logged
-// anything yet today still shows up (at 0m) rather than being invisible
-export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyMemberStat[]> {
+// shared by the today/week leaderboards below -- both are "totals since some date bound,
+// merged with the member roster so someone who hasn't logged anything in the window still
+// shows up (at 0m) rather than being invisible". p_since pushes the date bound back into
+// SQL (lobby_sessions_completed_at_idx) instead of fetching the lobby's entire history and
+// filtering it in JS on every ~8s poll.
+async function aggregateLobbySessionsSince(
+  lobbyId: string,
+  members: LobbyMember[],
+  since: Date,
+): Promise<LobbyMemberStat[]> {
   if (!supabase) return [];
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  // p_since pushes the date bound back into SQL (lobby_sessions_completed_at_idx) instead
-  // of fetching the lobby's entire history and filtering it in JS on every ~8s poll
   const { data, error } = await supabase.rpc("get_lobby_sessions", {
     p_lobby_id: lobbyId,
-    p_since: startOfDay.toISOString(),
+    p_since: since.toISOString(),
   });
-  if (error) console.error("fetchTodayLobbyStats failed", error);
+  if (error) console.error("aggregateLobbySessionsSince failed", error);
 
   const map = new Map<string, LobbyMemberStat>();
   for (const m of members) {
@@ -263,6 +266,22 @@ export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember
     map.set(r.identity_key, entry);
   }
   return [...map.values()].sort((a, b) => b.focusMinutes - a.focusMinutes);
+}
+
+export async function fetchTodayLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyMemberStat[]> {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  return aggregateLobbySessionsSince(lobbyId, members, startOfDay);
+}
+
+// same shape as fetchTodayLobbyStats, but bounded to the current calendar week (Sun-Sat)
+// -- powers the team stats page's weekly leaderboard tab, the shorter, more competitive
+// timescale that resets regularly rather than all-time's slow-moving totals.
+export async function fetchWeekLobbyStats(lobbyId: string, members: LobbyMember[]): Promise<LobbyMemberStat[]> {
+  const startOfWeek = new Date();
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  return aggregateLobbySessionsSince(lobbyId, members, startOfWeek);
 }
 
 // all-time per-member totals -- the "team stat" view, so members can look back on a

@@ -19,6 +19,8 @@ import { TimerStage } from "./TimerStage";
 import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
+import { PersonalStatsPage } from "./PersonalStatsPage";
+import { TeamStatsPage } from "./TeamStatsPage";
 import { DvdBounce } from "./DvdBounce";
 import { F1Race } from "./F1Race";
 import { YtBackground } from "./YtBackground";
@@ -49,6 +51,8 @@ export function Shell() {
   // App.css's own breakpoint), pushing the timer out of view on first load otherwise
   const [tasksOpen, setTasksOpen] = useState(() => typeof window === "undefined" || window.innerWidth > 860);
   const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
+  const [personalStatsOpen, setPersonalStatsOpen] = useState(false);
+  const [teamStatsOpen, setTeamStatsOpen] = useState(false);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
@@ -332,7 +336,8 @@ export function Shell() {
               el.matches(".account-widget") ||
               el.matches(".lobby-widget") ||
               el.matches(".fun-menu") ||
-              el.matches(".onboarding")),
+              el.matches(".onboarding") ||
+              el.matches(".stats-overlay")),
         )
       )
         return;
@@ -494,16 +499,8 @@ export function Shell() {
         <TopBar
           tasksOpen={tasksOpen}
           onToggleTasks={() => setTasksOpen((v) => !v)}
-          onOpenStats={() => {
-            setPanelTab("stats");
-            setTasksOpen(true);
-            resetTaskAutoHide();
-          }}
-          onOpenTeamStats={() => {
-            setPanelTab("team");
-            setTasksOpen(true);
-            resetTaskAutoHide();
-          }}
+          onOpenStats={() => setPersonalStatsOpen(true)}
+          onOpenTeamStats={() => setTeamStatsOpen(true)}
         />
       </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
@@ -618,8 +615,12 @@ export function Shell() {
           panelRef={taskPanelRef}
           tab={panelTab}
           onTabChange={setPanelTab}
+          onOpenFullStats={() => setPersonalStatsOpen(true)}
+          onOpenFullTeamStats={() => setTeamStatsOpen(true)}
         />
       </div>
+      <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
+      <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} />
       <YoutubeWidget />
       <Credit />
       <Onboarding />
