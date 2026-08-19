@@ -26,11 +26,21 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
   const [sharing, setSharing] = useState(false);
   const [profile, setProfile] = useState<PublicProfileSettings | null | "loading">("loading");
   const [copied, setCopied] = useState(false);
+  const [sharingError, setSharingError] = useState<string | null>(null);
   const [reminders, setReminders] = useState(false);
   const [remindersOn, setRemindersOn] = useState<boolean | "loading">("loading");
   const [remindersError, setRemindersError] = useState<string | null>(null);
   const widgetRef = useRef<HTMLDivElement>(null);
-  useClickAway(widgetRef, () => setOpen(false), open);
+  // no "back" button on the share-profile/reminders sub-panels -- closing the dropdown
+  // (either by clicking away or clicking the avatar again) always resets back to the main
+  // menu, so reopening it never leaves you stranded on whichever sub-panel you last had open
+  const closeMenu = () => {
+    setOpen(false);
+    setRenaming(false);
+    setSharing(false);
+    setReminders(false);
+  };
+  useClickAway(widgetRef, closeMenu, open);
 
   // the avatar/stats shortcut is useful even without Supabase configured (guest-only
   // mode) -- only the sign in/out option itself depends on `configured`
@@ -57,6 +67,7 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
 
   const startSharing = async () => {
     setSharing(true);
+    setSharingError(null);
     setProfile("loading");
     if (!user) return;
     setProfile(await fetchMyPublicProfile(user.id));
@@ -64,14 +75,22 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
 
   const handleEnableSharing = async () => {
     if (!user) return;
+    setSharingError(null);
     setProfile("loading");
-    setProfile(await enablePublicProfile(user.id, personaName || "member"));
+    const result = await enablePublicProfile(user.id, personaName || "member");
+    if (!result) {
+      setSharingError("couldn't make your profile public — try again");
+      setProfile(null);
+      return;
+    }
+    setProfile(result);
   };
 
   const handleDisableSharing = async () => {
     if (!user || !profile || profile === "loading") return;
     const ok = await disablePublicProfile(user.id);
     if (ok) setProfile({ ...profile, enabled: false });
+    else setSharingError("couldn't make your profile private — try again");
   };
 
   const copyProfileLink = async () => {
@@ -117,7 +136,7 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
       <button
         type="button"
         className="account-avatar"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => (open ? closeMenu() : setOpen(true))}
         aria-expanded={open}
         aria-label={label}
         style={avatarUrl ? undefined : { background: guestAvatarColor(seed) }}
@@ -160,6 +179,7 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
                   value={buildPublicProfileUrl(profile.slug)}
                   onFocus={(e) => e.target.select()}
                 />
+                {sharingError && <p className="lobby-panel__error">{sharingError}</p>}
                 <div className="account-menu__rename-actions">
                   <button type="button" className="chip" onClick={() => void copyProfileLink()}>
                     {copied ? "copied" : "copy link"}
@@ -175,14 +195,12 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
                   a public, read-only link showing your work-mode streak, hours, and badges — no task names, no
                   personal-mode data.
                 </p>
+                {sharingError && <p className="lobby-panel__error">{sharingError}</p>}
                 <button type="button" className="account-menu__rename-save" onClick={() => void handleEnableSharing()}>
                   make it public
                 </button>
               </>
             )}
-            <button type="button" className="chip" onClick={() => setSharing(false)}>
-              back
-            </button>
           </div>
         ) : reminders ? (
           <div className="account-menu">
@@ -210,9 +228,6 @@ export function AccountWidget({ onOpenStats }: AccountWidgetProps) {
                 </button>
               </>
             )}
-            <button type="button" className="chip" onClick={() => setReminders(false)}>
-              back
-            </button>
           </div>
         ) : (
           <div className="account-menu">
