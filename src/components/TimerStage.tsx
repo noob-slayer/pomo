@@ -6,14 +6,16 @@ interface TimerStageProps {
   timer: TimerApi;
   selectedFocusMinutes: number;
   onSelectFocusMinutes: (minutes: number) => void;
-  armPip: () => void;
+  // null when the browser doesn't support Picture-in-Picture at all -- the button is
+  // simply omitted rather than shown disabled
+  onPopOutPip: (() => void) | null;
 }
 
 function sanitizeDigits(value: string, maxLen: number): string {
   return value.replace(/\D/g, "").slice(0, maxLen);
 }
 
-export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, armPip }: TimerStageProps) {
+export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, onPopOutPip }: TimerStageProps) {
   const [customHours, setCustomHours] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
   const idle = timer.status === "idle";
@@ -31,7 +33,6 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, 
   const primaryLabel = timer.status === "running" ? "pause" : timer.status === "paused" ? "resume" : "start";
 
   const handlePrimary = () => {
-    armPip();
     if (timer.status === "running") timer.pause();
     else if (timer.status === "paused") timer.resume();
     else timer.startFocus(selectedFocusMinutes);
@@ -63,6 +64,11 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, 
         <button type="button" className="btn" onClick={() => timer.reset()} disabled={idle}>
           reset
         </button>
+        {onPopOutPip && !idle && (
+          <button type="button" className="btn" onClick={onPopOutPip} title="pop out a floating mini timer">
+            pop out
+          </button>
+        )}
       </div>
 
       {idle && (

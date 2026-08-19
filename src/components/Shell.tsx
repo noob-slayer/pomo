@@ -237,13 +237,10 @@ export function Shell() {
     };
   }, []);
 
-  const { armPip } = useBackgroundTimerDisplay(timer);
+  const { popOut: popOutPip, pipSupported } = useBackgroundTimerDisplay(timer);
 
   useKeyboardShortcuts({
-    onToggle: () => {
-      armPip();
-      timer.togglePrimary(selectedFocusMinutes);
-    },
+    onToggle: () => timer.togglePrimary(selectedFocusMinutes),
     onReset: () => timer.reset(),
     onStop: () => timer.stop(),
   });
@@ -532,7 +529,7 @@ export function Shell() {
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
-            armPip={armPip}
+            onPopOutPip={pipSupported ? popOutPip : null}
           />
           <div className="corner-summary">
             <DailySummary mode={mode} />

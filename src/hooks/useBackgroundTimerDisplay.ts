@@ -4,21 +4,22 @@ import { formatClock } from "../lib/durations";
 
 const BASE_TITLE = typeof document !== "undefined" ? document.title : "";
 
-const PIP_SUPPORTED =
+export const PIP_SUPPORTED =
   typeof document !== "undefined" && "pictureInPictureEnabled" in document && document.pictureInPictureEnabled;
 
-// keeps the timer visible while the tab is backgrounded, in two ways:
+// keeps the timer visible while you're away from the tab, in two ways:
 //
 // 1. a live "mm:ss · pomo" tab title -- works everywhere, including iPad Safari, since
 //    it's just the tab label. The universal fallback.
-// 2. an automatic floating Picture-in-Picture window (Chrome/Edge desktop only): a small
-//    on-page mini-timer widget streams its own canvas into a muted <video> with
-//    autoPictureInPicture set, and the browser floats/folds that video automatically as
-//    the tab is hidden/shown. Chrome only makes a video eligible for auto-PiP if it's
-//    actually rendered and visible on the page (not zero-size or opacity:0) -- exactly the
-//    same way Google Meet's own real video tile is what gets floated out, not a hidden
-//    decoy -- so this widget is a real, small, visible corner element, and it's only
-//    created at all in browsers that can do anything with it.
+// 2. a real floating Picture-in-Picture window on Chrome/Edge, entered via the "pop out"
+//    button. This is deliberately a manual, one-click action, not automatic-on-tab-switch:
+//    Chrome's actual zero-click auto-float is PWA-install-only (the autoPictureInPicture
+//    video attribute is scoped to installed apps, confirmed against Chrome's own docs),
+//    and its browser-initiated automatic PiP for regular websites requires genuinely
+//    audible media, which a silent countdown will never satisfy. A manual
+//    requestPictureInPicture() call from a real click has none of those restrictions and
+//    works today -- once popped out, the window keeps floating on its own across
+//    subsequent tab switches, same end result, one click up front.
 //
 // Both are driven by their own dedicated setInterval reading getLiveSeconds() (wall-clock
 // math, not React state) rather than piggybacking on this component's re-render cycle --
@@ -28,22 +29,11 @@ const PIP_SUPPORTED =
 export function useBackgroundTimerDisplay(timer: TimerApi) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const widgetRef = useRef<HTMLDivElement | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
   useEffect(() => {
     if (!PIP_SUPPORTED) return;
-
-    const widget = document.createElement("div");
-    widget.style.position = "fixed";
-    widget.style.bottom = "16px";
-    widget.style.right = "16px";
-    widget.style.zIndex = "5";
-    widget.style.display = "none";
-    widget.style.pointerEvents = "none";
-    document.body.appendChild(widget);
-    widgetRef.current = widget;
 
     const canvas = document.createElement("canvas");
     canvas.width = 300;
@@ -53,22 +43,28 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
-    (video as HTMLVideoElement & { autoPictureInPicture?: boolean }).autoPictureInPicture = true;
+    video.style.position = "fixed";
+    video.style.bottom = "16px";
+    video.style.right = "16px";
     video.style.width = "96px";
     video.style.height = "54px";
     video.style.borderRadius = "10px";
     video.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
-    video.style.display = "block";
+    video.style.zIndex = "5";
+    video.style.display = "none";
+    document.body.appendChild(video);
     const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(2);
     video.srcObject = stream;
-    widget.appendChild(video);
+    // muted, same-origin autoplay has no gesture requirement anywhere -- keep it playing
+    // continuously whenever it's relevant so requestPictureInPicture() always has a
+    // playing source ready the instant the pop-out button is clicked.
     videoRef.current = video;
 
     return () => {
+      if (document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
       video.pause();
       video.srcObject = null;
-      widget.remove();
-      widgetRef.current = null;
+      video.remove();
       videoRef.current = null;
       canvasRef.current = null;
     };
@@ -77,11 +73,14 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
   useEffect(() => {
     const draw = () => {
       const t = timerRef.current;
-      const widget = widgetRef.current;
+      const video = videoRef.current;
 
       if (t.status !== "running") {
-        if (widget) widget.style.display = "none";
         document.title = BASE_TITLE;
+        if (video) {
+          video.style.display = "none";
+          if (document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
+        }
         return;
       }
 
@@ -92,8 +91,9 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
 
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
-      if (!widget || !canvas || !ctx) return;
-      widget.style.display = "block";
+      if (!video || !canvas || !ctx) return;
+      video.style.display = "block";
+      if (video.paused) video.play().catch(() => {});
 
       const label = t.phase === "focus" ? (t.activeTaskTitle ?? "focus") : openEnded ? "break — elapsed" : "break";
       ctx.fillStyle = "#211a17";
@@ -122,15 +122,16 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     };
   }, []);
 
-  // starts the underlying muted <video> playing, exactly once, from inside a real click --
-  // this is what makes the auto-PiP eligible at all: browsers require the video to already
-  // be playing (itself gated by the click's user-activation) before "auto" can act on it
-  // later without a fresh gesture.
-  const armPip = () => {
+  const popOut = async () => {
     const video = videoRef.current;
-    if (!video || !video.paused) return;
-    video.play().catch(() => {});
+    if (!video) return;
+    try {
+      if (video.paused) await video.play();
+      if (document.pictureInPictureElement !== video) await video.requestPictureInPicture();
+    } catch {
+      // PiP unsupported at runtime, or the user dismissed a prior request -- no-op
+    }
   };
 
-  return { armPip };
+  return { popOut, pipSupported: PIP_SUPPORTED };
 }
