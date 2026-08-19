@@ -45,24 +45,6 @@ export function DailySummary({ mode, onOpenStats }: DailySummaryProps) {
       )}
       <p className="daily-summary__line">{formatDuration(summary.todayBreakMinutes)} break</p>
 
-      {dailyGoalMinutes !== null ? (
-        <div className="daily-summary__goal">
-          <span className="daily-summary__goal-label">
-            daily goal · {Math.min(100, Math.round((summary.todayMinutes / dailyGoalMinutes) * 100))}%
-          </span>
-          <div className="daily-summary__goal-bar">
-            <div
-              className="daily-summary__goal-fill"
-              style={{ width: `${Math.min(100, (summary.todayMinutes / dailyGoalMinutes) * 100)}%` }}
-            />
-          </div>
-        </div>
-      ) : (
-        <button type="button" className="daily-summary__set-goal" onClick={onOpenStats}>
-          set daily goal
-        </button>
-      )}
-
       {weeklyGoalMinutes !== null ? (
         <div className="daily-summary__goal">
           <span className="daily-summary__goal-label">
@@ -78,6 +60,24 @@ export function DailySummary({ mode, onOpenStats }: DailySummaryProps) {
       ) : (
         <button type="button" className="daily-summary__set-goal" onClick={onOpenStats}>
           set weekly goal
+        </button>
+      )}
+
+      {dailyGoalMinutes !== null ? (
+        <div className="daily-summary__goal">
+          <span className="daily-summary__goal-label">
+            daily goal · {Math.min(100, Math.round((summary.todayMinutes / dailyGoalMinutes) * 100))}%
+          </span>
+          <div className="daily-summary__goal-bar">
+            <div
+              className="daily-summary__goal-fill"
+              style={{ width: `${Math.min(100, (summary.todayMinutes / dailyGoalMinutes) * 100)}%` }}
+            />
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="daily-summary__set-goal" onClick={onOpenStats}>
+          set daily goal
         </button>
       )}
     </div>

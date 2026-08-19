@@ -978,8 +978,10 @@
 
 .daily-summary__set-goal {
   display: block;
+  width: 100%;
+  text-align: right;
   margin-top: 8px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   color: var(--stage-ink-muted);
   text-decoration: underline;
   text-underline-offset: 2px;
