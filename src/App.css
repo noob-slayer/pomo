@@ -829,7 +829,7 @@
    it directly, so this shifts the content aside and shrinks the clock to leave the gate
    visible instead of hidden behind giant digits */
 .stage[data-personal-theme="japan"] .stage-inner {
-  transform: translateX(-16%);
+  transform: translateX(-17%);
 }
 
 .stage[data-personal-theme="japan"] .clock {
@@ -1490,6 +1490,17 @@
   overflow-y: auto;
   display: none;
   height: 100%;
+}
+
+/* while running, the topbar is position:fixed and overlays the page instead of pushing
+   it down (that's what lets the stage fill the screen) -- but that means a revealed
+   topbar sits directly on top of the task panel's own tabs/input row, which starts flush
+   at the panel's top edge otherwise. .topbar-zone and .layout are siblings under .shell,
+   so this reserves the topbar's height as extra top padding whenever auto-hide mode is
+   active, regardless of whether it's actually revealed at this instant -- guarantees no
+   overlap the moment it is, rather than depending on hover timing. */
+.topbar-zone--auto-hide ~ .layout .task-panel {
+  padding-top: var(--topbar-height, 76px);
 }
 
 .task-panel--open {

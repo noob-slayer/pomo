@@ -442,8 +442,29 @@ export function Shell() {
     };
   }, [showSuccessionLayer]);
 
+  // .topbar is position:fixed while auto-hiding (running), which takes it out of layout
+  // flow entirely -- a revealed topbar then overlays whatever's underneath instead of
+  // pushing it down, covering the task panel's own top row unless that row reserves the
+  // topbar's height as padding. The topbar wraps to extra rows (and grows taller) on
+  // narrow viewports, so that reserved padding is measured live via ResizeObserver rather
+  // than hardcoded to whatever height happens to be right on desktop.
+  const shellRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const shellEl = shellRef.current;
+    const topbarEl = shellEl?.querySelector(".topbar");
+    if (!shellEl || !topbarEl) return;
+    // re-measure via getBoundingClientRect rather than trusting the observer entry's own
+    // contentRect -- that excludes padding/border (18px top+bottom padding + 1px border
+    // here), undershooting the topbar's actual rendered height by ~37px
+    const ro = new ResizeObserver(() => {
+      shellEl.style.setProperty("--topbar-height", `${topbarEl.getBoundingClientRect().height}px`);
+    });
+    ro.observe(topbarEl);
+    return () => ro.disconnect();
+  }, []);
+
   return (
-    <div className="shell" style={themeVars}>
+    <div className="shell" style={themeVars} ref={shellRef}>
       <div
         className={
           timer.status === "running"

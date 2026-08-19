@@ -8,10 +8,16 @@ import { useEffect, useRef } from "react";
 
 const KANJI = ["縁", "風", "月", "花", "光", "道", "心", "夢", "和", "雪", "空", "桜"];
 
+// how far the background photo is nudged right on screen, as a fraction of canvas width
+// -- see drawCoverImage(). The opening fractions below are offset by the same amount so
+// the curtain keeps hanging through the gate at its new on-screen position.
+const BG_SHIFT_FRAC = 0.07;
+
 // measured directly from the photo's pixels (scanning for the vermillion-red
-// pillars/beams), not eyeballed -- tied to public/torii-gate.jpg specifically
-const OPENING_LEFT_FRAC = 0.355;
-const OPENING_RIGHT_FRAC = 0.645;
+// pillars/beams), not eyeballed -- tied to public/torii-gate.jpg specifically, offset by
+// BG_SHIFT_FRAC to track the shifted photo
+const OPENING_LEFT_FRAC = 0.355 + BG_SHIFT_FRAC;
+const OPENING_RIGHT_FRAC = 0.645 + BG_SHIFT_FRAC;
 const RAIL_Y_FRAC = 0.38;
 
 const STRANDS = 22;
@@ -177,6 +183,11 @@ export function JapanCurtain() {
         sx = 0;
         sy = (img.height - sh) / 2;
       }
+      // shifts the crop window left within the source image, which moves the photo's
+      // content right on screen -- clamped so it never samples past the image edge. Kept
+      // in sync with BG_SHIFT_FRAC below, which nudges the curtain's opening fractions by
+      // the same amount so it still hangs through the gate at its new on-screen position.
+      sx = Math.max(0, sx - sw * BG_SHIFT_FRAC);
       ctx!.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
     }
 
