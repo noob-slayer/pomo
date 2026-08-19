@@ -49,3 +49,12 @@ export function IconEdit() {
     </svg>
   );
 }
+
+export function IconPopOut() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <rect x="12" y="12" width="7" height="5" rx="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

@@ -77,25 +77,25 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
   useEffect(() => {
     if (!PIP_SUPPORTED) return;
 
+    // higher resolution than the old 300x168 -- the floated PiP window's native size
+    // comes from this canvas's actual pixel buffer, not any on-page CSS size, and text
+    // drawn at low resolution looked visibly blurry once a browser rendered/resized the
+    // floating window larger than that.
     const canvas = document.createElement("canvas");
-    canvas.width = 300;
-    canvas.height = 168;
+    canvas.width = 640;
+    canvas.height = 360;
     canvasRef.current = canvas;
 
+    // manual requestPictureInPicture() (unlike the auto-float attribute) doesn't require
+    // the source video to be visible on the page at all -- confirmed empirically, a
+    // display:none video pops out into PiP just fine -- so there's no permanently visible
+    // corner box needed; this stays fully off-page.
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
-    video.style.position = "fixed";
-    video.style.bottom = "16px";
-    video.style.right = "16px";
-    video.style.width = "96px";
-    video.style.height = "54px";
-    video.style.borderRadius = "10px";
-    video.style.boxShadow = "0 2px 10px rgba(0,0,0,0.35)";
-    video.style.zIndex = "5";
     video.style.display = "none";
     document.body.appendChild(video);
-    const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(2);
+    const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(8);
     video.srcObject = stream;
     // muted, same-origin autoplay has no gesture requirement anywhere -- keep it playing
     // continuously whenever it's relevant so requestPictureInPicture() always has a
@@ -128,10 +128,7 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
 
       if (t.status !== "running") {
         document.title = BASE_TITLE;
-        if (video) {
-          video.style.display = "none";
-          if (document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
-        }
+        if (video && document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
         return;
       }
 
@@ -143,7 +140,6 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!video || !canvas || !ctx) return;
-      video.style.display = "block";
       if (video.paused) video.play().catch(() => {});
 
       const shellEl = document.querySelector(".shell");
@@ -193,15 +189,19 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
       const label = t.phase === "focus" ? (t.activeTaskTitle ?? "focus") : openEnded ? "break — elapsed" : "break";
       ctx.textAlign = "center";
       ctx.fillStyle = textColor;
-      ctx.font = "600 44px system-ui, sans-serif";
-      ctx.fillText(clock, canvas.width / 2, 92);
-      ctx.font = "400 18px system-ui, sans-serif";
+      ctx.font = "600 92px system-ui, sans-serif";
+      ctx.fillText(clock, canvas.width / 2, 200);
+      ctx.font = "400 34px system-ui, sans-serif";
       ctx.fillStyle = mutedColor;
-      ctx.fillText(label, canvas.width / 2, 128);
+      ctx.fillText(label, canvas.width / 2, 258);
     };
 
     draw();
-    const id = window.setInterval(draw, 1000);
+    // redraws faster than once a second (matched to the captureStream fps above) so a
+    // video/gif "make it fun" background keeps moving in the popout instead of visibly
+    // freezing between second-ticks -- the clock text itself only changes once a real
+    // second, but recomputing it every tick is cheap, so this is one loop, not two.
+    const id = window.setInterval(draw, 125);
     document.addEventListener("visibilitychange", draw);
     return () => {
       window.clearInterval(id);

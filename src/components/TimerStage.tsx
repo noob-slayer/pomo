@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { TimerApi } from "../hooks/useTimer";
 import { FOCUS_PRESETS_MIN, formatClock } from "../lib/durations";
+import { IconPopOut } from "./icons";
 
 interface TimerStageProps {
   timer: TimerApi;
@@ -65,8 +66,14 @@ export function TimerStage({ timer, selectedFocusMinutes, onSelectFocusMinutes, 
           reset
         </button>
         {onPopOutPip && !idle && (
-          <button type="button" className="btn" onClick={onPopOutPip} title="pop out a floating mini timer">
-            pop out
+          <button
+            type="button"
+            className="btn btn--icon"
+            onClick={onPopOutPip}
+            title="pop out a floating mini timer"
+            aria-label="pop out a floating mini timer"
+          >
+            <IconPopOut />
           </button>
         )}
       </div>
