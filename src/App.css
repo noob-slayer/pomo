@@ -32,7 +32,9 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 14px;
+  /* 14px was precise-tap-only -- comfortably below Apple's own 44pt minimum touch
+     target, so a real finger easily overshoots past it onto the stage underneath */
+  height: 44px;
   z-index: 99;
 }
 
