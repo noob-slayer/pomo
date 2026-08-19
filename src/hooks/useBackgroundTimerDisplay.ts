@@ -84,7 +84,19 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     const canvas = document.createElement("canvas");
     canvas.width = 640;
     canvas.height = 360;
+    // Safari's captureStream() has shown a blank/black track when the source canvas is
+    // detached from the document -- Chrome tolerates an in-memory-only canvas fine, but
+    // attaching this one (off-screen, same as the video below) is a cheap defensive match
+    // for Safari's stricter requirement.
+    canvas.style.position = "fixed";
+    canvas.style.left = "-9999px";
+    canvas.style.top = "-9999px";
+    document.body.appendChild(canvas);
     canvasRef.current = canvas;
+    // paint one real frame before the stream ever starts, rather than starting capture on
+    // a canvas that's never had a context or any pixels -- another cheap hedge against the
+    // same class of "starts blank and never recovers" Safari quirk.
+    canvas.getContext("2d")?.fillRect(0, 0, canvas.width, canvas.height);
 
     // Chrome's manual requestPictureInPicture() doesn't care whether the source video is
     // visible on the page, but Safari's does: it needs the element to have been laid out
@@ -112,6 +124,7 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
       video.pause();
       video.srcObject = null;
       video.remove();
+      canvas.remove();
       videoRef.current = null;
       canvasRef.current = null;
     };
