@@ -143,8 +143,15 @@ export async function fetchMyLobbies(identityKey: string): Promise<Lobby[]> {
   return (data as LobbyRow[]).map(rowToLobby).sort((a, b) => b.createdAt - a.createdAt);
 }
 
-export async function joinLobby(lobbyId: string, identityKey: string, personaName: string): Promise<void> {
-  if (!supabase) return;
+// returns whether the join actually took -- callers must not treat this as "joined" (and
+// must not call setCurrentLobby) on false. This mattered in practice: identity_key has to
+// match the caller's own auth.uid() under RLS (see lobby_identity_hardening.sql), and a
+// fresh anonymous session isn't guaranteed to have resolved yet the instant a page loads
+// from a shared invite link -- a stale/mismatched identityKey makes the insert fail RLS,
+// which previously surfaced only as a console.error while the UI still optimistically
+// showed the lobby as joined.
+export async function joinLobby(lobbyId: string, identityKey: string, personaName: string): Promise<boolean> {
+  if (!supabase) return false;
   // deliberately a plain insert-then-update instead of .upsert(): Postgres's ON CONFLICT
   // DO UPDATE needs to see the existing conflicting row to detect the conflict at all,
   // which runs into the same "no SELECT policy left" wall as createLobby's .select() did
@@ -156,18 +163,22 @@ export async function joinLobby(lobbyId: string, identityKey: string, personaNam
     persona_name: personaName,
     last_seen_at: new Date().toISOString(),
   });
-  if (!insertError) return;
+  if (!insertError) return true;
   // 23505 = unique_violation on (lobby_id, identity_key) -- already a member, update instead
   if (insertError.code !== "23505") {
     console.error("joinLobby failed", insertError);
-    return;
+    return false;
   }
   const { error: updateError } = await supabase
     .from("lobby_members")
     .update({ persona_name: personaName, last_seen_at: new Date().toISOString() })
     .eq("lobby_id", lobbyId)
     .eq("identity_key", identityKey);
-  if (updateError) console.error("joinLobby (update) failed", updateError);
+  if (updateError) {
+    console.error("joinLobby (update) failed", updateError);
+    return false;
+  }
+  return true;
 }
 
 export async function leaveLobby(lobbyId: string, identityKey: string): Promise<void> {

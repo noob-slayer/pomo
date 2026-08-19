@@ -42,7 +42,7 @@ export function Shell() {
     setMode,
     setWorkTheme,
   } = useSettings();
-  const { identityUserId } = useAuth();
+  const { identityUserId, loading: authLoading } = useAuth();
   const { logCompletion } = useTasks();
   // starts closed on phone-sized viewports -- the task panel takes over the whole
   // screen there (the layout grid collapses to one column below 860px, matching
@@ -258,19 +258,34 @@ export function Shell() {
   }, []);
 
   // pick up a lobby invite link (?lobby=CODE): look the lobby up, join it under the
-  // current identity, make it the active lobby, then clean the url
+  // current identity, make it the active lobby, then clean the url. Waits for auth to
+  // actually resolve first -- a fresh visitor from a shared link hasn't necessarily
+  // finished anonymous sign-in yet, and identityKey falls back to a client-only guest id
+  // until it does. joinLobby's insert is checked under RLS against the caller's real
+  // auth.uid(), so attempting the join before that settles could silently fail RLS while
+  // this still optimistically marked the lobby as joined (setCurrentLobby ran regardless
+  // of whether joinLobby actually succeeded) -- that mismatch is exactly what made a
+  // shared link "not work" while manually entering the same code did, since by the time
+  // someone finishes typing a code and clicking join, auth has long since settled.
+  const lobbyJoinAttempted = useRef(false);
   useEffect(() => {
+    if (authLoading || lobbyJoinAttempted.current) return;
     const code = parseLobbyCodeFromLocation();
     if (!code) return;
+    lobbyJoinAttempted.current = true;
     (async () => {
       const lobby = await findLobbyByCode(code);
-      if (!lobby) return;
-      await joinLobby(lobby.id, identityKey, displayName);
+      if (!lobby) {
+        clearLobbyFromLocation();
+        return;
+      }
+      const joined = await joinLobby(lobby.id, identityKey, displayName);
+      if (!joined) return; // leave ?lobby= in place so a reload can retry
       setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name, mode: lobby.mode });
+      clearLobbyFromLocation();
     })();
-    clearLobbyFromLocation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authLoading]);
 
   // task panel auto-hides 12s after opening; resets on any interaction inside it
   const resetTaskAutoHide = () => {

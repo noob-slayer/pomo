@@ -57,8 +57,12 @@ export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
       setError("no lobby found for that code");
       return;
     }
-    await joinLobby(lobby.id, identityKey, displayName);
+    const joined = await joinLobby(lobby.id, identityKey, displayName);
     setBusy(false);
+    if (!joined) {
+      setError("couldn't join the lobby — try again");
+      return;
+    }
     setCurrentLobby({ id: lobby.id, code: lobby.code, name: lobby.name, mode: lobby.mode });
     setCodeInput("");
     setView("menu");

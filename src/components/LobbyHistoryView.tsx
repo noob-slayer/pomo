@@ -42,8 +42,12 @@ export function LobbyHistoryView() {
   const handleRejoin = async () => {
     setRejoining(true);
     setError(null);
-    await joinLobby(selected.id, identityKey, displayName);
+    const joined = await joinLobby(selected.id, identityKey, displayName);
     setRejoining(false);
+    if (!joined) {
+      setError("couldn't rejoin the lobby — try again");
+      return;
+    }
     setCurrentLobby({ id: selected.id, code: selected.code, name: selected.name, mode: selected.mode });
   };
 
