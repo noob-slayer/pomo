@@ -15,7 +15,7 @@ const IMG_H = 1536;
 
 // how far the crop window is nudged within the source image, as a fraction of the crop's
 // own width -- see getCoverCrop(). Applied identically wherever the background is drawn.
-const BG_SHIFT_FRAC = 0.07;
+const BG_SHIFT_FRAC = 0.14;
 
 // measured directly from the photo's own pixels (scanning for the vermillion-red
 // pillars/beams), as fractions of the SOURCE IMAGE width -- not the canvas. The cover-fit
