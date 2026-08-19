@@ -1092,29 +1092,37 @@
    drops in, timed as two separate phases (not one spin) since that two-beat motion is
    what actually reads as a physical leaf mechanism rather than a generic card flip. */
 .flap-board {
+  /* same font-size scale as .clock -- the whole point is this reads as "the app's timer,
+     rendered on flap tiles," not a smaller, differently-weighted lookalike */
+  --flap-font: clamp(5.2rem, 14vw, 11rem);
+  --flap-h: clamp(5.6rem, 15.1vw, 11.9rem);
+  --flap-w: clamp(3.5rem, 9.3vw, 7.4rem);
   display: flex;
   align-items: center;
-  gap: clamp(6px, 1vw, 12px);
+  gap: clamp(6px, 1vw, 14px);
   margin: 0 0 32px;
 }
 
 .flap-cell {
   position: relative;
-  width: clamp(46px, 8.6vw, 92px);
-  height: clamp(70px, 13vw, 140px);
+  width: var(--flap-w);
+  height: var(--flap-h);
   perspective: 320px;
-  border-radius: clamp(4px, 0.6vw, 8px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  border-radius: clamp(4px, 0.6vw, 10px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
 }
 
 .flap-sep {
-  width: clamp(10px, 2vw, 20px);
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--flap-h);
+  width: clamp(14px, 2.4vw, 26px);
   font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: clamp(2.2rem, 6.5vw, 4.6rem);
-  color: rgba(240, 236, 230, 0.55);
+  font-weight: 600;
+  font-size: var(--flap-font);
   line-height: 1;
+  color: rgba(255, 255, 255, 0.55);
 }
 
 .flap-half,
@@ -1124,21 +1132,20 @@
   width: 100%;
   height: 50%;
   overflow: hidden;
-  background: #242322;
+  /* pitch matte black -- no gradient sheen, just the hinge line below for separation */
+  background: #050505;
 }
 
 .flap-half--top,
 .flap-leaf--front {
   top: 0;
-  border-radius: clamp(4px, 0.6vw, 8px) clamp(4px, 0.6vw, 8px) 0 0;
-  background: linear-gradient(180deg, #2c2b29, #201f1e);
+  border-radius: clamp(4px, 0.6vw, 10px) clamp(4px, 0.6vw, 10px) 0 0;
 }
 
 .flap-half--bottom,
 .flap-leaf--back {
   bottom: 0;
-  border-radius: 0 0 clamp(4px, 0.6vw, 8px) clamp(4px, 0.6vw, 8px);
-  background: linear-gradient(180deg, #201f1e, #171716);
+  border-radius: 0 0 clamp(4px, 0.6vw, 10px) clamp(4px, 0.6vw, 10px);
 }
 
 .flap-leaf {
@@ -1180,17 +1187,17 @@
   left: 0;
   top: 0;
   width: 100%;
-  height: clamp(70px, 13vw, 140px);
-  line-height: clamp(70px, 13vw, 140px);
+  height: var(--flap-h);
+  line-height: var(--flap-h);
   text-align: center;
   font-family: var(--font-mono);
-  font-weight: 700;
-  font-size: clamp(2.4rem, 6.6vw, 4.7rem);
-  color: #f0ece4;
+  font-weight: 600;
+  font-size: var(--flap-font);
+  color: #ffffff;
 }
 
 .flap-glyph--bottom {
-  top: calc(clamp(70px, 13vw, 140px) / -2);
+  top: calc(var(--flap-h) / -2);
 }
 
 .flap-hinge {
@@ -1198,10 +1205,9 @@
   left: 0;
   right: 0;
   top: 50%;
-  height: 3px;
-  transform: translateY(-1.5px);
-  background: rgba(0, 0, 0, 0.55);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  height: 2px;
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.08);
   z-index: 4;
   pointer-events: none;
 }
