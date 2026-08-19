@@ -32,6 +32,7 @@ import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
 import { PersonalStatsPage } from "./PersonalStatsPage";
 import { TeamStatsPage } from "./TeamStatsPage";
+import { FeaturesPage } from "./FeaturesPage";
 import { DvdBounce } from "./DvdBounce";
 import { F1Race } from "./F1Race";
 import { YtBackground } from "./YtBackground";
@@ -65,6 +66,7 @@ export function Shell() {
   const [panelTab, setPanelTab] = useState<PanelTab>("tasks");
   const [personalStatsOpen, setPersonalStatsOpen] = useState(false);
   const [teamStatsOpen, setTeamStatsOpen] = useState(false);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
@@ -371,6 +373,21 @@ export function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authLoading]);
 
+  // shows the features overview once, automatically, the moment onboarding resolves
+  // (personaName becomes set, whether by picking a guest name or signing in) -- guarded
+  // by a localStorage flag so a returning visitor on this same browser never sees it pop
+  // up again. The permanent topbar link (below) is how anyone revisits it after that.
+  useEffect(() => {
+    if (!personaName) return;
+    try {
+      if (window.localStorage.getItem("pomo:seenFeaturesIntro")) return;
+      window.localStorage.setItem("pomo:seenFeaturesIntro", "1");
+      setFeaturesOpen(true);
+    } catch {
+      // storage unavailable -- just skip the auto-show, the topbar link still works
+    }
+  }, [personaName]);
+
   // task panel auto-hides 12s after opening; resets on any interaction inside it
   const resetTaskAutoHide = () => {
     if (taskAutoHideRef.current) window.clearTimeout(taskAutoHideRef.current);
@@ -582,6 +599,7 @@ export function Shell() {
           onToggleTasks={() => setTasksOpen((v) => !v)}
           onOpenStats={() => setPersonalStatsOpen(true)}
           onOpenTeamStats={() => setTeamStatsOpen(true)}
+          onOpenFeatures={() => setFeaturesOpen(true)}
         />
       </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
@@ -708,6 +726,7 @@ export function Shell() {
       </div>
       <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
       <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} onGiveKudos={sendKudos} />
+      <FeaturesPage open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
       {kudosToast && (
         <div className="kudos-toast" role="status">
           <span className="kudos-toast__icon">

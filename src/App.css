@@ -66,6 +66,15 @@
   letter-spacing: 0.02em;
 }
 
+.topbar-features-link {
+  font-size: 0.86rem;
+  color: var(--page-muted);
+}
+
+.topbar-features-link:hover {
+  color: var(--page-ink);
+}
+
 .mode-switch {
   display: flex;
   align-items: center;
@@ -2163,6 +2172,94 @@
   pointer-events: none;
 }
 
+.credit__feedback {
+  pointer-events: auto;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.credit__feedback:hover {
+  color: var(--stage-ink);
+}
+
+/* ---------- feedback ---------- */
+
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(20, 16, 14, 0.5);
+  /* .credit (this modal's DOM ancestor -- FeedbackWidget renders inside it) sets
+     pointer-events: none, which is inherited by descendants unless reset. Only the
+     trigger button had its own override before; the modal's own subtree needs the same
+     reset or every click inside it (textarea, input, send) falls through to the stage
+     behind it -- confirmed by actually clicking through the form in a real browser, not
+     just eyeballing the CSS. */
+  pointer-events: auto;
+}
+
+.feedback-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--page-bg);
+  color: var(--page-ink);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--page-border);
+  box-shadow: 0 30px 70px -24px rgba(0, 0, 0, 0.55);
+  padding: 20px 24px 24px;
+}
+
+.feedback-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.feedback-card__title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.feedback-card__form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feedback-card__textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--page-surface);
+  color: var(--page-ink);
+}
+
+.feedback-card__input {
+  width: 100%;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  background: var(--page-surface);
+  color: var(--page-ink);
+}
+
+.feedback-card__sent {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--page-muted);
+}
+
 /* ---------- stats teaser (task-panel "stats"/"team" tabs) ---------- */
 
 .stats-teaser,
@@ -2600,6 +2697,46 @@
   font-size: 0.64rem;
   color: var(--page-muted);
   white-space: nowrap;
+}
+
+/* ---------- features page ---------- */
+
+.features-group {
+  margin-top: 24px;
+}
+
+.features-group:first-child {
+  margin-top: 0;
+}
+
+.features-group .history-section__label {
+  margin-top: 0;
+}
+
+.features-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.features-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.features-list__name {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.features-list__desc {
+  font-size: 0.8rem;
+  color: var(--page-muted);
+  line-height: 1.45;
 }
 
 /* ---------- team stats page ---------- */
