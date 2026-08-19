@@ -1500,7 +1500,8 @@
    active, regardless of whether it's actually revealed at this instant -- guarantees no
    overlap the moment it is, rather than depending on hover timing. */
 .topbar-zone--auto-hide ~ .layout .task-panel {
-  padding-top: var(--topbar-height, 76px);
+  /* +16px beyond the topbar's exact height -- flush against it read as too tight */
+  padding-top: calc(var(--topbar-height, 76px) + 16px);
 }
 
 .task-panel--open {
