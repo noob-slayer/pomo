@@ -74,7 +74,6 @@ export function FeaturesPage({ open, onClose }: FeaturesPageProps) {
           <p className="features-intro">
             somewhere, a friend of yours already has a longer streak than you today. that's kind of the whole pitch.
           </p>
-          <p className="features-mission">a pomo a day keeps the doomscroll away.</p>
 
           <p className="features-question">why this, not the 40 other pomodoro apps in the store?</p>
           <p className="features-intro">

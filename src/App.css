@@ -2709,17 +2709,6 @@
   margin: 0 0 14px;
 }
 
-.features-mission {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--page-ink);
-  margin: 0 0 26px;
-  padding: 12px 14px;
-  border-left: 2px solid var(--page-ink);
-  background: var(--page-surface);
-  border-radius: 4px;
-}
-
 .features-question {
   font-size: 0.95rem;
   font-weight: 700;
