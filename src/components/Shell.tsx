@@ -599,7 +599,6 @@ export function Shell() {
           onToggleTasks={() => setTasksOpen((v) => !v)}
           onOpenStats={() => setPersonalStatsOpen(true)}
           onOpenTeamStats={() => setTeamStatsOpen(true)}
-          onOpenFeatures={() => setFeaturesOpen(true)}
         />
       </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
@@ -754,7 +753,7 @@ export function Shell() {
         </div>
       )}
       <YoutubeWidget />
-      <Credit />
+      <Credit onOpenFeatures={() => setFeaturesOpen(true)} />
       <Onboarding />
     </div>
   );

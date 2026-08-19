@@ -11,19 +11,15 @@ interface TopBarProps {
   onToggleTasks: () => void;
   onOpenStats: () => void;
   onOpenTeamStats: () => void;
-  onOpenFeatures: () => void;
 }
 
-export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats, onOpenFeatures }: TopBarProps) {
+export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats }: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
     <header className="topbar">
       <div className="topbar-left">
         <span className="wordmark">pomo</span>
-        <button type="button" className="topbar-features-link" onClick={onOpenFeatures}>
-          features
-        </button>
         <nav className="mode-switch" aria-label="mode">
           <button
             type="button"
