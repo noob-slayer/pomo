@@ -831,19 +831,22 @@
    further left than panel-open (narrower) before running off the left edge, so these are
    tuned separately rather than guessing at one number for both. */
 .layout--full .stage[data-personal-theme="japan"] .stage-inner {
-  transform: translateX(-38%);
+  transform: translateX(-44%);
 }
 
 .layout--full .stage[data-personal-theme="japan"] .clock {
-  font-size: clamp(4.2rem, 10.5vw, 8.4rem);
+  font-size: clamp(4.35rem, 10.9vw, 8.7rem);
 }
 
+/* panel-open has noticeably less room before the left edge -- -24% here already clipped
+   the "start" button off-screen entirely in an earlier check, so this gets a smaller nudge
+   than the panel-closed case rather than the same delta applied to both */
 .layout:not(.layout--full) .stage[data-personal-theme="japan"] .stage-inner {
-  transform: translateX(-18%);
+  transform: translateX(-19%);
 }
 
 .layout:not(.layout--full) .stage[data-personal-theme="japan"] .clock {
-  font-size: clamp(2.9rem, 7.2vw, 5.6rem);
+  font-size: clamp(3rem, 7.45vw, 5.8rem);
 }
 
 .corner-summary {
