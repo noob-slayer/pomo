@@ -1,4 +1,4 @@
-import type { Mode, PomoRecord } from "../types";
+import type { Mode, PomoRecord, Task } from "../types";
 
 function dayKey(ts: number): string {
   return new Date(ts).toDateString();
@@ -192,6 +192,9 @@ export interface Badge {
   label: string;
   description: string;
   achieved: boolean;
+  // omitted for badges with no single clean linear metric (early-bird/night-owl/weekend
+  // warrior are one-time conditions, not a count that climbs toward a target)
+  progress?: { current: number; target: number };
 }
 
 // every badge is recomputed live from history on each render -- deliberately no
@@ -207,22 +210,87 @@ export function computeBadges(history: PomoRecord[], mode: Mode): Badge[] {
   const weekendWarrior = focus.some((r) => [0, 6].includes(new Date(r.completedAt).getDay()));
 
   return [
-    { id: "first-pomo", label: "first pomo", description: "complete your first focus session", achieved: totalSessions >= 1 },
-    { id: "getting-started", label: "getting started", description: "complete 10 focus sessions", achieved: totalSessions >= 10 },
-    { id: "half-century", label: "half century", description: "complete 50 focus sessions", achieved: totalSessions >= 50 },
-    { id: "century", label: "century", description: "complete 100 focus sessions", achieved: totalSessions >= 100 },
-    { id: "deep-work", label: "deep work", description: "finish a single session of 90+ minutes", achieved: longest >= 90 },
-    { id: "marathon", label: "marathon", description: "finish a single session of 3+ hours", achieved: longest >= 180 },
-    { id: "on-a-roll", label: "on a roll", description: "hit a 3-day focus streak", achieved: streaks.longest >= 3 },
-    { id: "unstoppable", label: "unstoppable", description: "hit a 7-day focus streak", achieved: streaks.longest >= 7 },
-    { id: "iron-will", label: "iron will", description: "hit a 30-day focus streak", achieved: streaks.longest >= 30 },
+    { id: "first-pomo", label: "first pomo", description: "complete your first focus session", achieved: totalSessions >= 1, progress: { current: totalSessions, target: 1 } },
+    { id: "getting-started", label: "getting started", description: "complete 10 focus sessions", achieved: totalSessions >= 10, progress: { current: totalSessions, target: 10 } },
+    { id: "half-century", label: "half century", description: "complete 50 focus sessions", achieved: totalSessions >= 50, progress: { current: totalSessions, target: 50 } },
+    { id: "century", label: "century", description: "complete 100 focus sessions", achieved: totalSessions >= 100, progress: { current: totalSessions, target: 100 } },
+    { id: "deep-work", label: "deep work", description: "finish a single session of 90+ minutes", achieved: longest >= 90, progress: { current: longest, target: 90 } },
+    { id: "marathon", label: "marathon", description: "finish a single session of 3+ hours", achieved: longest >= 180, progress: { current: longest, target: 180 } },
+    { id: "on-a-roll", label: "on a roll", description: "hit a 3-day focus streak", achieved: streaks.longest >= 3, progress: { current: streaks.longest, target: 3 } },
+    { id: "unstoppable", label: "unstoppable", description: "hit a 7-day focus streak", achieved: streaks.longest >= 7, progress: { current: streaks.longest, target: 7 } },
+    { id: "iron-will", label: "iron will", description: "hit a 30-day focus streak", achieved: streaks.longest >= 30, progress: { current: streaks.longest, target: 30 } },
     { id: "early-bird", label: "early bird", description: "log a session before 7am", achieved: earlyBird },
     { id: "night-owl", label: "night owl", description: "log a session after 10pm", achieved: nightOwl },
     { id: "weekend-warrior", label: "weekend warrior", description: "focus on a saturday or sunday", achieved: weekendWarrior },
-    { id: "10-hours", label: "10 hours total", description: "cross 10 hours focused, all time", achieved: totalMinutes >= 600 },
-    { id: "50-hours", label: "50 hours total", description: "cross 50 hours focused, all time", achieved: totalMinutes >= 3000 },
-    { id: "100-hours", label: "100 hours total", description: "cross 100 hours focused, all time", achieved: totalMinutes >= 6000 },
+    { id: "10-hours", label: "10 hours total", description: "cross 10 hours focused, all time", achieved: totalMinutes >= 600, progress: { current: totalMinutes, target: 600 } },
+    { id: "50-hours", label: "50 hours total", description: "cross 50 hours focused, all time", achieved: totalMinutes >= 3000, progress: { current: totalMinutes, target: 3000 } },
+    { id: "100-hours", label: "100 hours total", description: "cross 100 hours focused, all time", achieved: totalMinutes >= 6000, progress: { current: totalMinutes, target: 6000 } },
   ];
+}
+
+const SEEN_BADGES_KEY = "pomo:seenBadges";
+
+// null means this identity/mode has never been evaluated before -- distinct from an
+// initialized-but-empty set, so an existing user's already-achieved badges (the moment
+// this feature ships) aren't mistaken for freshly-earned ones the first time this runs.
+export function readSeenBadges(mode: Mode): Set<string> | null {
+  try {
+    const raw = window.localStorage.getItem(SEEN_BADGES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    const modeState = parsed[mode];
+    return Array.isArray(modeState) ? new Set(modeState) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeSeenBadges(mode: Mode, ids: string[]): void {
+  try {
+    const raw = window.localStorage.getItem(SEEN_BADGES_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    parsed[mode] = ids;
+    window.localStorage.setItem(SEEN_BADGES_KEY, JSON.stringify(parsed));
+  } catch {
+    // storage unavailable -- unlock toasts just won't dedupe across reloads, not fatal
+  }
+}
+
+export interface EstimateAccuracy {
+  tasksCompared: number;
+  avgEstimateMinutes: number;
+  avgActualMinutes: number;
+  // positive = you tend to run over your own estimate, negative = under, null = not
+  // enough data (no task in this mode has both an estimate and a logged session yet)
+  avgOverrunPct: number | null;
+}
+
+// compares a task's own duration estimate against the actual time logged against it --
+// only counts tasks that have BOTH (an estimate with zero sessions logged yet has nothing
+// to compare; a session with no estimate has nothing to compare against either)
+export function computeEstimateAccuracy(history: PomoRecord[], tasks: Task[], mode: Mode): EstimateAccuracy {
+  const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
+  const estimated = tasks.filter((t) => t.mode === mode && t.durationMinutes && t.durationMinutes > 0);
+
+  let totalEstimate = 0;
+  let totalActual = 0;
+  let tasksCompared = 0;
+  for (const task of estimated) {
+    const actual = focus.filter((r) => r.taskId === task.id).reduce((s, r) => s + r.minutes, 0);
+    if (actual === 0) continue;
+    totalEstimate += task.durationMinutes as number;
+    totalActual += actual;
+    tasksCompared += 1;
+  }
+
+  if (tasksCompared === 0) {
+    return { tasksCompared: 0, avgEstimateMinutes: 0, avgActualMinutes: 0, avgOverrunPct: null };
+  }
+  return {
+    tasksCompared,
+    avgEstimateMinutes: totalEstimate / tasksCompared,
+    avgActualMinutes: totalActual / tasksCompared,
+    avgOverrunPct: Math.round(((totalActual - totalEstimate) / totalEstimate) * 100),
+  };
 }
 
 export interface CompletionStats {

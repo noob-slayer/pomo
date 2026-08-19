@@ -2369,6 +2369,50 @@
   transition: width 0.3s ease;
 }
 
+.stats-hero__edit {
+  align-self: flex-start;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: var(--page-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.stats-hero__edit:hover {
+  color: var(--page-ink);
+}
+
+.stats-goal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.stats-goal-form__input {
+  width: 100%;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 0.88rem;
+  background: var(--page-bg);
+  color: var(--page-ink);
+}
+
+.stats-goal-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stats-goal-form__actions .chip {
+  border-color: var(--page-border);
+  color: var(--page-ink);
+  font-size: 0.78rem;
+  padding: 5px 12px;
+}
+
 /* week-over-week comparison callout */
 
 .stats-compare {
@@ -2503,6 +2547,34 @@
   font-size: 0.7rem;
   color: var(--page-muted);
   line-height: 1.35;
+}
+
+.badge-tile__progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.badge-tile__progress-bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--page-border);
+  overflow: hidden;
+}
+
+.badge-tile__progress-fill {
+  height: 100%;
+  background: var(--page-muted);
+  border-radius: 2px;
+}
+
+.badge-tile__progress-label {
+  font-size: 0.64rem;
+  color: var(--page-muted);
+  white-space: nowrap;
 }
 
 /* ---------- team stats page ---------- */

@@ -24,6 +24,7 @@ import {
   type KudosNotification,
 } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
+import { computeBadges, readSeenBadges, writeSeenBadges, type Badge } from "../lib/statsExtras";
 import { TopBar } from "./TopBar";
 import { TimerStage } from "./TimerStage";
 import { TaskPanel, type PanelTab } from "./TaskPanel";
@@ -39,7 +40,7 @@ import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
 import { Onboarding } from "./Onboarding";
-import { IconFlame } from "./icons";
+import { IconFlame, IconTrophy } from "./icons";
 
 export function Shell() {
   const {
@@ -56,7 +57,7 @@ export function Shell() {
     setWorkTheme,
   } = useSettings();
   const { identityUserId, loading: authLoading } = useAuth();
-  const { logCompletion } = useTasks();
+  const { history, logCompletion } = useTasks();
   // starts closed on phone-sized viewports -- the task panel takes over the whole
   // screen there (the layout grid collapses to one column below 860px, matching
   // App.css's own breakpoint), pushing the timer out of view on first load otherwise
@@ -68,6 +69,8 @@ export function Shell() {
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
   const [kudosToast, setKudosToast] = useState<KudosNotification | null>(null);
+  const [badgeToast, setBadgeToast] = useState<Badge | null>(null);
+  const badgeToastTimeoutRef = useRef<number | null>(null);
   const kudosToastTimeoutRef = useRef<number | null>(null);
   const [topbarRevealed, setTopbarRevealed] = useState(false);
   const taskAutoHideRef = useRef<number | null>(null);
@@ -262,6 +265,27 @@ export function Shell() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, identityKey]);
+
+  // live "badge unlocked" toast -- fires the moment a session pushes you past a threshold,
+  // not just when you happen to open the full stats page. Kudos already got a live toast
+  // for reacting to *someone else's* session; crossing your own personal-best/badge
+  // threshold is arguably the higher-leverage moment and was previously silent.
+  useEffect(() => {
+    const badges = computeBadges(history, mode);
+    const achievedIds = badges.filter((b) => b.achieved).map((b) => b.id);
+    const seen = readSeenBadges(mode);
+    // seen === null: this identity/mode has never been evaluated before -- e.g. an
+    // existing user the moment this feature ships, with years of badges already true.
+    // Seed the seen-set without toasting any of it; only genuinely new unlocks notify.
+    const newlyAchieved = seen ? badges.find((b) => b.achieved && !seen.has(b.id)) : undefined;
+    writeSeenBadges(mode, achievedIds);
+    if (newlyAchieved) {
+      if (badgeToastTimeoutRef.current) window.clearTimeout(badgeToastTimeoutRef.current);
+      setBadgeToast(newlyAchieved);
+      badgeToastTimeoutRef.current = window.setTimeout(() => setBadgeToast(null), 5000);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history, mode]);
 
   // reuses the channel above when kudos are given on the currently-active lobby (the
   // common case), falling back to a one-off channel otherwise -- see sendKudosOnChannel's
@@ -692,6 +716,21 @@ export function Shell() {
           <p className="kudos-toast__body">
             <span className="kudos-toast__who">{kudosToast.fromPersonaName}</span> gave you kudos
             {kudosToast.taskTitle ? ` for "${kudosToast.taskTitle}"` : ""}
+          </p>
+        </div>
+      )}
+      {badgeToast && (
+        <div
+          className="kudos-toast"
+          role="status"
+          // stack below the kudos toast in the rare case both fire at once, rather than overlapping
+          style={kudosToast ? { top: "calc(var(--topbar-height, 76px) + 12px + 70px)" } : undefined}
+        >
+          <span className="kudos-toast__icon">
+            <IconTrophy />
+          </span>
+          <p className="kudos-toast__body">
+            <span className="kudos-toast__who">{badgeToast.label}</span> unlocked — {badgeToast.description}
           </p>
         </div>
       )}
