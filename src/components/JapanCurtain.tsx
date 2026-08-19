@@ -8,16 +8,26 @@ import { useEffect, useRef } from "react";
 
 const KANJI = ["縁", "風", "月", "花", "光", "道", "心", "夢", "和", "雪", "空", "桜"];
 
-// how far the background photo is nudged right on screen, as a fraction of canvas width
-// -- see drawCoverImage(). The opening fractions below are offset by the same amount so
-// the curtain keeps hanging through the gate at its new on-screen position.
+// torii-gate.jpg's actual pixel dimensions -- known up front, so the curtain's geometry
+// doesn't have to wait on the image finishing its (async) load to be computed correctly
+const IMG_W = 2752;
+const IMG_H = 1536;
+
+// how far the crop window is nudged within the source image, as a fraction of the crop's
+// own width -- see getCoverCrop(). Applied identically wherever the background is drawn.
 const BG_SHIFT_FRAC = 0.07;
 
-// measured directly from the photo's pixels (scanning for the vermillion-red
-// pillars/beams), not eyeballed -- tied to public/torii-gate.jpg specifically, offset by
-// BG_SHIFT_FRAC to track the shifted photo
-const OPENING_LEFT_FRAC = 0.355 + BG_SHIFT_FRAC;
-const OPENING_RIGHT_FRAC = 0.645 + BG_SHIFT_FRAC;
+// measured directly from the photo's own pixels (scanning for the vermillion-red
+// pillars/beams), as fractions of the SOURCE IMAGE width -- not the canvas. The cover-fit
+// crop has two branches (crop left/right vs. crop top/bottom, depending on how the
+// canvas's aspect ratio compares to the photo's), and which one applies changes at
+// runtime as the stage resizes (e.g. opening/closing the task panel). A fixed
+// canvas-fraction offset only tracked one branch correctly and snapped out of alignment
+// in the other, so the opening's on-canvas position is now derived from these
+// image-space fractions through whatever the *current* crop rectangle actually is (see
+// curtainGeometry()), which stays correct across both branches and any shift applied.
+const OPENING_LEFT_FRAC = 0.355;
+const OPENING_RIGHT_FRAC = 0.645;
 const RAIL_Y_FRAC = 0.38;
 
 const STRANDS = 22;
@@ -168,26 +178,34 @@ export function JapanCurtain() {
     };
     bgImage.src = "/torii-gate.jpg";
 
-    function drawCoverImage(img: HTMLImageElement) {
+    // the standard "cover" fit has two branches -- crop left/right (image relatively
+    // wider than the canvas) or crop top/bottom (canvas relatively wider) -- and which one
+    // applies flips at runtime as the stage resizes. Shared by drawCoverImage (actually
+    // drawing it) and curtainGeometry (positioning the curtain against it), so the two can
+    // never disagree about which crop is currently in effect.
+    function getCoverCrop(imgW: number, imgH: number) {
       const canvasRatio = width / height;
-      const imgRatio = img.width / img.height;
+      const imgRatio = imgW / imgH;
       let sx: number, sy: number, sw: number, sh: number;
       if (imgRatio > canvasRatio) {
-        sh = img.height;
+        sh = imgH;
         sw = sh * canvasRatio;
-        sx = (img.width - sw) / 2;
+        sx = (imgW - sw) / 2;
         sy = 0;
       } else {
-        sw = img.width;
+        sw = imgW;
         sh = sw / canvasRatio;
         sx = 0;
-        sy = (img.height - sh) / 2;
+        sy = (imgH - sh) / 2;
       }
       // shifts the crop window left within the source image, which moves the photo's
-      // content right on screen -- clamped so it never samples past the image edge. Kept
-      // in sync with BG_SHIFT_FRAC below, which nudges the curtain's opening fractions by
-      // the same amount so it still hangs through the gate at its new on-screen position.
-      sx = Math.max(0, sx - sw * BG_SHIFT_FRAC);
+      // content right on screen -- clamped to the image's own bounds either way.
+      sx = Math.max(0, Math.min(imgW - sw, sx - sw * BG_SHIFT_FRAC));
+      return { sx, sy, sw, sh };
+    }
+
+    function drawCoverImage(img: HTMLImageElement) {
+      const { sx, sy, sw, sh } = getCoverCrop(img.width, img.height);
       ctx!.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
     }
 
@@ -204,7 +222,14 @@ export function JapanCurtain() {
     }
 
     function curtainGeometry() {
-      return { left: width * OPENING_LEFT_FRAC, right: width * OPENING_RIGHT_FRAC, railY: height * RAIL_Y_FRAC };
+      // projects the gate opening's known position in the *source photo* through the
+      // current crop rectangle into canvas space -- correct regardless of which cover-fit
+      // branch is active, unlike a fixed canvas-fraction constant (which only tracked one
+      // branch and snapped out of alignment with the photo in the other).
+      const { sx, sw } = getCoverCrop(IMG_W, IMG_H);
+      const left = ((OPENING_LEFT_FRAC * IMG_W - sx) / sw) * width;
+      const right = ((OPENING_RIGHT_FRAC * IMG_W - sx) / sw) * width;
+      return { left, right, railY: height * RAIL_Y_FRAC };
     }
 
     let strands: Strand[] = [];
