@@ -683,7 +683,7 @@ export function Shell() {
             splitFlap={showSplitFlap}
           />
           <div className="corner-summary">
-            <DailySummary mode={mode} />
+            <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} />
             {currentLobby && <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} />}
           </div>
           {sessionPrompt && (
