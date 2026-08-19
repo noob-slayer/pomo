@@ -13,7 +13,8 @@ export type PersonalTheme =
   | "yt"
   | "forest1"
   | "splitflap"
-  | "japan";
+  | "japan"
+  | "matrix";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 

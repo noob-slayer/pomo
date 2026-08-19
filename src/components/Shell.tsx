@@ -415,6 +415,7 @@ export function Shell() {
   const showForest1Layer = mode === "personal" && personalTheme === "forest1";
   const showSplitFlap = mode === "personal" && personalTheme === "splitflap";
   const showJapanLayer = mode === "personal" && personalTheme === "japan";
+  const showMatrixLayer = mode === "personal" && personalTheme === "matrix";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
@@ -502,6 +503,12 @@ export function Shell() {
             </div>
           )}
           {showJapanLayer && <JapanCurtain />}
+          {showMatrixLayer && (
+            <div className="stage-matrix-wrap">
+              <img className="stage-matrix" src="/matrix-bg.jpg" alt="" />
+              <div className="stage-matrix-overlay" />
+            </div>
+          )}
           {showSuitsLayer && (
             <div className="stage-suits-wrap">
               <video className="stage-suits" src="/suits-bg.mp4" autoPlay muted loop playsInline />

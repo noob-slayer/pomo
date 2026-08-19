@@ -22,6 +22,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "forest1", label: "forest 1" },
   { value: "splitflap", label: "split-flap" },
   { value: "japan", label: "japan - curtain" },
+  { value: "matrix", label: "matrix" },
 ];
 
 export function PersonalThemeTabs() {
