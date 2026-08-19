@@ -825,15 +825,25 @@
   transform: translateX(-30%);
 }
 
-/* japan's torii gate is centered in the photo -- the timer sitting centered too covers
-   it directly, so this shifts the content aside and shrinks the clock to leave the gate
-   visible instead of hidden behind giant digits */
-.stage[data-personal-theme="japan"] .stage-inner {
-  transform: translateX(-17%);
+/* japan's gate sits right-of-center in its own photo, not dead center -- shifting the
+   timer content left and shrinking the clock leaves real clearance from the left pillar
+   instead of just technically not touching it. Panel-closed (full-width stage) can push
+   further left than panel-open (narrower) before running off the left edge, so these are
+   tuned separately rather than guessing at one number for both. */
+.layout--full .stage[data-personal-theme="japan"] .stage-inner {
+  transform: translateX(-38%);
 }
 
-.stage[data-personal-theme="japan"] .clock {
-  font-size: clamp(3.4rem, 8.4vw, 6.6rem);
+.layout--full .stage[data-personal-theme="japan"] .clock {
+  font-size: clamp(4.2rem, 10.5vw, 8.4rem);
+}
+
+.layout:not(.layout--full) .stage[data-personal-theme="japan"] .stage-inner {
+  transform: translateX(-18%);
+}
+
+.layout:not(.layout--full) .stage[data-personal-theme="japan"] .clock {
+  font-size: clamp(2.9rem, 7.2vw, 5.6rem);
 }
 
 .corner-summary {
