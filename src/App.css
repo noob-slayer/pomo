@@ -850,6 +850,18 @@
   transform: translateX(-30%);
 }
 
+/* same bug as japan's shift below -- tuned against a wide desktop viewport, this fixed
+   shift pushes the clock off the left edge of the screen (negative .stage-inner x,
+   measured) on anything narrower, worse here since one shift amount covers both
+   panel-open/closed instead of two tuned separately. Drop it below the width where it's
+   confirmed to stay on-screen; lofi just centers like other themes below that, same as
+   japan. */
+@media (max-width: 1365px) {
+  .stage[data-personal-theme="lofi"] .stage-inner {
+    transform: none;
+  }
+}
+
 /* japan's gate sits right-of-center in its own photo, not dead center -- shifting the
    timer content left and shrinking the clock leaves real clearance from the left pillar
    instead of just technically not touching it. Panel-closed (full-width stage) can push
@@ -872,6 +884,23 @@
 
 .layout:not(.layout--full) .stage[data-personal-theme="japan"] .clock {
   font-size: clamp(3rem, 7.45vw, 5.8rem);
+}
+
+/* both nudges above were tuned against a wide desktop viewport, where the stage has
+   several hundred px of clearance on either side of centered content -- but the shift
+   itself is a near-fixed pixel amount (percentage of the content box's own width, which
+   barely changes across viewports), not something that shrinks with a narrower stage. Below
+   ~1280px that fixed shift exceeds the actual clearance and pushes the clock (and on
+   phone-width, the controls below it too) off the left edge of the screen entirely --
+   confirmed via measured .stage-inner bounding boxes at iPad and phone widths, several of
+   which came back with a *negative* x position. Below this breakpoint, drop the shift
+   entirely rather than trying to guess a smaller-but-still-safe percentage: the japan
+   theme just centers like every other theme does at these widths. */
+@media (max-width: 1279px) {
+  .layout--full .stage[data-personal-theme="japan"] .stage-inner,
+  .layout:not(.layout--full) .stage[data-personal-theme="japan"] .stage-inner {
+    transform: none;
+  }
 }
 
 .corner-summary {
