@@ -193,9 +193,17 @@ export function JapanCurtain() {
         sx = (imgW - sw) / 2;
         sy = 0;
       } else {
-        sw = imgW;
+        // a plain cover-fit here uses the image's *entire* width (sw = imgW, sx = 0) --
+        // sx already has nowhere left to go before the shift below even runs, silently
+        // clamping it to zero regardless of BG_SHIFT_FRAC. This is the common case on a
+        // normal wide monitor with the task panel closed, not an edge case -- so it's not
+        // safe to just leave unhandled. Deliberately zooms in a bit past the bare cover
+        // minimum, solving for exactly enough margin (with a safety factor) to fit the
+        // intended shift either direction from center.
+        const maxSw = (imgW / (1 + 2 * BG_SHIFT_FRAC)) * 0.85;
+        sw = Math.min(imgW, maxSw);
         sh = sw / canvasRatio;
-        sx = 0;
+        sx = (imgW - sw) / 2;
         sy = (imgH - sh) / 2;
       }
       // shifts the crop window left within the source image, which moves the photo's
