@@ -14,7 +14,8 @@ export type PersonalTheme =
   | "forest1"
   | "splitflap"
   | "japan"
-  | "matrix";
+  | "matrix"
+  | "p";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 
