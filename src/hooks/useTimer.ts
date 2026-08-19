@@ -67,6 +67,14 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   // that need the truly current number even when this component's own render/interval
   // loop is being throttled by the browser, not whatever was last committed to state.
   const getLiveSeconds = (): number => {
+    // endAtRef/startedAtRef aren't cleared on pause (only stop/reset/completion do that),
+    // so while paused they still point at the anchor from before the pause -- deriving
+    // from them here would count time that isn't actually elapsing. remainingSeconds and
+    // elapsedSeconds are already correctly frozen at pause (recompute()'s own interval is
+    // torn down the moment status leaves "running"), so use those directly instead.
+    if (status !== "running") {
+      return targetSeconds === null ? elapsedSeconds : remainingSeconds;
+    }
     if (targetSeconds === null) {
       return startedAtRef.current === null ? elapsedSeconds : Math.floor((Date.now() - startedAtRef.current) / 1000);
     }

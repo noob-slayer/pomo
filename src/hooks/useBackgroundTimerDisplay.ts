@@ -86,14 +86,19 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
     canvas.height = 360;
     canvasRef.current = canvas;
 
-    // manual requestPictureInPicture() (unlike the auto-float attribute) doesn't require
-    // the source video to be visible on the page at all -- confirmed empirically, a
-    // display:none video pops out into PiP just fine -- so there's no permanently visible
-    // corner box needed; this stays fully off-page.
+    // Chrome's manual requestPictureInPicture() doesn't care whether the source video is
+    // visible on the page, but Safari's does: it needs the element to have been laid out
+    // with real dimensions at some point, and silently refuses a video that's been
+    // display:none since creation. Real size + positioned off-screen (not display:none)
+    // satisfies both -- properly laid out for Safari, invisible to you either way.
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
-    video.style.display = "none";
+    video.style.position = "fixed";
+    video.style.width = "160px";
+    video.style.height = "90px";
+    video.style.left = "-9999px";
+    video.style.top = "-9999px";
     document.body.appendChild(video);
     const stream = (canvas as HTMLCanvasElement & { captureStream: (fps?: number) => MediaStream }).captureStream(8);
     video.srcObject = stream;
@@ -126,16 +131,19 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
       const t = timerRef.current;
       const video = videoRef.current;
 
-      if (t.status !== "running") {
+      if (t.status === "idle") {
         document.title = BASE_TITLE;
         if (video && document.pictureInPictureElement === video) document.exitPictureInPicture().catch(() => {});
         return;
       }
 
+      // keep drawing while paused too, not just running -- the pop-out button is visible
+      // whenever the timer isn't idle, and a paused-but-never-drawn popup would otherwise
+      // show a blank canvas until the timer next runs
       const openEnded = t.targetSeconds === null;
       const seconds = t.getLiveSeconds();
       const clock = formatClock(seconds);
-      document.title = document.hidden ? `${clock} · pomo` : BASE_TITLE;
+      document.title = t.status === "running" && document.hidden ? `${clock} · pomo` : BASE_TITLE;
 
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
