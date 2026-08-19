@@ -2156,16 +2156,6 @@
   pointer-events: none;
 }
 
-.credit__coffee {
-  pointer-events: auto;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.credit__coffee:hover {
-  color: var(--stage-ink);
-}
-
 /* ---------- stats teaser (task-panel "stats"/"team" tabs) ---------- */
 
 .stats-teaser,
