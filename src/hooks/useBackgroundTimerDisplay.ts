@@ -4,8 +4,43 @@ import { formatClock } from "../lib/durations";
 
 const BASE_TITLE = typeof document !== "undefined" ? document.title : "";
 
+// checks both the document-level flag and that the element actually implements the
+// method -- a browser could in principle expose one without the other, and either gap
+// means a real requestPictureInPicture() call would just throw
 export const PIP_SUPPORTED =
-  typeof document !== "undefined" && "pictureInPictureEnabled" in document && document.pictureInPictureEnabled;
+  typeof document !== "undefined" &&
+  "pictureInPictureEnabled" in document &&
+  document.pictureInPictureEnabled &&
+  typeof HTMLVideoElement !== "undefined" &&
+  "requestPictureInPicture" in HTMLVideoElement.prototype;
+
+// same-origin "make it fun" backgrounds that render as an actual <video>/<img> element --
+// drawImage() can capture their current frame directly. yt (cross-origin iframe) and
+// f1track (dev-only canvas widget) are deliberately absent: an iframe can't be drawn to a
+// canvas at all, and cross-origin content would taint it even if it could.
+const MEDIA_BG_SELECTORS = [".stage-lofi", ".stage-suits", ".stage-f1", ".stage-succession", ".stage-forest1"];
+// backgrounds applied as a CSS background-image on a div rather than a real <img> element
+// -- drawImage() needs an actual image element, so these get mirrored into an offscreen
+// <img> pointed at the same URL instead.
+const CSS_BG_SELECTORS = [".stage-photo", ".stage-dvd-bg"];
+
+function findMediaBgElement(): HTMLVideoElement | HTMLImageElement | null {
+  for (const sel of MEDIA_BG_SELECTORS) {
+    const el = document.querySelector(sel);
+    if (el instanceof HTMLVideoElement || el instanceof HTMLImageElement) return el;
+  }
+  return null;
+}
+
+function findCssBgUrl(): string | null {
+  for (const sel of CSS_BG_SELECTORS) {
+    const el = document.querySelector(sel);
+    if (!(el instanceof HTMLElement)) continue;
+    const match = getComputedStyle(el).backgroundImage.match(/url\(["']?([^"')]+)["']?\)/);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 // keeps the timer visible while you're away from the tab, in two ways:
 //
@@ -21,14 +56,21 @@ export const PIP_SUPPORTED =
 //    works today -- once popped out, the window keeps floating on its own across
 //    subsequent tab switches, same end result, one click up front.
 //
-// Both are driven by their own dedicated setInterval reading getLiveSeconds() (wall-clock
-// math, not React state) rather than piggybacking on this component's re-render cycle --
-// re-renders themselves depend on useTimer's own interval, which browsers throttle hard
-// once a tab is backgrounded, so anything downstream of "wait for a re-render" stalls
-// right along with it instead of continuing to tick.
+// The floated preview mirrors the actual current theme rather than a fixed colour: solid
+// colour/work themes read --stage-bg/--stage-ink straight off .shell (the same CSS custom
+// properties the real stage renders from), and video/gif "make it fun" backgrounds get
+// their live current frame drawn onto the canvas each tick, under the same dark wash every
+// stage-*-overlay already applies for text legibility.
+//
+// Both the title and the canvas are driven by their own dedicated setInterval reading
+// getLiveSeconds() (wall-clock math, not React state) rather than piggybacking on this
+// component's re-render cycle -- re-renders themselves depend on useTimer's own interval,
+// which browsers throttle hard once a tab is backgrounded, so anything downstream of "wait
+// for a re-render" stalls right along with it instead of continuing to tick.
 export function useBackgroundTimerDisplay(timer: TimerApi) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const cssBgImgRef = useRef<{ url: string; img: HTMLImageElement } | null>(null);
   const timerRef = useRef(timer);
   timerRef.current = timer;
 
@@ -71,6 +113,15 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
   }, []);
 
   useEffect(() => {
+    const getCssBgImage = (url: string): HTMLImageElement | null => {
+      if (cssBgImgRef.current?.url !== url) {
+        const img = new Image();
+        img.src = url;
+        cssBgImgRef.current = { url, img };
+      }
+      return cssBgImgRef.current.img.complete ? cssBgImgRef.current.img : null;
+    };
+
     const draw = () => {
       const t = timerRef.current;
       const video = videoRef.current;
@@ -95,15 +146,57 @@ export function useBackgroundTimerDisplay(timer: TimerApi) {
       video.style.display = "block";
       if (video.paused) video.play().catch(() => {});
 
-      const label = t.phase === "focus" ? (t.activeTaskTitle ?? "focus") : openEnded ? "break — elapsed" : "break";
-      ctx.fillStyle = "#211a17";
+      const shellEl = document.querySelector(".shell");
+      const shellStyle = shellEl instanceof HTMLElement ? getComputedStyle(shellEl) : null;
+      const stageBg = shellStyle?.getPropertyValue("--stage-bg").trim() || "#181211";
+      const stageInk = shellStyle?.getPropertyValue("--stage-ink").trim() || "#f4ede6";
+      const stageInkMuted = shellStyle?.getPropertyValue("--stage-ink-muted").trim() || "rgba(244,237,230,0.72)";
+
+      ctx.fillStyle = stageBg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      let drewMedia = false;
+      const mediaEl = findMediaBgElement();
+      try {
+        if (mediaEl) {
+          ctx.drawImage(mediaEl, 0, 0, canvas.width, canvas.height);
+          drewMedia = true;
+        } else {
+          const cssUrl = findCssBgUrl();
+          const img = cssUrl ? getCssBgImage(cssUrl) : null;
+          if (img) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            drewMedia = true;
+          }
+        }
+      } catch {
+        // source not decodable yet this tick (e.g. video/image still loading) -- the
+        // stageBg fill drawn above already covers the canvas, just skip the overlay draw
+        drewMedia = false;
+      }
+
+      // same dark wash every "make it fun" background layer already applies, so text
+      // stays legible regardless of what's under it -- skipped for a plain colour theme,
+      // which has no such wash on the real stage either
+      let textColor = stageInk;
+      let mutedColor = stageInkMuted;
+      if (drewMedia) {
+        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+        gradient.addColorStop(0, "rgba(10, 8, 7, 0.42)");
+        gradient.addColorStop(1, "rgba(10, 8, 7, 0.62)");
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        textColor = "#f4ede6";
+        mutedColor = "rgba(244, 237, 230, 0.72)";
+      }
+
+      const label = t.phase === "focus" ? (t.activeTaskTitle ?? "focus") : openEnded ? "break — elapsed" : "break";
       ctx.textAlign = "center";
-      ctx.fillStyle = "#f4ede6";
+      ctx.fillStyle = textColor;
       ctx.font = "600 44px system-ui, sans-serif";
       ctx.fillText(clock, canvas.width / 2, 92);
       ctx.font = "400 18px system-ui, sans-serif";
-      ctx.fillStyle = "rgba(244, 237, 230, 0.72)";
+      ctx.fillStyle = mutedColor;
       ctx.fillText(label, canvas.width / 2, 128);
     };
 
