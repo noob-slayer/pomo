@@ -630,6 +630,24 @@
   background: linear-gradient(180deg, rgba(10, 8, 7, 0.42), rgba(10, 8, 7, 0.62));
 }
 
+/* "japan" make-it-fun theme -- a physics-driven curtain of kanji hanging in front of a
+   torii-gate photo. Ported from a standalone canvas prototype: positions that were
+   fixed against the browser window there are absolute against this wrap here instead. */
+.stage-japan-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0c0e15;
+}
+
+.stage-japan-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+
 .stage-yt-wrap {
   position: absolute;
   inset: 0;
@@ -773,6 +791,11 @@
   z-index: 1;
   max-width: 640px;
   width: 100%;
+  /* stops an ordinary drag over the clock/buttons from selecting their text -- most
+     visible with "japan"'s draggable kanji curtain underneath, where a drag starting on
+     the clock digits would otherwise trigger native text selection instead of reaching
+     the canvas, but this is reasonable app-chrome behaviour regardless of theme */
+  user-select: none;
 }
 
 /* lofi's video keeps its "action" (the character, desk) off to one side rather than

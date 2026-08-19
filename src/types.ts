@@ -12,7 +12,8 @@ export type PersonalTheme =
   | "f1track"
   | "yt"
   | "forest1"
-  | "splitflap";
+  | "splitflap"
+  | "japan";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 

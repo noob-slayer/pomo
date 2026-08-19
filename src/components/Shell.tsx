@@ -22,6 +22,7 @@ import { LobbySummary } from "./LobbySummary";
 import { DvdBounce } from "./DvdBounce";
 import { F1Race } from "./F1Race";
 import { YtBackground } from "./YtBackground";
+import { JapanCurtain } from "./JapanCurtain";
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -413,6 +414,7 @@ export function Shell() {
   const showYtLayer = mode === "personal" && personalTheme === "yt";
   const showForest1Layer = mode === "personal" && personalTheme === "forest1";
   const showSplitFlap = mode === "personal" && personalTheme === "splitflap";
+  const showJapanLayer = mode === "personal" && personalTheme === "japan";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
@@ -499,6 +501,7 @@ export function Shell() {
               <div className="stage-forest1-overlay" />
             </div>
           )}
+          {showJapanLayer && <JapanCurtain />}
           {showSuitsLayer && (
             <div className="stage-suits-wrap">
               <video className="stage-suits" src="/suits-bg.mp4" autoPlay muted loop playsInline />
