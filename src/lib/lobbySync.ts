@@ -1,5 +1,6 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
+import type { Phase } from "../types";
 
 // "sync" mode lobbies: any member's start/pause/resume/stop/reset is broadcast to every
 // other member, who applies the same action to their own local timer -- last action
@@ -29,17 +30,38 @@ export function broadcastSyncAction(channel: RealtimeChannel, action: SyncAction
   void channel.send({ type: "broadcast", event: "action", payload: action });
 }
 
-// a small "what's happening right now" snapshot, persisted on the lobby row so a member
-// who joins or reloads mid-session can catch up instead of waiting for the next action
+// a full "what's happening right now" snapshot, persisted on the lobby row so a member
+// who joins or reloads mid-session can catch up instead of waiting for the next action.
+//
+// deliberately a full state snapshot, not just the last SyncAction + timestamp (an earlier
+// version was exactly that, and only start/stop ever wrote it) -- a joiner/reloader has no
+// way to reconstruct "currently paused, with 12:34 left" from "someone started a 25:00
+// focus session 6 minutes ago" alone, and treating the gap since that stale timestamp as
+// still-running time silently ignored however long the timer had actually been paused for,
+// overwriting an already-correct local session with a wrong one on every reload. Every
+// sync-relevant action (start/pause/resume/reset) now writes a fresh, complete snapshot;
+// stop clears it via clearSyncState instead of writing an "idle" one.
 export interface LobbySyncState {
-  action: SyncAction;
-  at: number; // ms epoch, when this action happened -- lets a joiner compute elapsed/remaining
+  phase: Phase;
+  status: "running" | "paused"; // idle is represented by no sync_state at all
+  targetSeconds: number | null;
+  remainingSeconds: number; // meaningful when targetSeconds !== null
+  elapsedSeconds: number; // meaningful when targetSeconds === null (open-ended break)
+  at: number; // ms epoch this snapshot was taken -- a "running" snapshot's remaining/elapsed
+  // is exactly as of this moment; a catching-up client adds (or subtracts) whatever's
+  // elapsed since. A "paused" snapshot doesn't advance, so `at` isn't used to adjust it.
 }
 
 export async function writeSyncState(lobbyId: string, state: LobbySyncState): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("lobbies").update({ sync_state: state }).eq("id", lobbyId);
   if (error) console.error("writeSyncState failed", error);
+}
+
+export async function clearSyncState(lobbyId: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from("lobbies").update({ sync_state: null }).eq("id", lobbyId);
+  if (error) console.error("clearSyncState failed", error);
 }
 
 export async function readSyncState(lobbyId: string): Promise<LobbySyncState | null> {
