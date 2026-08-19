@@ -2,42 +2,32 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import type { CurrentLobby } from "../context/SettingsContext";
 import { resolveIdentityKey } from "../lib/identity";
-import {
-  fetchLobbyMembers,
-  fetchAllTimeLobbyStats,
-  fetchRecentLobbyActivity,
-  type LobbyAllTimeStat,
-  type LobbyActivityEntry,
-} from "../lib/lobby";
+import { fetchLobbyMembers, fetchTodayLobbyStats, type LobbyMemberStat } from "../lib/lobby";
 import { formatDuration } from "../lib/durations";
 
 interface LobbyStatsViewProps {
   lobby: CurrentLobby;
+  onOpenFull: () => void;
 }
 
 const POLL_MS = 8000;
 
-export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
+// compact teaser for the task-panel "team" tab -- today's combined total and the current
+// top member, with everything else (weekly/all-time leaderboard, kudos, full activity
+// feed) living behind "open team stats" into TeamStatsPage
+export function LobbyStatsView({ lobby, onOpenFull }: LobbyStatsViewProps) {
   const { identityUserId } = useAuth();
-  const [stats, setStats] = useState<LobbyAllTimeStat[]>([]);
-  const [activity, setActivity] = useState<LobbyActivityEntry[]>([]);
+  const [stats, setStats] = useState<LobbyMemberStat[]>([]);
   const [loaded, setLoaded] = useState(false);
   const identityKey = resolveIdentityKey(identityUserId);
 
-  // this view had no refresh at all before -- once loaded on mount, another member's
-  // sessions never showed up unless you switched tabs away and back, which could easily
-  // read as being "stuck" for minutes. Polling here matches LobbySummary's approach.
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
       const members = await fetchLobbyMembers(lobby.id);
-      const [allTime, recent] = await Promise.all([
-        fetchAllTimeLobbyStats(lobby.id, members),
-        fetchRecentLobbyActivity(lobby.id),
-      ]);
+      const today = await fetchTodayLobbyStats(lobby.id, members);
       if (cancelled) return;
-      setStats(allTime);
-      setActivity(recent);
+      setStats(today);
       setLoaded(true);
     };
     void load();
@@ -49,46 +39,31 @@ export function LobbyStatsView({ lobby }: LobbyStatsViewProps) {
   }, [lobby.id]);
 
   if (!loaded) return null;
-  if (stats.length === 0) return <p className="task-empty">no sessions logged in this lobby yet</p>;
+
+  const combinedMinutes = stats.reduce((sum, m) => sum + m.focusMinutes, 0);
+  const top = [...stats].sort((a, b) => b.focusMinutes - a.focusMinutes)[0];
+  const me = stats.find((m) => m.identityKey === identityKey);
 
   return (
-    <div className="lobby-stats-view">
-      <p className="history-section__label">{lobby.name} — all-time</p>
-      <ul className="lobby-stats-board">
-        {stats.map((s, i) => (
-          <li
-            key={s.identityKey}
-            className={s.identityKey === identityKey ? "lobby-stats-row lobby-stats-row--me" : "lobby-stats-row"}
-          >
-            <span className="lobby-stats-row__rank tabular">{i + 1}</span>
-            <span className="lobby-stats-row__name">{s.personaName}</span>
-            <span className="lobby-stats-row__meta">
-              {s.sessions} sessions · {s.daysActive} day{s.daysActive === 1 ? "" : "s"} active
-              {s.currentTask ? ` · latest: ${s.currentTask}` : ""}
-            </span>
-            <span className="lobby-stats-row__value tabular">{formatDuration(s.focusMinutes)}</span>
-          </li>
-        ))}
-      </ul>
-
-      <p className="history-section__label">recent activity</p>
-      <ul className="stats-log">
-        {activity.map((a) => {
-          const d = new Date(a.completedAt);
-          return (
-            <li key={a.id} className="stats-log__row">
-              <span className="stats-log__when">
-                {d.toLocaleDateString(undefined, { month: "short", day: "numeric" }).toLowerCase()} ·{" "}
-                {d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }).toLowerCase()}
-              </span>
-              <span className="stats-log__what">
-                {a.personaName} · {a.phase === "break" ? "break" : (a.taskTitle ?? "focus")}
-              </span>
-              <span className="stats-log__minutes tabular">{formatDuration(a.minutes)}</span>
-            </li>
-          );
-        })}
-      </ul>
+    <div className="lobby-stats-teaser">
+      <p className="stats-teaser__hint">
+        {combinedMinutes > 0 ? (
+          <>{formatDuration(combinedMinutes)} focused by the team today</>
+        ) : (
+          <>no sessions logged in {lobby.name} yet today</>
+        )}
+      </p>
+      {top && top.focusMinutes > 0 && (
+        <p className="stats-teaser__hint">
+          leading today: {top.personaName} · {formatDuration(top.focusMinutes)}
+          {me && me.identityKey !== top.identityKey && me.focusMinutes > 0
+            ? ` (you: ${formatDuration(me.focusMinutes)})`
+            : ""}
+        </p>
+      )}
+      <button type="button" className="stats-teaser__cta" onClick={onOpenFull}>
+        open team stats →
+      </button>
     </div>
   );
 }

@@ -18,6 +18,8 @@ interface TaskPanelProps {
   panelRef: RefObject<HTMLElement | null>;
   tab: PanelTab;
   onTabChange: (tab: PanelTab) => void;
+  onOpenFullStats: () => void;
+  onOpenFullTeamStats: () => void;
 }
 
 export function TaskPanel({
@@ -29,6 +31,8 @@ export function TaskPanel({
   panelRef,
   tab,
   onTabChange,
+  onOpenFullStats,
+  onOpenFullTeamStats,
 }: TaskPanelProps) {
   const { tasks, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [title, setTitle] = useState("");
@@ -104,9 +108,9 @@ export function TaskPanel({
       {tab === "history" ? (
         <HistoryView mode={mode} />
       ) : tab === "stats" ? (
-        <StatsView mode={mode} />
+        <StatsView mode={mode} onOpenFull={onOpenFullStats} />
       ) : tab === "team" ? (
-        <LobbyHistoryView />
+        <LobbyHistoryView onOpenFull={onOpenFullTeamStats} />
       ) : (
         <>
       <form className="task-form" onSubmit={handleAdd}>
