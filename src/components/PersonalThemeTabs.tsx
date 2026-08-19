@@ -8,11 +8,11 @@ import type { PersonalTheme } from "../types";
 // top-level row -- photo and reveal today, with room to add more without the tab row
 // growing unbounded.
 const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
-  { value: "photo", label: "photo" },
+  { value: "photo", label: "photo - user upload" },
   { value: "reveal", label: "reveal - painting" },
   { value: "lofi", label: "lofi" },
   { value: "dvd", label: "the office - dvd logo" },
-  { value: "suits", label: "Suits - Life is this" },
+  { value: "suits", label: "suits - life is like this" },
   { value: "succession", label: "Succession - theme" },
   { value: "f1", label: "f1 max v lewis title" },
   // still being tuned -- import.meta.env.DEV keeps it available while working on it

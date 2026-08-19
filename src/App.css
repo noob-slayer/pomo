@@ -384,7 +384,10 @@
   top: 100%;
   left: 0;
   margin-top: 6px;
-  min-width: 110px;
+  /* sized to whatever the longest label actually needs, not a guessed min-width -- stays
+     correct as labels change instead of wrapping once one gets long enough */
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
   background: var(--page-surface);
   border: 1px solid var(--page-border);
   border-radius: var(--radius-sm);
@@ -402,6 +405,7 @@
   font-size: 0.84rem;
   color: var(--page-ink);
   text-align: left;
+  white-space: nowrap;
 }
 
 .fun-menu__item:hover {
