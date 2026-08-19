@@ -218,21 +218,30 @@ export async function logLobbySession(
   if (error) console.error("logLobbySession failed", error);
 }
 
-// shared by the today/week leaderboards below -- both are "totals since some date bound,
-// merged with the member roster so someone who hasn't logged anything in the window still
-// shows up (at 0m) rather than being invisible". p_since pushes the date bound back into
-// SQL (lobby_sessions_completed_at_idx) instead of fetching the lobby's entire history and
-// filtering it in JS on every ~8s poll.
+// shared by the today/week/challenge leaderboards below -- all are "totals within some
+// date range, merged with the member roster so someone who hasn't logged anything in the
+// window still shows up (at 0m) rather than being invisible". p_since/p_until push the
+// date bounds back into SQL (lobby_sessions_completed_at_idx) instead of fetching the
+// lobby's entire history and filtering it in JS on every ~8s poll.
 async function aggregateLobbySessionsSince(
   lobbyId: string,
   members: LobbyMember[],
   since: Date,
+  until?: Date,
 ): Promise<LobbyMemberStat[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase.rpc("get_lobby_sessions", {
+  // p_until omitted entirely (not just sent as null) when unused -- fetchTodayLobbyStats/
+  // fetchWeekLobbyStats never pass `until`, and PostgREST matches an RPC call by which
+  // parameter names are actually present in the request. Omitting it keeps those two
+  // working against the *old* 2-arg get_lobby_sessions right up until the migration
+  // adding p_until runs, rather than regressing the already-shipped weekly leaderboard
+  // the moment this PR merges and before the migration happens to be run.
+  const params: { p_lobby_id: string; p_since: string; p_until?: string } = {
     p_lobby_id: lobbyId,
     p_since: since.toISOString(),
-  });
+  };
+  if (until) params.p_until = until.toISOString();
+  const { data, error } = await supabase.rpc("get_lobby_sessions", params);
   if (error) console.error("aggregateLobbySessionsSince failed", error);
 
   const map = new Map<string, LobbyMemberStat>();
@@ -282,6 +291,17 @@ export async function fetchWeekLobbyStats(lobbyId: string, members: LobbyMember[
   startOfWeek.setHours(0, 0, 0, 0);
   startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
   return aggregateLobbySessionsSince(lobbyId, members, startOfWeek);
+}
+
+// same shape again, but bounded to a specific challenge's own start/end window rather
+// than a rolling "today"/"this week" -- see fetchLobbyChallenges below
+export async function fetchChallengeLobbyStats(
+  lobbyId: string,
+  members: LobbyMember[],
+  startsAt: Date,
+  endsAt: Date,
+): Promise<LobbyMemberStat[]> {
+  return aggregateLobbySessionsSince(lobbyId, members, startsAt, endsAt);
 }
 
 // all-time per-member totals -- the "team stat" view, so members can look back on a
@@ -352,6 +372,64 @@ export async function fetchRecentLobbyActivity(lobbyId: string, limit = 30): Pro
     taskTitle: r.task_title,
     completedAt: new Date(r.completed_at).getTime(),
   }));
+}
+
+export interface LobbyChallenge {
+  id: string;
+  lobbyId: string;
+  name: string;
+  startsAt: number;
+  endsAt: number;
+  createdBy: string;
+}
+
+interface LobbyChallengeRow {
+  id: string;
+  lobby_id: string;
+  name: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string;
+}
+
+function rowToChallenge(row: LobbyChallengeRow): LobbyChallenge {
+  return {
+    id: row.id,
+    lobbyId: row.lobby_id,
+    name: row.name,
+    startsAt: new Date(row.starts_at).getTime(),
+    endsAt: new Date(row.ends_at).getTime(),
+    createdBy: row.created_by,
+  };
+}
+
+export async function createLobbyChallenge(
+  lobbyId: string,
+  identityKey: string,
+  name: string,
+  startsAt: Date,
+  endsAt: Date,
+): Promise<boolean> {
+  if (!supabase) return false;
+  const { error } = await supabase.from("lobby_challenges").insert({
+    lobby_id: lobbyId,
+    name,
+    starts_at: startsAt.toISOString(),
+    ends_at: endsAt.toISOString(),
+    created_by: identityKey,
+  });
+  if (error) {
+    console.error("createLobbyChallenge failed", error);
+    return false;
+  }
+  return true;
+}
+
+export async function fetchLobbyChallenges(lobbyId: string): Promise<LobbyChallenge[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("get_lobby_challenges", { p_lobby_id: lobbyId });
+  if (error || !data) return [];
+  return (data as LobbyChallengeRow[]).map(rowToChallenge);
 }
 
 export function buildLobbyUrl(code: string): string {

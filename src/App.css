@@ -2636,6 +2636,119 @@
   cursor: default;
 }
 
+/* ---------- team challenges ---------- */
+
+.challenges-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.challenges-header .history-section__label {
+  margin: 0;
+}
+
+.challenge-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-md);
+  background: var(--page-surface);
+}
+
+.challenge-form__name {
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 7px 9px;
+  font-size: 0.88rem;
+  background: var(--page-bg);
+  color: var(--page-ink);
+}
+
+.challenge-form__dates {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.challenge-form__dates input {
+  flex: 1;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  font-size: 0.82rem;
+  background: var(--page-bg);
+  color: var(--page-ink);
+}
+
+.challenge-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.challenge-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.challenge-item {
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.challenge-item__row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  text-align: left;
+  background: var(--page-surface);
+}
+
+.challenge-item__name {
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.challenge-item__status {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--page-border);
+  color: var(--page-muted);
+}
+
+.challenge-item__status--active {
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border-color: var(--page-ink);
+}
+
+.challenge-item__dates {
+  font-size: 0.74rem;
+  color: var(--page-muted);
+  white-space: nowrap;
+}
+
+.challenge-item__board {
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--page-border);
+}
+
 /* ---------- kudos toast ---------- */
 
 .kudos-toast {
