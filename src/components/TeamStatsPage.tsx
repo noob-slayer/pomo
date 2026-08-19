@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { resolveIdentityKey } from "../lib/identity";
@@ -8,11 +8,16 @@ import {
   fetchWeekLobbyStats,
   fetchAllTimeLobbyStats,
   fetchRecentLobbyActivity,
+  fetchLobbyChallenges,
+  fetchChallengeLobbyStats,
+  createLobbyChallenge,
   joinLobby,
   type Lobby,
+  type LobbyMember,
   type LobbyMemberStat,
   type LobbyAllTimeStat,
   type LobbyActivityEntry,
+  type LobbyChallenge,
 } from "../lib/lobby";
 import { fetchLobbyKudos, giveKudos, removeKudos, type KudosEntry } from "../lib/kudos";
 import type { KudosNotification } from "../lib/lobbySync";
@@ -42,10 +47,20 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
   const [allTimeStats, setAllTimeStats] = useState<LobbyAllTimeStat[]>([]);
   const [activity, setActivity] = useState<LobbyActivityEntry[]>([]);
   const [kudos, setKudos] = useState<KudosEntry[]>([]);
+  const [members, setMembers] = useState<LobbyMember[]>([]);
+  const [challenges, setChallenges] = useState<LobbyChallenge[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [rejoining, setRejoining] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingKudos, setPendingKudos] = useState<Set<string>>(new Set());
+  const [challengeFormOpen, setChallengeFormOpen] = useState(false);
+  const [challengeName, setChallengeName] = useState("");
+  const [challengeStart, setChallengeStart] = useState("");
+  const [challengeEnd, setChallengeEnd] = useState("");
+  const [challengeError, setChallengeError] = useState<string | null>(null);
+  const [expandedChallengeId, setExpandedChallengeId] = useState<string | null>(null);
+  const [challengeStats, setChallengeStats] = useState<LobbyMemberStat[]>([]);
+  const [challengeStatsLoading, setChallengeStatsLoading] = useState(false);
 
   // load the identity's full lobby history once the page opens -- mirrors
   // LobbyHistoryView's own picker, kept independent since this is a separate overlay
@@ -70,18 +85,21 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
     if (!open || !selectedId) return;
     let cancelled = false;
     const load = async () => {
-      const members = await fetchLobbyMembers(selectedId);
-      const [week, allTime, recent, kudosRows] = await Promise.all([
-        fetchWeekLobbyStats(selectedId, members),
-        fetchAllTimeLobbyStats(selectedId, members),
+      const lobbyMembers = await fetchLobbyMembers(selectedId);
+      const [week, allTime, recent, kudosRows, challengeRows] = await Promise.all([
+        fetchWeekLobbyStats(selectedId, lobbyMembers),
+        fetchAllTimeLobbyStats(selectedId, lobbyMembers),
         fetchRecentLobbyActivity(selectedId, 40),
         fetchLobbyKudos(selectedId),
+        fetchLobbyChallenges(selectedId),
       ]);
       if (cancelled) return;
+      setMembers(lobbyMembers);
       setWeekStats(week);
       setAllTimeStats(allTime);
       setActivity(recent);
       setKudos(kudosRows);
+      setChallenges(challengeRows);
       setLoaded(true);
     };
     void load();
@@ -155,6 +173,53 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
     }
   };
 
+  const handleCreateChallenge = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!selected || !challengeName.trim() || !challengeStart || !challengeEnd) return;
+    // whole-day range: start of the chosen start date through end of the chosen end date
+    const startsAt = new Date(`${challengeStart}T00:00:00`);
+    const endsAt = new Date(`${challengeEnd}T23:59:59.999`);
+    if (endsAt <= startsAt) {
+      setChallengeError("end date must be after the start date");
+      return;
+    }
+    setChallengeError(null);
+    const ok = await createLobbyChallenge(selected.id, identityKey, challengeName.trim(), startsAt, endsAt);
+    if (!ok) {
+      setChallengeError("couldn't create the challenge — try again");
+      return;
+    }
+    setChallengeName("");
+    setChallengeStart("");
+    setChallengeEnd("");
+    setChallengeFormOpen(false);
+    setChallenges(await fetchLobbyChallenges(selected.id));
+  };
+
+  const toggleChallengeExpanded = async (challenge: LobbyChallenge) => {
+    if (expandedChallengeId === challenge.id) {
+      setExpandedChallengeId(null);
+      return;
+    }
+    setExpandedChallengeId(challenge.id);
+    setChallengeStatsLoading(true);
+    const stats = await fetchChallengeLobbyStats(
+      challenge.lobbyId,
+      members,
+      new Date(challenge.startsAt),
+      new Date(challenge.endsAt),
+    );
+    setChallengeStats(stats);
+    setChallengeStatsLoading(false);
+  };
+
+  const challengeStatus = (challenge: LobbyChallenge): "upcoming" | "active" | "ended" => {
+    const now = Date.now();
+    if (now < challenge.startsAt) return "upcoming";
+    if (now > challenge.endsAt) return "ended";
+    return "active";
+  };
+
   const handleRejoin = async () => {
     if (!selected) return;
     setRejoining(true);
@@ -195,6 +260,8 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
                       onClick={() => {
                         setSelectedId(l.id);
                         setLoaded(false);
+                        setExpandedChallengeId(null);
+                        setChallengeFormOpen(false);
                       }}
                     >
                       {l.name}
@@ -309,6 +376,113 @@ export function TeamStatsPage({ open, onClose, onGiveKudos }: TeamStatsPageProps
                       );
                     })}
                   </ul>
+
+                  <div className="challenges-header">
+                    <p className="history-section__label">challenges</p>
+                    {!challengeFormOpen && (
+                      <button type="button" className="stats-teaser__cta" onClick={() => setChallengeFormOpen(true)}>
+                        + new challenge
+                      </button>
+                    )}
+                  </div>
+
+                  {challengeFormOpen && (
+                    <form className="challenge-form" onSubmit={(e) => void handleCreateChallenge(e)}>
+                      <input
+                        className="challenge-form__name"
+                        placeholder="e.g. deep work week"
+                        autoFocus
+                        value={challengeName}
+                        onChange={(e) => setChallengeName(e.target.value)}
+                      />
+                      <div className="challenge-form__dates">
+                        <input
+                          type="date"
+                          value={challengeStart}
+                          onChange={(e) => setChallengeStart(e.target.value)}
+                        />
+                        <span className="custom-duration__sep">→</span>
+                        <input type="date" value={challengeEnd} onChange={(e) => setChallengeEnd(e.target.value)} />
+                      </div>
+                      {challengeError && <p className="lobby-panel__error">{challengeError}</p>}
+                      <div className="challenge-form__actions">
+                        <button
+                          type="button"
+                          className="chip"
+                          onClick={() => {
+                            setChallengeFormOpen(false);
+                            setChallengeError(null);
+                          }}
+                        >
+                          cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="lobby-panel__cta"
+                          disabled={!challengeName.trim() || !challengeStart || !challengeEnd}
+                        >
+                          create
+                        </button>
+                      </div>
+                    </form>
+                  )}
+
+                  {challenges.length === 0 ? (
+                    <p className="task-empty">no challenges yet — start one to compete over a set window</p>
+                  ) : (
+                    <ul className="challenge-list">
+                      {challenges.map((challenge) => {
+                        const status = challengeStatus(challenge);
+                        const expanded = expandedChallengeId === challenge.id;
+                        return (
+                          <li key={challenge.id} className="challenge-item">
+                            <button
+                              type="button"
+                              className="challenge-item__row"
+                              onClick={() => void toggleChallengeExpanded(challenge)}
+                            >
+                              <span className="challenge-item__name">{challenge.name}</span>
+                              <span className={`challenge-item__status challenge-item__status--${status}`}>
+                                {status}
+                              </span>
+                              <span className="challenge-item__dates">
+                                {new Date(challenge.startsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toLowerCase()}
+                                {" – "}
+                                {new Date(challenge.endsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }).toLowerCase()}
+                              </span>
+                            </button>
+                            {expanded && (
+                              <div className="challenge-item__board">
+                                {challengeStatsLoading ? null : challengeStats.length === 0 ? (
+                                  <p className="task-empty">no sessions logged in this window</p>
+                                ) : (
+                                  <ul className="lobby-stats-board">
+                                    {challengeStats
+                                      .filter((s) => s.focusMinutes > 0)
+                                      .map((s, i) => (
+                                        <li
+                                          key={s.identityKey}
+                                          className={
+                                            s.identityKey === identityKey ? "lobby-stats-row lobby-stats-row--me" : "lobby-stats-row"
+                                          }
+                                        >
+                                          <span className="lobby-stats-row__rank tabular">{i + 1}</span>
+                                          <span className="lobby-stats-row__name">{s.personaName}</span>
+                                          <span className="lobby-stats-row__meta">
+                                            {s.sessions} session{s.sessions === 1 ? "" : "s"}
+                                          </span>
+                                          <span className="lobby-stats-row__value tabular">{formatDuration(s.focusMinutes)}</span>
+                                        </li>
+                                      ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
                 </>
               )}
             </>
