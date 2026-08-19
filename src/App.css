@@ -362,6 +362,11 @@
   opacity: 0.45;
 }
 
+.onboarding__back {
+  align-self: center;
+  margin-top: 2px;
+}
+
 .theme-tabs {
   display: flex;
   gap: 4px;
@@ -2713,6 +2718,13 @@
   border-left: 2px solid var(--page-ink);
   background: var(--page-surface);
   border-radius: 4px;
+}
+
+.features-question {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--page-ink);
+  margin: 22px 0 8px;
 }
 
 .features-group {

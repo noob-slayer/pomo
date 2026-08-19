@@ -62,8 +62,8 @@ export function FeaturesPage({ open, onClose }: FeaturesPageProps) {
   if (!open) return null;
 
   return (
-    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="features">
-      <div className="stats-page">
+    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="features" onClick={onClose}>
+      <div className="stats-page" onClick={(e) => e.stopPropagation()}>
         <header className="stats-page__header">
           <h1 className="stats-page__title">why pomo</h1>
           <button type="button" className="stats-page__close" onClick={onClose} aria-label="close">
@@ -72,10 +72,24 @@ export function FeaturesPage({ open, onClose }: FeaturesPageProps) {
         </header>
         <div className="stats-page__body">
           <p className="features-intro">
-            most pomodoro timers are stuck in 2013 or selling your attention between sessions — so we built one that
-            isn't, then added the reasons to keep coming back.
+            somewhere, a friend of yours already has a longer streak than you today. that's kind of the whole pitch.
           </p>
           <p className="features-mission">a pomo a day keeps the doomscroll away.</p>
+
+          <p className="features-question">why this, not the 40 other pomodoro apps in the store?</p>
+          <p className="features-intro">
+            every other one is the same grey rectangle, with a banner ad and a "go pro" popup forty seconds in. we
+            spent zero dollars on ad space and all of it on the parts that make you open it again tomorrow — real
+            stats, real competition, and an actual design sense.
+          </p>
+
+          <p className="features-question">does the timer thing even work?</p>
+          <p className="features-intro">
+            cirillo didn't have a psychology degree — he had a bet with himself and a tomato-shaped kitchen timer
+            sitting in his kitchen. he challenged himself to 10 focused minutes, not 25 — the 25 came later, once 10
+            got easy. the whole technique works because it shrinks the size of the ask: a smaller commitment lowers
+            the odds you talk yourself out of starting.
+          </p>
           {GROUPS.map((group) => (
             <div key={group.title} className="features-group">
               <p className="history-section__label">{group.title}</p>

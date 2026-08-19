@@ -40,8 +40,8 @@ export function FeedbackWidget() {
         feedback
       </button>
       {open && (
-        <div className="feedback-overlay" role="dialog" aria-modal="true" aria-label="send feedback">
-          <div className="feedback-card">
+        <div className="feedback-overlay" role="dialog" aria-modal="true" aria-label="send feedback" onClick={close}>
+          <div className="feedback-card" onClick={(e) => e.stopPropagation()}>
             <header className="feedback-card__header">
               <h2 className="feedback-card__title">feedback</h2>
               <button type="button" className="stats-page__close" onClick={close} aria-label="close">

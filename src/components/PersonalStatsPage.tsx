@@ -165,8 +165,8 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
   const maxTrendMinutes = Math.max(1, ...trend.map((w) => w.minutes));
 
   return (
-    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="your stats">
-      <div className="stats-page">
+    <div className="stats-overlay" role="dialog" aria-modal="true" aria-label="your stats" onClick={onClose}>
+      <div className="stats-page" onClick={(e) => e.stopPropagation()}>
         <header className="stats-page__header">
           <h1 className="stats-page__title">your stats</h1>
           <div className="stats-page__header-actions">

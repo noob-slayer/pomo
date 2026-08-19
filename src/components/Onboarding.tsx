@@ -50,6 +50,9 @@ export function Onboarding() {
               <button type="submit" className="onboarding__submit" disabled={!nameInput.trim()}>
                 let's go
               </button>
+              <button type="button" className="link-btn onboarding__back" onClick={() => setStage("choice")}>
+                back
+              </button>
             </form>
           </>
         ) : (
