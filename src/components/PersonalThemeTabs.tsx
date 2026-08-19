@@ -23,6 +23,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "splitflap", label: "split - flap" },
   { value: "japan", label: "japan - curtain" },
   { value: "matrix", label: "matrix" },
+  { value: "p", label: "p" },
 ];
 
 export function PersonalThemeTabs() {
