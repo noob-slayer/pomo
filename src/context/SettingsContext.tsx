@@ -23,6 +23,8 @@ interface Settings {
   customStation: ResolvedStation | null;
   personaName: string; // set once during onboarding, used as the display name everywhere
   currentLobby: CurrentLobby | null; // per-device, never synced -- see upsertSettings
+  weeklyGoalWorkMinutes: number | null; // null = no goal set; scoped per mode like the rest of stats
+  weeklyGoalPersonalMinutes: number | null;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -36,6 +38,8 @@ const DEFAULT_SETTINGS: Settings = {
   customStation: null,
   personaName: "",
   currentLobby: null,
+  weeklyGoalWorkMinutes: null,
+  weeklyGoalPersonalMinutes: null,
 };
 
 interface SettingsContextValue extends Settings {
@@ -49,6 +53,7 @@ interface SettingsContextValue extends Settings {
   setCustomStation: (station: ResolvedStation | null) => void;
   setPersonaName: (name: string) => void;
   setCurrentLobby: (lobby: CurrentLobby | null) => void;
+  setWeeklyGoalMinutes: (mode: Mode, minutes: number | null) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -128,6 +133,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       patch({ customStation, activeStationId: customStation ? "custom" : settings.activeStationId }),
     setPersonaName: (personaName) => patch({ personaName }),
     setCurrentLobby: (currentLobby) => patch({ currentLobby }),
+    setWeeklyGoalMinutes: (mode, minutes) =>
+      patch(mode === "work" ? { weeklyGoalWorkMinutes: minutes } : { weeklyGoalPersonalMinutes: minutes }),
   };
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

@@ -1,4 +1,6 @@
+import { useState, type FormEvent } from "react";
 import { useTasks } from "../context/TasksContext";
+import { useSettings } from "../context/SettingsContext";
 import { summarizeHistory } from "../lib/historyStats";
 import { computeSessionStats } from "../lib/statsCalc";
 import {
@@ -9,9 +11,11 @@ import {
   computeFocusScore,
   computeBadges,
   computeCompletionStats,
+  computeEstimateAccuracy,
   focusEquivalent,
 } from "../lib/statsExtras";
 import { formatDuration } from "../lib/durations";
+import { historyToCsv, downloadTextFile } from "../lib/exportCsv";
 import { IconFlame, IconTrophy, IconDownload } from "./icons";
 import type { Mode } from "../types";
 
@@ -47,6 +51,9 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
 
 export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProps) {
   const { history, tasks } = useTasks();
+  const { weeklyGoalWorkMinutes, weeklyGoalPersonalMinutes, setWeeklyGoalMinutes } = useSettings();
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
 
   if (!open) return null;
 
@@ -59,10 +66,34 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
   const focusScore = computeFocusScore(history, mode);
   const badges = computeBadges(history, mode);
   const completion = computeCompletionStats(history, mode);
+  const estimateAccuracy = computeEstimateAccuracy(history, tasks, mode);
   const totalMinutesAllTime = history
     .filter((r) => r.mode === mode && r.phase === "focus")
     .reduce((s, r) => s + r.minutes, 0);
   const equivalent = focusEquivalent(totalMinutesAllTime);
+
+  // the goal resets on a fixed weekly boundary (like Apple/Strava's weekly rings), not a
+  // rolling window -- trend's own last bucket IS the current calendar week, since
+  // computeWeeklyTrend's loop ends at i=0 (thisWeekStart)
+  const thisCalendarWeekMinutes = trend[trend.length - 1]?.minutes ?? 0;
+  const weeklyGoalMinutes = mode === "work" ? weeklyGoalWorkMinutes : weeklyGoalPersonalMinutes;
+
+  const handleSaveGoal = (e: FormEvent) => {
+    e.preventDefault();
+    const hours = Number(goalInput);
+    if (!hours || hours <= 0) return;
+    setWeeklyGoalMinutes(mode, Math.round(hours * 60));
+    setEditingGoal(false);
+  };
+
+  const handleClearGoal = () => {
+    setWeeklyGoalMinutes(mode, null);
+    setEditingGoal(false);
+  };
+
+  const handleExportCsv = () => {
+    downloadTextFile(`pomo-history-${mode}.csv`, historyToCsv(history, mode), "text/csv");
+  };
 
   const handleDownload = () => {
     const W = 720;
@@ -140,9 +171,14 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
           <h1 className="stats-page__title">your stats</h1>
           <div className="stats-page__header-actions">
             {stats.totalSessions > 0 && (
-              <button type="button" className="chip" onClick={handleDownload}>
-                <IconDownload /> recap
-              </button>
+              <>
+                <button type="button" className="chip" onClick={handleExportCsv}>
+                  <IconDownload /> csv
+                </button>
+                <button type="button" className="chip" onClick={handleDownload}>
+                  <IconDownload /> recap
+                </button>
+              </>
             )}
             <button type="button" className="stats-page__close" onClick={onClose} aria-label="close">
               ×
@@ -176,6 +212,72 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                   <span className="stats-hero__label">focused, all time</span>
                   {equivalent && <span className="stats-hero__sub">{equivalent}</span>}
                 </div>
+                <div className="stats-hero__card">
+                  {editingGoal ? (
+                    <form className="stats-goal-form" onSubmit={handleSaveGoal}>
+                      <input
+                        className="stats-goal-form__input"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        placeholder="hours"
+                        autoFocus
+                        value={goalInput}
+                        onChange={(e) => setGoalInput(e.target.value)}
+                      />
+                      <div className="stats-goal-form__actions">
+                        <button type="submit" className="chip">
+                          save
+                        </button>
+                        <button type="button" className="chip" onClick={() => setEditingGoal(false)}>
+                          cancel
+                        </button>
+                        {weeklyGoalMinutes !== null && (
+                          <button type="button" className="link-btn link-btn--quiet" onClick={handleClearGoal}>
+                            clear goal
+                          </button>
+                        )}
+                      </div>
+                    </form>
+                  ) : weeklyGoalMinutes === null ? (
+                    <>
+                      <span className="stats-hero__label">weekly goal</span>
+                      <button
+                        type="button"
+                        className="stats-teaser__cta"
+                        onClick={() => {
+                          setGoalInput("");
+                          setEditingGoal(true);
+                        }}
+                      >
+                        set a goal
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="stats-hero__value tabular">
+                        {formatDuration(thisCalendarWeekMinutes)} / {formatDuration(weeklyGoalMinutes)}
+                      </span>
+                      <span className="stats-hero__label">weekly goal</span>
+                      <div className="stats-hero__gauge">
+                        <div
+                          className="stats-hero__gauge-fill"
+                          style={{ width: `${Math.min(100, (thisCalendarWeekMinutes / weeklyGoalMinutes) * 100)}%` }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        className="stats-hero__edit"
+                        onClick={() => {
+                          setGoalInput(String(Math.round(weeklyGoalMinutes / 60)));
+                          setEditingGoal(true);
+                        }}
+                      >
+                        edit
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
 
               {comparison.deltaPct !== null && (
@@ -183,6 +285,16 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                   {formatDuration(comparison.thisWeekMinutes)} this week vs {formatDuration(comparison.lastWeekMinutes)}{" "}
                   last week — {comparison.deltaPct >= 0 ? "+" : ""}
                   {comparison.deltaPct}%
+                </div>
+              )}
+
+              {estimateAccuracy.avgOverrunPct !== null && (
+                <div className="stats-compare">
+                  based on {estimateAccuracy.tasksCompared} estimated task{estimateAccuracy.tasksCompared === 1 ? "" : "s"}
+                  , you tend to{" "}
+                  {estimateAccuracy.avgOverrunPct >= 0
+                    ? `run ${estimateAccuracy.avgOverrunPct}% over your own estimate`
+                    : `finish ${Math.abs(estimateAccuracy.avgOverrunPct)}% under your own estimate`}
                 </div>
               )}
 
@@ -303,6 +415,19 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                     </span>
                     <span className="badge-tile__label">{badge.label}</span>
                     <span className="badge-tile__desc">{badge.description}</span>
+                    {!badge.achieved && badge.progress && (
+                      <div className="badge-tile__progress">
+                        <div className="badge-tile__progress-bar">
+                          <div
+                            className="badge-tile__progress-fill"
+                            style={{ width: `${Math.min(100, (badge.progress.current / badge.progress.target) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="badge-tile__progress-label tabular">
+                          {Math.min(badge.progress.current, badge.progress.target)}/{badge.progress.target}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
