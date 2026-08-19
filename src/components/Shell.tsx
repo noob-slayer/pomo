@@ -5,6 +5,7 @@ import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
 import { useTimer, type TimerApi } from "../hooks/useTimer";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { useBackgroundTimerDisplay } from "../hooks/useBackgroundTimerDisplay";
 import { PERSONAL_THEME, resolveWorkTheme } from "../lib/themes";
 import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { GALLERY } from "../lib/gallery";
@@ -236,8 +237,13 @@ export function Shell() {
     };
   }, []);
 
+  const { armPip } = useBackgroundTimerDisplay(timer);
+
   useKeyboardShortcuts({
-    onToggle: () => timer.togglePrimary(selectedFocusMinutes),
+    onToggle: () => {
+      armPip();
+      timer.togglePrimary(selectedFocusMinutes);
+    },
     onReset: () => timer.reset(),
     onStop: () => timer.stop(),
   });
@@ -526,6 +532,7 @@ export function Shell() {
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}
             onSelectFocusMinutes={setSelectedFocusMinutes}
+            armPip={armPip}
           />
           <div className="corner-summary">
             <DailySummary mode={mode} />
