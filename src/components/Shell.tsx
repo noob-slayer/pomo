@@ -94,22 +94,32 @@ export function Shell() {
 
   const rawTimer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle) => {
-      logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now() });
+      logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now(), completed: true });
       logToLobbyIfActive("focus", minutes, taskTitle);
       playChime();
       setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
-      logCompletion({ taskId: null, taskTitle: null, mode, phase: "break", minutes, completedAt: Date.now() });
+      logCompletion({
+        taskId: null,
+        taskTitle: null,
+        mode,
+        phase: "break",
+        minutes,
+        completedAt: Date.now(),
+        completed: true,
+      });
       logToLobbyIfActive("break", minutes, null);
       playChime();
       setSessionPrompt("choice");
     },
     // a manual stop mid-session, or a session recovered on reload that hadn't actually
     // finished yet -- log the partial time actually spent, but no chime/prompt, since the
-    // user (or the interruption) already ended this one, they didn't just complete it
+    // user (or the interruption) already ended this one, they didn't just complete it.
+    // completed: false is what makes this distinguishable from a natural finish -- see
+    // computeCompletionStats in lib/statsExtras.ts.
     onPartialStop: (phase, minutes, taskId, taskTitle) => {
-      logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now() });
+      logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now(), completed: false });
       logToLobbyIfActive(phase, minutes, taskTitle);
     },
   });

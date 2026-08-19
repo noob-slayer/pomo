@@ -8,6 +8,7 @@ import {
   computeWeekComparison,
   computeFocusScore,
   computeBadges,
+  computeCompletionStats,
   focusEquivalent,
 } from "../lib/statsExtras";
 import { formatDuration } from "../lib/durations";
@@ -57,6 +58,7 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
   const comparison = computeWeekComparison(history, mode);
   const focusScore = computeFocusScore(history, mode);
   const badges = computeBadges(history, mode);
+  const completion = computeCompletionStats(history, mode);
   const totalMinutesAllTime = history
     .filter((r) => r.mode === mode && r.phase === "focus")
     .reduce((s, r) => s + r.minutes, 0);
@@ -228,6 +230,12 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                 <div className="stats-tile">
                   <span className="stats-tile__value tabular">{formatDuration(stats.longestAllTime)}</span>
                   <span className="stats-tile__label">longest all-time</span>
+                </div>
+                <div className="stats-tile">
+                  <span className="stats-tile__value tabular">{completion.completionRate}%</span>
+                  <span className="stats-tile__label">
+                    completion rate · {completion.totalCompleted}/{completion.totalStarted}
+                  </span>
                 </div>
               </div>
 

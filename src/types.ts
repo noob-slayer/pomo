@@ -37,6 +37,11 @@ export interface PomoRecord {
   phase: Phase;
   minutes: number;
   completedAt: number;
+  // whether the session finished naturally vs. was stopped early -- optional because
+  // records logged before this field existed (localStorage cache, or a database row from
+  // before the matching migration ran) simply don't have it. Treat a missing value as
+  // completed, not as false -- see computeCompletionStats in lib/statsExtras.ts.
+  completed?: boolean;
 }
 
 export interface Station {

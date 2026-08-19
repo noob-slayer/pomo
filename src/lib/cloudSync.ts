@@ -67,6 +67,11 @@ interface HistoryRow {
   phase: Phase;
   minutes: number;
   completed_at: string;
+  // absent until supabase/pomo_history_completed_schema.sql has been run -- undefined
+  // reads the same as a legacy row missing the column entirely, both via the `?? true`
+  // fallback below (rowToRecord's own PomoRecord.completed stays consistent with
+  // computeCompletionStats' `!== false` handling of undefined either way)
+  completed?: boolean;
 }
 
 function rowToRecord(row: HistoryRow): PomoRecord {
@@ -78,6 +83,7 @@ function rowToRecord(row: HistoryRow): PomoRecord {
     phase: row.phase,
     minutes: row.minutes,
     completedAt: new Date(row.completed_at).getTime(),
+    completed: row.completed ?? true,
   };
 }
 
@@ -103,6 +109,11 @@ export async function insertHistory(userId: string, record: PomoRecord): Promise
     phase: record.phase,
     minutes: record.minutes,
     completed_at: new Date(record.completedAt).toISOString(),
+    // requires supabase/pomo_history_completed_schema.sql to have been run -- until then
+    // this insert fails against the unmigrated schema (unknown column), logged below and
+    // falling back to local-only storage for new sessions, same degradation as every other
+    // migration-gated feature in this codebase
+    completed: record.completed ?? true,
   });
   if (error) console.error("cloud sync: insertHistory failed", error);
 }

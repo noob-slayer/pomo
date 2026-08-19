@@ -67,20 +67,45 @@ export function computeHeatmap(history: PomoRecord[], mode: Mode, days = 126): H
   const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
   const totals = new Map<string, number>();
   for (const r of focus) totals.set(dayKey(r.completedAt), (totals.get(dayKey(r.completedAt)) ?? 0) + r.minutes);
-  const max = Math.max(1, ...totals.values());
 
   const today = startOfDay(new Date());
-  const result: HeatmapDay[] = [];
+  const windowKeys: string[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setDate(d.getDate() - i);
-    const key = d.toDateString();
+    windowKeys.push(d.toDateString());
+  }
+
+  // color scale caps at the 90th percentile of *active* days actually inside this window,
+  // not the single busiest day (and not scaled against all-time history the way the old
+  // version implicitly was, since `totals` covers every record regardless of window). A
+  // raw max meant one outlier -- a single long marathon session, possibly from outside the
+  // visible window entirely -- crushed every other genuinely solid day into the faintest
+  // bucket, since everything was scaled relative to that one value. This also means a
+  // consistent, uniform habit now reads as solidly filled-in rather than always landing in
+  // the lightest bucket (every active day sits at or above its own 90th percentile when
+  // there's no real spread).
+  const activeInWindow = windowKeys
+    .map((k) => totals.get(k) ?? 0)
+    .filter((m) => m > 0)
+    .sort((a, b) => a - b);
+  const effectiveMax =
+    activeInWindow.length > 0 ? Math.max(1, activeInWindow[Math.floor(0.9 * (activeInWindow.length - 1))]) : 1;
+
+  return windowKeys.map((key) => {
     const minutes = totals.get(key) ?? 0;
     const level: HeatmapDay["level"] =
-      minutes === 0 ? 0 : minutes < max * 0.25 ? 1 : minutes < max * 0.5 ? 2 : minutes < max * 0.75 ? 3 : 4;
-    result.push({ key, date: d, minutes, level });
-  }
-  return result;
+      minutes === 0
+        ? 0
+        : minutes < effectiveMax * 0.25
+          ? 1
+          : minutes < effectiveMax * 0.5
+            ? 2
+            : minutes < effectiveMax * 0.75
+              ? 3
+              : 4;
+    return { key, date: new Date(key), minutes, level };
+  });
 }
 
 export interface WeekStat {
@@ -121,10 +146,27 @@ export interface WeekComparison {
   deltaPct: number | null; // null when last week had nothing to compare against
 }
 
+const DAY_MS = 86400000;
+
+// deliberately trailing 7-day windows, not calendar-week-to-date vs a full previous
+// calendar week (computeWeeklyTrend's buckets, used for the trend chart, are the right
+// choice there -- but reused for this comparison, they made "this week" always look like a
+// steep decline early in the week purely because fewer days had elapsed yet, not because of
+// anything the user actually did differently). Trailing windows are always a fair
+// apples-to-apples 7-day chunk regardless of what day it is.
 export function computeWeekComparison(history: PomoRecord[], mode: Mode): WeekComparison {
-  const [last, thisWeek] = computeWeeklyTrend(history, mode, 2);
-  const deltaPct = last.minutes > 0 ? Math.round(((thisWeek.minutes - last.minutes) / last.minutes) * 100) : null;
-  return { thisWeekMinutes: thisWeek.minutes, lastWeekMinutes: last.minutes, deltaPct };
+  const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
+  const now = Date.now();
+  const sumBetween = (msAgoStart: number, msAgoEnd: number) =>
+    focus
+      .filter((r) => r.completedAt > now - msAgoStart && r.completedAt <= now - msAgoEnd)
+      .reduce((s, r) => s + r.minutes, 0);
+
+  const thisWeekMinutes = sumBetween(7 * DAY_MS, 0);
+  const lastWeekMinutes = sumBetween(14 * DAY_MS, 7 * DAY_MS);
+  const deltaPct =
+    lastWeekMinutes > 0 ? Math.round(((thisWeekMinutes - lastWeekMinutes) / lastWeekMinutes) * 100) : null;
+  return { thisWeekMinutes, lastWeekMinutes, deltaPct };
 }
 
 // a same-day-vs-usual-pace score, not a global ranking -- 100 means "a strong day for
@@ -183,6 +225,28 @@ export function computeBadges(history: PomoRecord[], mode: Mode): Badge[] {
   ];
 }
 
+export interface CompletionStats {
+  totalStarted: number;
+  totalCompleted: number;
+  completionRate: number; // 0-100
+}
+
+// "completed" distinguishes a focus session that finished naturally from one stopped
+// early -- both used to write an identical row shape, making this uncomputable. Records
+// from before that field existed (in localStorage, or a database row from before the
+// matching migration ran) have no value stored -- treated as completed here (`!== false`)
+// rather than defaulting to false, since the overwhelming majority of historical sessions
+// really were completions, and there's no way to reconstruct the truth for anything logged
+// before this shipped. Scoped to focus sessions only -- stopping a break early isn't a
+// meaningful "failure" the way abandoning a focus session is.
+export function computeCompletionStats(history: PomoRecord[], mode: Mode): CompletionStats {
+  const focus = history.filter((r) => r.mode === mode && r.phase === "focus");
+  const totalStarted = focus.length;
+  const totalCompleted = focus.filter((r) => r.completed !== false).length;
+  const completionRate = totalStarted > 0 ? Math.round((totalCompleted / totalStarted) * 100) : 0;
+  return { totalStarted, totalCompleted, completionRate };
+}
+
 // a relatable comparison for a raw minute count -- deliberately coarse, not meant to be
 // precise, just to make the number feel concrete
 export function focusEquivalent(totalMinutes: number): string | null {
@@ -192,6 +256,5 @@ export function focusEquivalent(totalMinutes: number): string | null {
   if (movies < 1.2) return `that's about one full feature film's worth of uninterrupted focus`;
   if (movies < 20) return `that's about ${movies.toFixed(1)} feature films' worth of uninterrupted focus`;
   const workWeeks = hours / 40;
-  if (workWeeks < 1.2) return `that's about ${movies.toFixed(0)} feature films' worth of uninterrupted focus`;
   return `that's about ${workWeeks.toFixed(1)} standard work weeks of pure focus time`;
 }
