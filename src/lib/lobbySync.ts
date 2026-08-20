@@ -1,5 +1,5 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { supabase } from "./supabaseClient";
+import { supabase, supabaseUrl, supabaseAnonKey } from "./supabaseClient";
 import type { Phase } from "../types";
 
 // "sync" mode lobbies: any member's start/pause/resume/stop/reset is broadcast to every
@@ -52,16 +52,51 @@ export interface LobbySyncState {
   // elapsed since. A "paused" snapshot doesn't advance, so `at` isn't used to adjust it.
 }
 
+// every caller of writeSyncState/clearSyncState immediately follows a start/pause/resume/
+// stop/reset -- exactly the moment someone is most likely to also close the tab or hit
+// reload (confirmed while testing this: reloading ~80ms after pressing start reliably
+// aborts a normal fetch() before it reaches Supabase, since the browser cancels in-flight
+// requests belonging to a document that's navigating away). A lost write here isn't just
+// "this device shows stale data" -- the write is *the* persisted snapshot every other
+// member's reload/join catch-up reads, so losing it desyncs the whole lobby: confirmed a
+// third person joining right after such a lost write saw the lobby as fully idle while a
+// session was actually running for everyone already connected.
+//
+// `keepalive: true` is the standard fix for exactly this (the same mechanism
+// navigator.sendBeacon uses under the hood, but keepalive fetch also supports the
+// Authorization header RLS needs here, which sendBeacon can't send) -- the browser keeps
+// the request alive past document unload instead of cancelling it. supabase-js's query
+// builder doesn't expose a per-call keepalive option, so this bypasses it for just these
+// two calls and hits the REST endpoint directly with the same shape postgrest-js would
+// have sent.
+async function patchSyncState(lobbyId: string, syncState: LobbySyncState | null): Promise<void> {
+  if (!supabase || !supabaseUrl || !supabaseAnonKey) return;
+  const { data } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token ?? supabaseAnonKey;
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/lobbies?id=eq.${encodeURIComponent(lobbyId)}`, {
+      method: "PATCH",
+      keepalive: true,
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ sync_state: syncState }),
+    });
+    if (!res.ok) console.error("patchSyncState failed", res.status, await res.text().catch(() => ""));
+  } catch (err) {
+    console.error("patchSyncState failed", err);
+  }
+}
+
 export async function writeSyncState(lobbyId: string, state: LobbySyncState): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("lobbies").update({ sync_state: state }).eq("id", lobbyId);
-  if (error) console.error("writeSyncState failed", error);
+  await patchSyncState(lobbyId, state);
 }
 
 export async function clearSyncState(lobbyId: string): Promise<void> {
-  if (!supabase) return;
-  const { error } = await supabase.from("lobbies").update({ sync_state: null }).eq("id", lobbyId);
-  if (error) console.error("clearSyncState failed", error);
+  await patchSyncState(lobbyId, null);
 }
 
 export async function readSyncState(lobbyId: string): Promise<LobbySyncState | null> {

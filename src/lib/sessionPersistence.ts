@@ -16,6 +16,7 @@ export interface PersistedSession {
   elapsedSeconds: number;
   activeTaskId: string | null;
   activeTaskTitle: string | null;
+  activeSubSessionId: string | null;
   lastMinutes: number;
 }
 

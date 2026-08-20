@@ -991,6 +991,56 @@
   color: var(--stage-ink);
 }
 
+.daily-summary__active-task {
+  margin-top: 22px;
+}
+
+.daily-summary__active-task-sessions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 3px;
+}
+
+/* still shares .daily-summary__goal-label for color/letter-spacing, but sized down from
+   it a bit and shaped as a more compact tag (smaller radius, tighter padding) rather than
+   a full pill -- the session list reads as secondary detail under the task name, not
+   another row of equal weight to the goal lines above it */
+.daily-summary__session-tag {
+  font-size: 0.62rem;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--stage-line);
+  white-space: nowrap;
+}
+
+/* same three-tier shading as the task panel's session picker (.task__session-btn--*), but
+   mixed toward transparent rather than a solid surface color -- the stage background isn't
+   always a flat color (photo/video themes), so tinting toward transparency lets whatever's
+   actually behind it show through instead of assuming a surface that may not exist */
+.daily-summary__session-tag--started {
+  background: color-mix(in srgb, var(--stage-ink) 20%, transparent);
+}
+
+.daily-summary__session-tag--mid {
+  background: color-mix(in srgb, var(--stage-ink) 45%, transparent);
+  color: var(--stage-ink);
+}
+
+.daily-summary__session-tag--done {
+  background: var(--stage-ink);
+  color: var(--stage-bg);
+  border-color: var(--stage-ink);
+}
+
+.daily-summary__session-tag--running {
+  background: var(--stage-ink);
+  color: var(--stage-bg);
+  border-color: var(--stage-ink);
+  font-weight: 700;
+}
+
 @media (max-width: 560px) {
   .corner-summary {
     top: 14px;
@@ -1717,6 +1767,77 @@
   gap: 8px;
 }
 
+.task-form__split {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  background: var(--page-surface);
+}
+
+.task-form__mode-toggle {
+  display: flex;
+  gap: 6px;
+}
+
+/* deliberately its own class, not a reuse of .chip -- .chip is styled for the dark
+   dynamically-themed stage background (--stage-* tokens) and reads near-invisible on
+   the task panel's light, static page surface, the same low-contrast bug this app has
+   hit before wherever a stage-toned control ended up on a page-toned surface */
+.task-form__mode-btn {
+  border: 1px solid var(--page-border);
+  color: var(--page-ink);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.82rem;
+}
+
+.task-form__mode-btn:hover {
+  border-color: var(--page-ink);
+}
+
+.task-form__mode-btn--active {
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border-color: var(--page-ink);
+}
+
+.task-form__split-preview {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--page-muted);
+}
+
+.task-form__split-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #b3452c;
+}
+
+.task-form__subsessions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task-form__subsession-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.task-form__subsession-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
 .task-list {
   list-style: none;
   margin: 0;
@@ -1732,6 +1853,12 @@
 }
 
 .task {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task__row {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -1778,6 +1905,63 @@
   align-items: flex-end;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.task__sessions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.task__session-btn {
+  border: 1px solid var(--page-border);
+  color: var(--page-ink);
+  border-radius: 8px;
+  padding: 3px 9px;
+  font-size: 0.7rem;
+  background: var(--page-surface);
+}
+
+.task__session-btn:hover:not(:disabled) {
+  border-color: var(--page-ink);
+  background: var(--page-ink);
+  color: var(--page-bg);
+}
+
+.task__session-btn:disabled {
+  opacity: 0.7;
+}
+
+/* completion shading, three discrete tiers rather than a continuous per-pixel gradient --
+   simpler to keep legible (a smoothly darkening fill would eventually need the text color
+   itself to flip partway through, which a fixed dark-text button can't do cleanly) while
+   still reading as visibly "more filled in" the further along a session is */
+.task__session-btn--started {
+  background: color-mix(in srgb, var(--page-ink) 15%, var(--page-surface));
+}
+
+.task__session-btn--mid {
+  background: color-mix(in srgb, var(--page-ink) 35%, var(--page-surface));
+}
+
+.task__session-btn--done {
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border-color: var(--page-ink);
+}
+
+.task__session-btn--running {
+  background: var(--page-ink);
+  color: var(--page-bg);
+  border-color: var(--page-ink);
+  font-weight: 600;
+}
+
+/* selected but not started yet -- an outline rather than a fill, so it reads as "queued"
+   and stays visually distinct from --running's solid fill once it actually starts */
+.task__session-btn--pending {
+  border: 2px solid var(--page-ink);
+  font-weight: 600;
 }
 
 /* ---------- youtube widget ---------- */

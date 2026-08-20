@@ -100,8 +100,17 @@ export function Shell() {
   };
 
   const rawTimer = useTimer({
-    onFocusComplete: (minutes, taskId, taskTitle) => {
-      logCompletion({ taskId, taskTitle, mode, phase: "focus", minutes, completedAt: Date.now(), completed: true });
+    onFocusComplete: (minutes, taskId, taskTitle, subSessionId) => {
+      logCompletion({
+        taskId,
+        taskTitle,
+        mode,
+        phase: "focus",
+        minutes,
+        completedAt: Date.now(),
+        completed: true,
+        subSessionId: subSessionId ?? undefined,
+      });
       logToLobbyIfActive("focus", minutes, taskTitle);
       playChime();
       notifyCompletion("focus", taskTitle);
@@ -127,8 +136,17 @@ export function Shell() {
     // user (or the interruption) already ended this one, they didn't just complete it.
     // completed: false is what makes this distinguishable from a natural finish -- see
     // computeCompletionStats in lib/statsExtras.ts.
-    onPartialStop: (phase, minutes, taskId, taskTitle) => {
-      logCompletion({ taskId, taskTitle, mode, phase, minutes, completedAt: Date.now(), completed: false });
+    onPartialStop: (phase, minutes, taskId, taskTitle, subSessionId) => {
+      logCompletion({
+        taskId,
+        taskTitle,
+        mode,
+        phase,
+        minutes,
+        completedAt: Date.now(),
+        completed: false,
+        subSessionId: subSessionId ?? undefined,
+      });
       logToLobbyIfActive(phase, minutes, taskTitle);
     },
   });
@@ -163,8 +181,8 @@ export function Shell() {
     void writeSyncState(currentLobby.id, { phase, status, targetSeconds, remainingSeconds, elapsedSeconds, at: Date.now() });
   };
 
-  const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId = null, taskTitle = null) => {
-    rawTimer.startFocus(minutes, taskId, taskTitle);
+  const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId, taskTitle, subSessionId) => {
+    rawTimer.startFocus(minutes, taskId, taskTitle, subSessionId);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
       broadcastIfSync({ type: "startFocus", minutes });
@@ -216,7 +234,11 @@ export function Shell() {
   const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
     if (rawTimer.status === "running") syncedPause();
     else if (rawTimer.status === "paused") syncedResume();
-    else syncedStartFocus(fallbackMinutes);
+    // prefers rawTimer.targetSeconds over fallbackMinutes -- same reasoning as
+    // useTimer's own togglePrimary: targetSeconds already reflects whatever a duration
+    // preset or a task-session pick (including a resumed session's remaining time) queued
+    // up, and blindly using fallbackMinutes here would silently discard that
+    else syncedStartFocus(rawTimer.targetSeconds !== null ? rawTimer.targetSeconds / 60 : fallbackMinutes);
   };
 
   const timer: TimerApi = {
@@ -748,7 +770,7 @@ export function Shell() {
             splitFlap={showSplitFlap}
           />
           <div className="corner-summary">
-            <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} />
+            <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
             {currentLobby && <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} />}
           </div>
           {sessionPrompt && (
