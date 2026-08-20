@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient";
-import type { Mode, Phase, PomoRecord, Task } from "../types";
+import type { Mode, Phase, PomoRecord, Task, TaskSplitMode, TaskSubSession } from "../types";
 
 interface TaskRow {
   id: string;
@@ -11,6 +11,10 @@ interface TaskRow {
   mode: Mode;
   done: boolean;
   created_at: string;
+  // absent until supabase/task_sessions_schema.sql has been run -- reads the same as a
+  // task that predates the task-sessions feature either way, via the `?? undefined` below
+  split_mode?: TaskSplitMode | null;
+  sub_sessions?: TaskSubSession[] | null;
 }
 
 function rowToTask(row: TaskRow): Task {
@@ -22,6 +26,8 @@ function rowToTask(row: TaskRow): Task {
     mode: row.mode,
     done: row.done,
     createdAt: new Date(row.created_at).getTime(),
+    splitMode: row.split_mode ?? undefined,
+    subSessions: row.sub_sessions ?? undefined,
   };
 }
 
@@ -43,6 +49,12 @@ export async function insertTask(userId: string, task: Task): Promise<void> {
     mode: task.mode,
     done: task.done,
     created_at: new Date(task.createdAt).toISOString(),
+    // requires supabase/task_sessions_schema.sql to have been run -- until then this
+    // insert fails against the unmigrated schema (unknown column), logged below and
+    // falling back to local-only storage for new tasks, same degradation as every other
+    // migration-gated field in this codebase (e.g. pomo_history's `completed`)
+    split_mode: task.splitMode ?? null,
+    sub_sessions: task.subSessions ?? null,
   });
   if (error) console.error("cloud sync: insertTask failed", error);
 }
@@ -72,6 +84,9 @@ interface HistoryRow {
   // fallback below (rowToRecord's own PomoRecord.completed stays consistent with
   // computeCompletionStats' `!== false` handling of undefined either way)
   completed?: boolean;
+  // absent until supabase/task_sessions_schema.sql has been run -- same undefined-either-
+  // way handling as `completed` above
+  sub_session_id?: string | null;
 }
 
 function rowToRecord(row: HistoryRow): PomoRecord {
@@ -84,6 +99,7 @@ function rowToRecord(row: HistoryRow): PomoRecord {
     minutes: row.minutes,
     completedAt: new Date(row.completed_at).getTime(),
     completed: row.completed ?? true,
+    subSessionId: row.sub_session_id ?? undefined,
   };
 }
 
@@ -109,11 +125,13 @@ export async function insertHistory(userId: string, record: PomoRecord): Promise
     phase: record.phase,
     minutes: record.minutes,
     completed_at: new Date(record.completedAt).toISOString(),
-    // requires supabase/pomo_history_completed_schema.sql to have been run -- until then
-    // this insert fails against the unmigrated schema (unknown column), logged below and
-    // falling back to local-only storage for new sessions, same degradation as every other
-    // migration-gated feature in this codebase
+    // requires supabase/pomo_history_completed_schema.sql and
+    // supabase/task_sessions_schema.sql to have been run -- until then this insert fails
+    // against the unmigrated schema (unknown column), logged below and falling back to
+    // local-only storage for new sessions, same degradation as every other migration-
+    // gated feature in this codebase
     completed: record.completed ?? true,
+    sub_session_id: record.subSessionId ?? null,
   });
   if (error) console.error("cloud sync: insertHistory failed", error);
 }
