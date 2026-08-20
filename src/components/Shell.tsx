@@ -622,8 +622,9 @@ export function Shell() {
   const showMatrixLayer = mode === "personal" && personalTheme === "matrix";
   const showPLayer = mode === "personal" && personalTheme === "p";
   const showCozyLayer = mode === "personal" && personalTheme === "cozy";
-  const showMoodLayer = mode === "personal" && personalTheme === "mood";
-  const showDeskLayer = mode === "personal" && personalTheme === "desk";
+  // dev-only, still being tuned -- see the matching gate in PersonalThemeTabs
+  const showMoodLayer = import.meta.env.DEV && mode === "personal" && personalTheme === "mood";
+  const showDeskLayer = import.meta.env.DEV && mode === "personal" && personalTheme === "desk";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
