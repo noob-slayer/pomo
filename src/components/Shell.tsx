@@ -621,6 +621,9 @@ export function Shell() {
   const showJapanLayer = mode === "personal" && personalTheme === "japan";
   const showMatrixLayer = mode === "personal" && personalTheme === "matrix";
   const showPLayer = mode === "personal" && personalTheme === "p";
+  const showCozyLayer = mode === "personal" && personalTheme === "cozy";
+  const showMoodLayer = mode === "personal" && personalTheme === "mood";
+  const showDeskLayer = mode === "personal" && personalTheme === "desk";
 
   // unlike the other video backdrops, this one keeps its audio -- browsers only allow
   // autoplay-with-sound right after a real user gesture (picking this option from the
@@ -731,6 +734,24 @@ export function Shell() {
             <div className="stage-p-wrap">
               <img className="stage-p" src="/p-bg.jpg" alt="" />
               <div className="stage-p-overlay" />
+            </div>
+          )}
+          {showCozyLayer && (
+            <div className="stage-cozy-wrap">
+              <img className="stage-cozy" src="/cozy-bg.jpg" alt="" />
+              <div className="stage-cozy-overlay" />
+            </div>
+          )}
+          {showMoodLayer && (
+            <div className="stage-mood-wrap">
+              <img className="stage-mood" src="/mood-bg.jpg" alt="" />
+              <div className="stage-mood-overlay" />
+            </div>
+          )}
+          {showDeskLayer && (
+            <div className="stage-desk-wrap">
+              <img className="stage-desk" src="/desk-bg.jpg" alt="" />
+              <div className="stage-desk-overlay" />
             </div>
           )}
           {showSuitsLayer && (
