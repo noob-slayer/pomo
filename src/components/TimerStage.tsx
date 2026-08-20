@@ -41,11 +41,12 @@ export function TimerStage({
 
   const primaryLabel = timer.status === "running" ? "pause" : timer.status === "paused" ? "resume" : "start";
 
-  const handlePrimary = () => {
-    if (timer.status === "running") timer.pause();
-    else if (timer.status === "paused") timer.resume();
-    else timer.startFocus(selectedFocusMinutes);
-  };
+  // routes through timer.togglePrimary rather than duplicating its pause/resume/start
+  // branching here -- this used to call timer.startFocus(selectedFocusMinutes) directly,
+  // which ignored whatever a task-session pick had already queued up via
+  // setPendingSelection (including a resumed session's remaining time, not its full
+  // duration), silently restarting fresh at the topbar's currently-selected preset instead
+  const handlePrimary = () => timer.togglePrimary(selectedFocusMinutes);
 
   const handleCustomSet = () => {
     const hours = Number(customHours) || 0;

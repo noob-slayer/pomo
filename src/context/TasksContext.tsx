@@ -2,13 +2,15 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import { newId, useLocalStorage } from "../lib/storage";
 import { deleteTaskRow, fetchHistory, fetchTasks, insertHistory, insertTask, updateTaskDone } from "../lib/cloudSync";
 import { useAuth } from "./AuthContext";
-import type { Mode, PomoRecord, Task } from "../types";
+import type { Mode, PomoRecord, Task, TaskSplitMode, TaskSubSession } from "../types";
 
 interface NewTaskInput {
   title: string;
   category: string;
   durationMinutes: number | null;
   mode: Mode;
+  splitMode?: TaskSplitMode;
+  subSessions?: TaskSubSession[];
 }
 
 interface TasksContextValue {
@@ -85,8 +87,13 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       mode: input.mode,
       done: false,
       createdAt: Date.now(),
+      splitMode: input.splitMode,
+      subSessions: input.subSessions,
     };
     setTasks((prev) => [...prev, task]);
+    // splitMode/subSessions are local-only for now -- insertTask only sends the columns
+    // that exist today, so a signed-in user's task still syncs, just without this data
+    // (falls back to the same unconstrained behavior on another device, never a crash)
     if (user) void insertTask(user.id, task);
     return task;
   };

@@ -8,12 +8,18 @@ import {
 } from "../lib/sessionPersistence";
 
 interface UseTimerOptions {
-  onFocusComplete: (minutes: number, taskId: string | null, taskTitle: string | null) => void;
+  onFocusComplete: (minutes: number, taskId: string | null, taskTitle: string | null, subSessionId: string | null) => void;
   onBreakComplete: (minutes: number) => void;
   // fires when a session ends *without* completing naturally -- a manual stop, mid-way.
   // logging this (instead of silently discarding the elapsed time) is what makes an
   // abandoned session still show up in history.
-  onPartialStop: (phase: Phase, minutes: number, taskId: string | null, taskTitle: string | null) => void;
+  onPartialStop: (
+    phase: Phase,
+    minutes: number,
+    taskId: string | null,
+    taskTitle: string | null,
+    subSessionId: string | null,
+  ) => void;
 }
 
 // read once per mount, not per useState initializer -- several of the lazy initial
@@ -34,6 +40,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   const [elapsedSeconds, setElapsedSeconds] = useState(restored ? restored.elapsedSeconds : 0);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(restored?.activeTaskId ?? null);
   const [activeTaskTitle, setActiveTaskTitle] = useState<string | null>(restored?.activeTaskTitle ?? null);
+  const [activeSubSessionId, setActiveSubSessionId] = useState<string | null>(restored?.activeSubSessionId ?? null);
   const lastMinutesRef = useRef(restored?.lastMinutes ?? 25);
 
   // wall-clock anchors, not tick counts — setInterval gets throttled or fully suspended
@@ -137,6 +144,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: freshElapsed,
         activeTaskId,
         activeTaskTitle,
+        activeSubSessionId,
         lastMinutes: lastMinutesRef.current,
       });
     };
@@ -151,7 +159,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("pagehide", snapshotAsPaused);
     };
-  }, [status, phase, targetSeconds, remainingSeconds, elapsedSeconds, activeTaskId, activeTaskTitle]);
+  }, [status, phase, targetSeconds, remainingSeconds, elapsedSeconds, activeTaskId, activeTaskTitle, activeSubSessionId]);
 
   // completion watcher — also the path a restored "running" session takes if its endAt
   // has already passed by the time the app is reopened (recompute() above will have just
@@ -163,9 +171,10 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     endAtRef.current = null;
     clearPersistedSession();
     if (phase === "focus") {
-      onFocusComplete(minutes, activeTaskId, activeTaskTitle);
+      onFocusComplete(minutes, activeTaskId, activeTaskTitle, activeSubSessionId);
       setActiveTaskId(null);
       setActiveTaskTitle(null);
+      setActiveSubSessionId(null);
     } else {
       onBreakComplete(minutes);
     }
@@ -182,11 +191,47 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     setElapsedSeconds(0);
   };
 
-  const startFocus = (minutes: number, taskId: string | null = null, taskTitle: string | null = null) => {
+  // same idea as setPendingMinutes, but also associates a task/session -- for picking a
+  // session from a multi-session task without auto-starting it: the duration and task
+  // show as "queued up", and the user still has to press start themselves via
+  // togglePrimary/startFocus (which, called with no task args, picks up exactly what was
+  // set here -- see startFocus's own comment on the undefined-vs-null distinction)
+  const setPendingSelection = (
+    minutes: number,
+    taskId: string | null,
+    taskTitle: string | null,
+    subSessionId: string | null,
+  ) => {
+    if (status !== "idle") return;
     lastMinutesRef.current = minutes;
     setPhase("focus");
+    setTargetSeconds(minutes * 60);
+    setRemainingSeconds(minutes * 60);
+    setElapsedSeconds(0);
     setActiveTaskId(taskId);
     setActiveTaskTitle(taskTitle);
+    setActiveSubSessionId(subSessionId);
+  };
+
+  // taskId/taskTitle/subSessionId are deliberately `| undefined` with no default, distinct
+  // from an explicit `null` -- omitting them (e.g. togglePrimary's idle branch, which
+  // starts "whatever's currently pending" rather than a specific task) preserves whatever
+  // setPendingSelection already set, instead of stomping it back to no-task. Passing
+  // `null` explicitly still clears it, same as always.
+  const startFocus = (
+    minutes: number,
+    taskId?: string | null,
+    taskTitle?: string | null,
+    subSessionId?: string | null,
+  ) => {
+    const resolvedTaskId = taskId !== undefined ? taskId : activeTaskId;
+    const resolvedTaskTitle = taskTitle !== undefined ? taskTitle : activeTaskTitle;
+    const resolvedSubSessionId = subSessionId !== undefined ? subSessionId : activeSubSessionId;
+    lastMinutesRef.current = minutes;
+    setPhase("focus");
+    setActiveTaskId(resolvedTaskId);
+    setActiveTaskTitle(resolvedTaskTitle);
+    setActiveSubSessionId(resolvedSubSessionId);
     setTargetSeconds(minutes * 60);
     setRemainingSeconds(minutes * 60);
     setElapsedSeconds(0);
@@ -202,8 +247,9 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
       startedAt: null,
       remainingSeconds: minutes * 60,
       elapsedSeconds: 0,
-      activeTaskId: taskId,
-      activeTaskTitle: taskTitle,
+      activeTaskId: resolvedTaskId,
+      activeTaskTitle: resolvedTaskTitle,
+      activeSubSessionId: resolvedSubSessionId,
       lastMinutes: minutes,
     });
   };
@@ -212,6 +258,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     setPhase("break");
     setActiveTaskId(null);
     setActiveTaskTitle(null);
+    setActiveSubSessionId(null);
     if (minutes === null) {
       lastMinutesRef.current = 0;
       setTargetSeconds(null);
@@ -230,6 +277,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: 0,
         activeTaskId: null,
         activeTaskTitle: null,
+        activeSubSessionId: null,
         lastMinutes: 0,
       });
     } else {
@@ -250,6 +298,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: 0,
         activeTaskId: null,
         activeTaskTitle: null,
+        activeSubSessionId: null,
         lastMinutes: minutes,
       });
     }
@@ -267,6 +316,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
       elapsedSeconds,
       activeTaskId,
       activeTaskTitle,
+      activeSubSessionId,
       lastMinutes: lastMinutesRef.current,
     });
     setStatus("paused");
@@ -296,6 +346,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
       elapsedSeconds,
       activeTaskId,
       activeTaskTitle,
+      activeSubSessionId,
       lastMinutes: lastMinutesRef.current,
     });
     setStatus("running");
@@ -305,7 +356,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     if (status !== "idle") {
       const elapsedAtStop = targetSeconds === null ? elapsedSeconds : Math.max(0, targetSeconds - remainingSeconds);
       const minutes = Math.round(elapsedAtStop / 60);
-      if (minutes > 0) onPartialStop(phase, minutes, activeTaskId, activeTaskTitle);
+      if (minutes > 0) onPartialStop(phase, minutes, activeTaskId, activeTaskTitle, activeSubSessionId);
     }
     clearPersistedSession();
     setStatus("idle");
@@ -313,6 +364,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     setElapsedSeconds(0);
     setActiveTaskId(null);
     setActiveTaskTitle(null);
+    setActiveSubSessionId(null);
     endAtRef.current = null;
     startedAtRef.current = null;
   };
@@ -341,6 +393,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: 0,
         activeTaskId,
         activeTaskTitle,
+        activeSubSessionId,
         lastMinutes: lastMinutesRef.current,
       });
     } else if (status === "paused") {
@@ -354,15 +407,21 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: 0,
         activeTaskId,
         activeTaskTitle,
+        activeSubSessionId,
         lastMinutes: lastMinutesRef.current,
       });
     }
   };
 
+  // starting from idle prefers whatever targetSeconds is already showing over the passed
+  // fallbackMinutes -- setPendingMinutes (duration presets) and setPendingSelection (task
+  // sessions, including a resumed session's remaining time) both already set targetSeconds
+  // to exactly what should start. fallbackMinutes only matters if targetSeconds is null,
+  // which happens if the timer was last left on an open-ended break.
   const togglePrimary = (fallbackMinutes: number) => {
     if (status === "running") pause();
     else if (status === "paused") resume();
-    else startFocus(fallbackMinutes);
+    else startFocus(targetSeconds !== null ? targetSeconds / 60 : fallbackMinutes);
   };
 
   // adopts an externally-computed state wholesale, instead of acting relative to "right
@@ -387,6 +446,9 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     setElapsedSeconds(es);
     setActiveTaskId(tid);
     setActiveTaskTitle(ttl);
+    // lobby sync never carries sub-session info -- see SyncAction's own comment: only the
+    // clock stays in lockstep, each member picks their own task (and, now, sub-session)
+    setActiveSubSessionId(null);
     if (ts !== null && ts > 0) lastMinutesRef.current = Math.round(ts / 60);
 
     let endAt: number | null = null;
@@ -411,6 +473,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
         elapsedSeconds: es,
         activeTaskId: tid,
         activeTaskTitle: ttl,
+        activeSubSessionId: null,
         lastMinutes: lastMinutesRef.current,
       });
     }
@@ -424,7 +487,9 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     elapsedSeconds,
     activeTaskId,
     activeTaskTitle,
+    activeSubSessionId,
     setPendingMinutes,
+    setPendingSelection,
     startFocus,
     startBreak,
     pause,
