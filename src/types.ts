@@ -15,7 +15,10 @@ export type PersonalTheme =
   | "splitflap"
   | "japan"
   | "matrix"
-  | "p";
+  | "p"
+  | "cozy"
+  | "mood"
+  | "desk";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 
