@@ -12,6 +12,7 @@ interface TimerStageProps {
   // simply omitted rather than shown disabled
   onPopOutPip: (() => void) | null;
   splitFlap: boolean;
+  onOpenBreakPicker: () => void;
 }
 
 function sanitizeDigits(value: string, maxLen: number): string {
@@ -24,6 +25,7 @@ export function TimerStage({
   onSelectFocusMinutes,
   onPopOutPip,
   splitFlap,
+  onOpenBreakPicker,
 }: TimerStageProps) {
   const [customHours, setCustomHours] = useState("");
   const [customMinutes, setCustomMinutes] = useState("");
@@ -73,6 +75,9 @@ export function TimerStage({
         </button>
         <button type="button" className="btn" onClick={() => timer.reset()} disabled={idle}>
           reset
+        </button>
+        <button type="button" className="btn" onClick={onOpenBreakPicker} disabled={!idle}>
+          take a break
         </button>
         {onPopOutPip && !idle && (
           <button
