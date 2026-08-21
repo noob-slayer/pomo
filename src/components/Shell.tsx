@@ -719,8 +719,7 @@ export function Shell() {
           )}
           {showForest1Layer && (
             <div className="stage-forest1-wrap">
-              {/* a GIF loops natively via a plain <img> -- no autoplay/mute attributes needed */}
-              <img className="stage-forest1" src="/forest1-bg.gif" alt="" />
+              <video className="stage-forest1" src="/forest1-bg.mp4" autoPlay muted loop playsInline />
               <div className="stage-forest1-overlay" />
             </div>
           )}
