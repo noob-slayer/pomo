@@ -416,12 +416,15 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   // starting from idle prefers whatever targetSeconds is already showing over the passed
   // fallbackMinutes -- setPendingMinutes (duration presets) and setPendingSelection (task
   // sessions, including a resumed session's remaining time) both already set targetSeconds
-  // to exactly what should start. fallbackMinutes only matters if targetSeconds is null,
-  // which happens if the timer was last left on an open-ended break.
+  // to exactly what should start, and both also set phase to "focus" when they do. Gating
+  // on phase === "focus" here matters because a just-finished break leaves phase as "break"
+  // with its own (usually shorter) targetSeconds still sitting in state -- without the gate,
+  // starting the next focus session would silently reuse the break's duration instead of
+  // fallbackMinutes (the currently-selected focus preset).
   const togglePrimary = (fallbackMinutes: number) => {
     if (status === "running") pause();
     else if (status === "paused") resume();
-    else startFocus(targetSeconds !== null ? targetSeconds / 60 : fallbackMinutes);
+    else startFocus(phase === "focus" && targetSeconds !== null ? targetSeconds / 60 : fallbackMinutes);
   };
 
   // adopts an externally-computed state wholesale, instead of acting relative to "right
