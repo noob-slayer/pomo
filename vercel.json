@@ -24,6 +24,15 @@
           "value": "default-src 'self'; script-src 'self' https://www.youtube.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; media-src 'self'; font-src 'self' https://fonts.gstatic.com; frame-src https://www.youtube.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com; form-action 'self' https://accounts.google.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
         }
       ]
+    },
+    {
+      "source": "/(.*)\\.(jpg|jpeg|png|gif|avif|webp|mp4|webm|svg)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
     }
   ],
   "crons": [
