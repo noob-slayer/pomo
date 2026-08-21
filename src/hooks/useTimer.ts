@@ -42,6 +42,11 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   const [activeTaskTitle, setActiveTaskTitle] = useState<string | null>(restored?.activeTaskTitle ?? null);
   const [activeSubSessionId, setActiveSubSessionId] = useState<string | null>(restored?.activeSubSessionId ?? null);
   const lastMinutesRef = useRef(restored?.lastMinutes ?? 25);
+  // tracks the last *focus* duration specifically (unlike lastMinutesRef, which also picks
+  // up break durations) -- this is what a break falls back to once it ends, so the idle
+  // clock/next start always lands on the previously-selected focus length instead of
+  // whatever the break's own (usually shorter) duration happened to be.
+  const lastFocusMinutesRef = useRef(restored?.phase === "focus" ? restored.lastMinutes : 25);
 
   // wall-clock anchors, not tick counts — setInterval gets throttled or fully suspended
   // while a tab is backgrounded or a device is asleep, so counting down by decrementing
@@ -177,18 +182,35 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
       setActiveSubSessionId(null);
     } else {
       onBreakComplete(minutes);
+      // land back on "focus" with the previously-selected focus duration, rather than
+      // leaving phase/targetSeconds pointing at the break that just ended -- otherwise the
+      // idle clock shows the break's (usually shorter) length, or 0:00 for an open-ended
+      // break, until the user happens to pick a preset again.
+      setPhase("focus");
+      const focusSeconds = lastFocusMinutesRef.current * 60;
+      setTargetSeconds(focusSeconds);
+      setRemainingSeconds(focusSeconds);
+      setElapsedSeconds(0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remainingSeconds, status, targetSeconds, phase]);
 
-  // updates the displayed duration while idle, without starting the countdown
+  // updates the displayed duration while idle, without starting the countdown. Also clears
+  // any task/sub-session queued up via setPendingSelection -- picking a plain duration
+  // preset after picking a sub-session means "no task", and leaving the old selection in
+  // place would silently attach this (differently-sized) session to that sub-session
+  // instead, corrupting its logged-minutes/completion-% stats.
   const setPendingMinutes = (minutes: number) => {
     if (status !== "idle") return;
     lastMinutesRef.current = minutes;
+    lastFocusMinutesRef.current = minutes;
     setPhase("focus");
     setTargetSeconds(minutes * 60);
     setRemainingSeconds(minutes * 60);
     setElapsedSeconds(0);
+    setActiveTaskId(null);
+    setActiveTaskTitle(null);
+    setActiveSubSessionId(null);
   };
 
   // same idea as setPendingMinutes, but also associates a task/session -- for picking a
@@ -204,6 +226,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   ) => {
     if (status !== "idle") return;
     lastMinutesRef.current = minutes;
+    lastFocusMinutesRef.current = minutes;
     setPhase("focus");
     setTargetSeconds(minutes * 60);
     setRemainingSeconds(minutes * 60);
@@ -228,6 +251,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     const resolvedTaskTitle = taskTitle !== undefined ? taskTitle : activeTaskTitle;
     const resolvedSubSessionId = subSessionId !== undefined ? subSessionId : activeSubSessionId;
     lastMinutesRef.current = minutes;
+    lastFocusMinutesRef.current = minutes;
     setPhase("focus");
     setActiveTaskId(resolvedTaskId);
     setActiveTaskTitle(resolvedTaskTitle);
@@ -360,7 +384,17 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     }
     clearPersistedSession();
     setStatus("idle");
-    setRemainingSeconds(targetSeconds ?? lastMinutesRef.current * 60);
+    // same reasoning as the break-completion branch above: stopping a break (fixed-length
+    // or open-ended) should land back on "focus" at the last selected focus duration, not
+    // leave phase/targetSeconds pointing at the break that was just stopped.
+    if (phase === "break") {
+      setPhase("focus");
+      const focusSeconds = lastFocusMinutesRef.current * 60;
+      setTargetSeconds(focusSeconds);
+      setRemainingSeconds(focusSeconds);
+    } else {
+      setRemainingSeconds(targetSeconds ?? lastMinutesRef.current * 60);
+    }
     setElapsedSeconds(0);
     setActiveTaskId(null);
     setActiveTaskTitle(null);
@@ -370,6 +404,7 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
   };
 
   const reset = () => {
+    if (status === "idle") return;
     const fullSeconds = targetSeconds ?? 0;
     setRemainingSeconds(fullSeconds);
     setElapsedSeconds(0);
@@ -452,7 +487,10 @@ export function useTimer({ onFocusComplete, onBreakComplete, onPartialStop }: Us
     // lobby sync never carries sub-session info -- see SyncAction's own comment: only the
     // clock stays in lockstep, each member picks their own task (and, now, sub-session)
     setActiveSubSessionId(null);
-    if (ts !== null && ts > 0) lastMinutesRef.current = Math.round(ts / 60);
+    if (ts !== null && ts > 0) {
+      lastMinutesRef.current = Math.round(ts / 60);
+      if (p === "focus") lastFocusMinutesRef.current = Math.round(ts / 60);
+    }
 
     let endAt: number | null = null;
     let startedAt: number | null = null;

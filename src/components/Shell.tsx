@@ -237,8 +237,16 @@ export function Shell() {
     // prefers rawTimer.targetSeconds over fallbackMinutes -- same reasoning as
     // useTimer's own togglePrimary: targetSeconds already reflects whatever a duration
     // preset or a task-session pick (including a resumed session's remaining time) queued
-    // up, and blindly using fallbackMinutes here would silently discard that
-    else syncedStartFocus(rawTimer.targetSeconds !== null ? rawTimer.targetSeconds / 60 : fallbackMinutes);
+    // up, and blindly using fallbackMinutes here would silently discard that. Gated on
+    // phase === "focus" for the same reason as useTimer's own togglePrimary: a finished (or
+    // stopped) break leaves phase as "break" with its own shorter targetSeconds still in
+    // state, and reusing that here would restart the next session at the break's length.
+    else
+      syncedStartFocus(
+        rawTimer.phase === "focus" && rawTimer.targetSeconds !== null
+          ? rawTimer.targetSeconds / 60
+          : fallbackMinutes,
+      );
   };
 
   const timer: TimerApi = {
