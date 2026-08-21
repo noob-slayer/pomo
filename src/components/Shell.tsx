@@ -790,6 +790,7 @@ export function Shell() {
             onSelectFocusMinutes={setSelectedFocusMinutes}
             onPopOutPip={pipSupported ? popOutPip : null}
             splitFlap={showSplitFlap}
+            onOpenBreakPicker={() => setSessionPrompt("break-picker")}
           />
           <div className="corner-summary">
             <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
