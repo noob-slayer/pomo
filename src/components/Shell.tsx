@@ -170,32 +170,46 @@ export function Shell() {
   // sync_state stale, so anyone reloading afterward caught up against a snapshot that had
   // no idea a pause had ever happened, silently counting the paused time as if the timer
   // had kept running the whole time. See LobbySyncState's own comment in lib/lobbySync.ts.
+  //
+  // Returns the write's promise (rather than firing-and-forgetting it) so callers can await
+  // it before broadcasting -- broadcastSyncAction and writeSyncState are two independent,
+  // unordered round-trips (one realtime pub/sub, one REST PATCH), so broadcasting first let
+  // a reconnecting member's one-shot catch-up read (readSyncState) land in the gap and pull
+  // back the *previous* snapshot even though the broadcast already told everyone else about
+  // the new one. Awaiting the write first doesn't fully close that window (a concurrent
+  // reconnect can still race the PATCH itself) but narrows it to just that overlap, and
+  // combined with the reconnect effect trusting a live broadcast over a stale catch-up read
+  // (see the comment there), covers the common case where a reconnect merely missed the
+  // broadcast rather than raced it.
   const persistSyncSnapshot = (
     status: "running" | "paused",
     phase: TimerApi["phase"],
     targetSeconds: number | null,
     remainingSeconds: number,
     elapsedSeconds: number,
-  ) => {
-    if (!inSyncLobby || !currentLobby) return;
-    void writeSyncState(currentLobby.id, { phase, status, targetSeconds, remainingSeconds, elapsedSeconds, at: Date.now() });
+  ): Promise<void> => {
+    if (!inSyncLobby || !currentLobby) return Promise.resolve();
+    return writeSyncState(currentLobby.id, { phase, status, targetSeconds, remainingSeconds, elapsedSeconds, at: Date.now() });
   };
 
   const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId, taskTitle, subSessionId) => {
     rawTimer.startFocus(minutes, taskId, taskTitle, subSessionId);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
-      broadcastIfSync({ type: "startFocus", minutes });
-      persistSyncSnapshot("running", "focus", minutes * 60, minutes * 60, 0);
+      void persistSyncSnapshot("running", "focus", minutes * 60, minutes * 60, 0).then(() =>
+        broadcastIfSync({ type: "startFocus", minutes }),
+      );
     }
   };
   const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
     rawTimer.startBreak(minutes);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
-      broadcastIfSync({ type: "startBreak", minutes });
-      if (minutes === null) persistSyncSnapshot("running", "break", null, 0, 0);
-      else persistSyncSnapshot("running", "break", minutes * 60, minutes * 60, 0);
+      const write =
+        minutes === null
+          ? persistSyncSnapshot("running", "break", null, 0, 0)
+          : persistSyncSnapshot("running", "break", minutes * 60, minutes * 60, 0);
+      void write.then(() => broadcastIfSync({ type: "startBreak", minutes }));
     }
   };
   const syncedPause: TimerApi["pause"] = () => {
@@ -203,22 +217,27 @@ export function Shell() {
     // values, so the pre-call closure already holds exactly what should be persisted
     const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
     rawTimer.pause();
-    broadcastIfSync({ type: "pause" });
-    persistSyncSnapshot("paused", phase, targetSeconds, remainingSeconds, elapsedSeconds);
+    if (inSyncLobby && currentLobby) {
+      void persistSyncSnapshot("paused", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
+        broadcastIfSync({ type: "pause" }),
+      );
+    }
   };
   const syncedResume: TimerApi["resume"] = () => {
     // same reasoning as pause(): resume() re-anchors endAt/startedAt to now but doesn't
     // change the frozen remaining/elapsed values themselves
     const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
     rawTimer.resume();
-    broadcastIfSync({ type: "resume" });
-    persistSyncSnapshot("running", phase, targetSeconds, remainingSeconds, elapsedSeconds);
+    if (inSyncLobby && currentLobby) {
+      void persistSyncSnapshot("running", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
+        broadcastIfSync({ type: "resume" }),
+      );
+    }
   };
   const syncedStop: TimerApi["stop"] = () => {
     rawTimer.stop();
     if (inSyncLobby && currentLobby) {
-      broadcastIfSync({ type: "stop" });
-      void clearSyncState(currentLobby.id);
+      void clearSyncState(currentLobby.id).then(() => broadcastIfSync({ type: "stop" }));
     }
   };
   const syncedReset: TimerApi["reset"] = () => {
@@ -226,9 +245,12 @@ export function Shell() {
     // countdown itself goes back to full
     const { status, phase, targetSeconds } = rawTimer;
     rawTimer.reset();
-    broadcastIfSync({ type: "reset" });
     if (inSyncLobby && currentLobby && status !== "idle") {
-      persistSyncSnapshot(status, phase, targetSeconds, targetSeconds ?? 0, 0);
+      void persistSyncSnapshot(status, phase, targetSeconds, targetSeconds ?? 0, 0).then(() =>
+        broadcastIfSync({ type: "reset" }),
+      );
+    } else {
+      broadcastIfSync({ type: "reset" });
     }
   };
   const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
@@ -237,8 +259,16 @@ export function Shell() {
     // prefers rawTimer.targetSeconds over fallbackMinutes -- same reasoning as
     // useTimer's own togglePrimary: targetSeconds already reflects whatever a duration
     // preset or a task-session pick (including a resumed session's remaining time) queued
-    // up, and blindly using fallbackMinutes here would silently discard that
-    else syncedStartFocus(rawTimer.targetSeconds !== null ? rawTimer.targetSeconds / 60 : fallbackMinutes);
+    // up, and blindly using fallbackMinutes here would silently discard that. Gated on
+    // phase === "focus" for the same reason as useTimer's own togglePrimary: a finished (or
+    // stopped) break leaves phase as "break" with its own shorter targetSeconds still in
+    // state, and reusing that here would restart the next session at the break's length.
+    else
+      syncedStartFocus(
+        rawTimer.phase === "focus" && rawTimer.targetSeconds !== null
+          ? rawTimer.targetSeconds / 60
+          : fallbackMinutes,
+      );
   };
 
   const timer: TimerApi = {
@@ -263,7 +293,17 @@ export function Shell() {
     syncChannelRef.current = null;
     if (!currentLobby || currentLobby.mode !== "sync") return;
 
+    // if a live broadcast arrives before the one-shot catch-up read below resolves, trust
+    // it over that read and skip the read's result entirely. broadcastSyncAction and
+    // writeSyncState (what the catch-up read below reads back) are two independent,
+    // unordered round-trips -- see persistSyncSnapshot's own comment -- so the read can
+    // still resolve to the *previous* snapshot even after this client has already received
+    // and applied a newer live action for the same change. Applying the stale read after
+    // that would silently revert the just-applied, correct local state back to old data.
+    let receivedLiveAction = false;
+
     const applyAction = (action: SyncAction) => {
+      receivedLiveAction = true;
       const t = rawTimerRef.current;
       if (action.type === "startFocus") t.startFocus(action.minutes);
       else if (action.type === "startBreak") t.startBreak(action.minutes);
@@ -277,6 +317,7 @@ export function Shell() {
 
     (async () => {
       const state = await readSyncState(currentLobby.id);
+      if (receivedLiveAction) return; // a live action already landed -- it's authoritative
       if (!state) return; // nothing in progress -- stay idle
       const t = rawTimerRef.current;
       // task info intentionally stays null here -- see SyncAction's own comment: each
@@ -293,21 +334,29 @@ export function Shell() {
         });
         return;
       }
+      // this device's clock vs the writer's clock at the moment it wrote the snapshot --
+      // skew between the two (or this client's clock simply running slow/fast) means this
+      // can come out negative, which is exactly what the clamps below guard against
       const elapsedSinceSec = (Date.now() - state.at) / 1000;
       if (state.targetSeconds === null) {
-        // open-ended break -- elapsed keeps growing, nothing to run out of
+        // open-ended break -- elapsed keeps growing, nothing to run out of. Clamped to 0 so
+        // a negative elapsedSinceSec (this client's clock behind the writer's) can't produce
+        // a negative elapsed time.
         t.restoreSnapshot({
           phase: state.phase,
           status: "running",
           targetSeconds: null,
           remainingSeconds: 0,
-          elapsedSeconds: state.elapsedSeconds + elapsedSinceSec,
+          elapsedSeconds: Math.max(0, state.elapsedSeconds + elapsedSinceSec),
           activeTaskId: null,
           activeTaskTitle: null,
         });
         return;
       }
-      const remaining = state.remainingSeconds - elapsedSinceSec;
+      // clamped to [0, targetSeconds] -- unclamped, clock skew could otherwise push this
+      // above the session's original length (clock behind) or let it go negative (clock
+      // ahead) before the `> 3` check below even sees it
+      const remaining = Math.min(state.targetSeconds, Math.max(0, state.remainingSeconds - elapsedSinceSec));
       if (remaining > 3) {
         t.restoreSnapshot({
           phase: state.phase,
