@@ -805,6 +805,56 @@
   height: 20px;
 }
 
+.stage-yt-volume {
+  position: absolute;
+  bottom: 20px;
+  left: 68px;
+  z-index: 10;
+  width: 90px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  /* range inputs don't inherit sizing/appearance from a plain rule the way other form
+     elements do -- without this reset each browser draws its own native track/thumb,
+     clashing with the pill it's meant to sit inside */
+  -webkit-appearance: none;
+  appearance: none;
+  accent-color: #0a0a0a;
+  cursor: pointer;
+}
+
+.stage-yt-volume::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.25);
+}
+
+.stage-yt-volume::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -5.5px;
+  border-radius: 50%;
+  background: #0a0a0a;
+}
+
+.stage-yt-volume::-moz-range-track {
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.25);
+}
+
+.stage-yt-volume::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #0a0a0a;
+}
+
 .stage-yt-overlay {
   position: absolute;
   inset: 0;
