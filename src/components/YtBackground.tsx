@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { parseYoutubeInput } from "../lib/stations";
 
 interface YtBackgroundProps {
@@ -19,6 +19,7 @@ interface YtPlayer {
   mute(): void;
   unMute(): void;
   playVideo(): void;
+  setVolume(volume: number): void;
   getPlayerState(): number;
   getIframe(): HTMLIFrameElement;
   destroy(): void;
@@ -52,6 +53,13 @@ export function YtBackground({ url }: YtBackgroundProps) {
   const playerRef = useRef<YtPlayer | null>(null);
   const [muted, setMuted] = useState(true);
   const [needsTap, setNeedsTap] = useState(false);
+  const [volume, setVolume] = useState(50);
+  // read inside onReady below, which is only ever set up once per player (the effect that
+  // creates it depends on [url] alone) -- a plain state closure there would keep applying
+  // whatever volume was selected at the moment THIS player instance was created, ignoring
+  // any slider move made against a previous instance for the same background
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
   const parsed = url ? parseYoutubeInput(url) : null;
 
   useEffect(() => {
@@ -91,6 +99,7 @@ export function YtBackground({ url }: YtBackgroundProps) {
             iframe.classList.add("stage-yt");
             iframe.title = "background video";
             e.target.mute();
+            e.target.setVolume(volumeRef.current);
             e.target.playVideo();
             // give it a beat, then check whether playback actually took. Confirmed via
             // WebKit + iPad emulation: Safari's muted-autoplay exemption applies to
@@ -142,6 +151,23 @@ export function YtBackground({ url }: YtBackgroundProps) {
     setNeedsTap(false);
   };
 
+  const handleVolumeChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const next = Number(e.target.value);
+    setVolume(next);
+    const player = playerRef.current;
+    if (!player) return;
+    player.setVolume(next);
+    // dragging the slider is a clear "I want to hear this" signal -- if it's still muted
+    // from the autoplay-safe default, unmute so the new level is actually audible instead
+    // of silently no-op'ing behind the mute
+    if (muted) {
+      setMuted(false);
+      player.unMute();
+      player.playVideo();
+      setNeedsTap(false);
+    }
+  };
+
   return (
     <div className="stage-yt-wrap">
       <div className="stage-yt-mount" ref={mountRef} />
@@ -171,6 +197,17 @@ export function YtBackground({ url }: YtBackgroundProps) {
             </svg>
           )}
         </button>
+      )}
+      {parsed && (
+        <input
+          type="range"
+          className="stage-yt-volume"
+          min={0}
+          max={100}
+          value={volume}
+          onChange={handleVolumeChange}
+          aria-label="background video volume"
+        />
       )}
       <div className="stage-yt-overlay" />
     </div>
