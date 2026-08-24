@@ -7,7 +7,6 @@ interface CreditProps {
 export function Credit({ onOpenFeatures }: CreditProps) {
   return (
     <div className="credit">
-      <span>vibe coded by Sid with &lt;3</span>
       <a
         className="credit__link"
         href="https://ko-fi.com/nooob_slayer"
