@@ -137,6 +137,43 @@ export function connectKudosNotifications(
   return channel;
 }
 
+// live lobby chat -- deliberately its own ephemeral broadcast channel, same shape as the
+// kudos one above and connected for any lobby mode (not just sync). There is no database
+// write behind this: messages exist only for members currently connected, exactly like a
+// spoken "hey, one more round?" in the room -- a member who's away or joins later simply
+// missed it, and there is no scrollback to reload. That's the intended scope; if lasting
+// history is ever wanted, it needs a real lobby_messages table + RPC + RLS to match how
+// everything else in lobby.ts is locked down, not this channel.
+export interface LobbyChatMessage {
+  id: string; // client-generated -- react key + local de-dupe, not a DB id
+  identityKey: string;
+  personaName: string;
+  text: string;
+  at: number; // ms epoch
+}
+
+function chatChannelName(lobbyId: string): string {
+  return `pomo-lobby-chat-${lobbyId}`;
+}
+
+// self: false so the sender doesn't get their own message echoed back over the network --
+// the sender appends it locally on send instead (see LobbyChat), which shows it instantly
+// and avoids a round-trip just to display what they already typed.
+export function connectLobbyChat(
+  lobbyId: string,
+  onMessage: (message: LobbyChatMessage) => void,
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  const channel = supabase.channel(chatChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  channel.on("broadcast", { event: "chat" }, ({ payload }) => onMessage(payload as LobbyChatMessage));
+  channel.subscribe();
+  return channel;
+}
+
+export function sendChatMessage(channel: RealtimeChannel, message: LobbyChatMessage): void {
+  void channel.send({ type: "broadcast", event: "chat", payload: message });
+}
+
 // sends on a channel the caller already has open (e.g. Shell's own kudos-notification
 // listener for the active lobby) -- reusing it instead of opening a second one matters:
 // a client can only have one subscription per topic on its single websocket, and joining

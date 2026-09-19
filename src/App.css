@@ -3386,3 +3386,211 @@
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* ---------- lobby chat ---------- */
+/* ephemeral live chat for the active lobby -- floats bottom-left, above the credit line.
+   Uses the solid --page-* palette (not the stage vars) so it stays readable over any
+   background, including video/image stages. */
+.lobby-chat {
+  position: fixed;
+  left: 20px;
+  bottom: 44px;
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.lobby-chat__toggle {
+  position: relative;
+  padding: 7px 14px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--page-bg);
+  background: var(--page-ink);
+  border: none;
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.lobby-chat__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #fff;
+  background: #d1493f;
+  border-radius: 9px;
+}
+
+.lobby-chat__panel {
+  width: min(300px, calc(100vw - 40px));
+  height: 340px;
+  display: flex;
+  flex-direction: column;
+  background: var(--page-surface);
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 40px -14px rgba(33, 26, 23, 0.4);
+  overflow: hidden;
+  animation: lobby-chat-in 0.18s ease;
+}
+
+@keyframes lobby-chat-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-chat__panel {
+    animation: none;
+  }
+}
+
+.lobby-chat__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--page-border);
+}
+
+.lobby-chat__title {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--page-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-chat__close {
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 0 4px;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--page-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lobby-chat__messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lobby-chat__empty {
+  margin: auto 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--page-muted);
+  text-align: center;
+}
+
+.lobby-chat__msg {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 85%;
+  align-self: flex-start;
+}
+
+.lobby-chat__msg--mine {
+  align-self: flex-end;
+  text-align: right;
+}
+
+.lobby-chat__from {
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: var(--page-muted);
+}
+
+.lobby-chat__text {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border-radius: var(--radius-md);
+  /* preserve what the sender actually typed -- the rest of the app is lowercase by
+     design, but chat is real human text where case can carry meaning */
+  text-transform: none;
+  word-break: break-word;
+}
+
+.lobby-chat__msg--mine .lobby-chat__text {
+  color: var(--page-bg);
+  background: var(--page-ink);
+}
+
+.lobby-chat__compose {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--page-border);
+}
+
+.lobby-chat__input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border: 1px solid var(--page-border);
+  border-radius: var(--radius-sm);
+  text-transform: none;
+}
+
+.lobby-chat__input:focus {
+  outline: none;
+  border-color: var(--page-ink);
+}
+
+.lobby-chat__send {
+  flex-shrink: 0;
+  padding: 0 12px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--page-bg);
+  background: var(--page-ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.lobby-chat__send:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+@media (max-width: 600px) {
+  .lobby-chat {
+    left: 12px;
+    bottom: 12px;
+  }
+}

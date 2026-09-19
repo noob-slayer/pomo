@@ -32,6 +32,7 @@ import { TimerStage } from "./TimerStage";
 import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
+import { LobbyChat } from "./LobbyChat";
 import { PersonalStatsPage } from "./PersonalStatsPage";
 import { TeamStatsPage } from "./TeamStatsPage";
 import { FeaturesPage } from "./FeaturesPage";
@@ -912,6 +913,7 @@ export function Shell() {
         </div>
       )}
       <YoutubeWidget />
+      <LobbyChat />
       <Credit onOpenFeatures={() => setFeaturesOpen(true)} />
       <Onboarding />
     </div>
