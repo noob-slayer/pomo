@@ -1148,16 +1148,13 @@
   padding: 0;
   display: flex;
   flex-direction: column;
-  /* more separation between members, now that each is a taller two-line block */
-  gap: 10px;
+  gap: 6px;
 }
 
 .lobby-summary__member {
   display: flex;
   flex-direction: column;
-  /* breathing room between a member's name row and the task/status line under it -- was
-     1px, which read as one cramped block */
-  gap: 4px;
+  gap: 1px;
 }
 
 .lobby-summary__row {
