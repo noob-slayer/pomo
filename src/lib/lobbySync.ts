@@ -30,6 +30,30 @@ export function broadcastSyncAction(channel: RealtimeChannel, action: SyncAction
   void channel.send({ type: "broadcast", event: "action", payload: action });
 }
 
+// "self sync" -- keeps ONE signed-in account's own timer in lockstep across its own devices
+// (web + phone) while everyone else in an individual-mode lobby keeps an independent clock.
+// Same SyncAction payload as the full lobby sync above, but the channel is scoped to the
+// user's identity so only their other devices receive it. Deliberately no persisted catch-up
+// (unlike sync mode's sync_state): this is a live nudge between a person's open devices, not
+// lobby-wide shared state, so a device that was closed simply starts its own timer next time.
+function selfSyncChannelName(lobbyId: string, identityKey: string): string {
+  return `pomo-lobby-self-${lobbyId}-${identityKey}`;
+}
+
+export function connectSelfSync(
+  lobbyId: string,
+  identityKey: string,
+  onAction: (action: SyncAction) => void,
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  const channel = supabase.channel(selfSyncChannelName(lobbyId, identityKey), {
+    config: { broadcast: { self: false } },
+  });
+  channel.on("broadcast", { event: "action" }, ({ payload }) => onAction(payload as SyncAction));
+  channel.subscribe();
+  return channel;
+}
+
 // a full "what's happening right now" snapshot, persisted on the lobby row so a member
 // who joins or reloads mid-session can catch up instead of waiting for the next action.
 //
