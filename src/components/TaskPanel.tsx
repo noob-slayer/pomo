@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type RefObject } from "react";
 import { useTasks } from "../context/TasksContext";
 import type { TimerApi } from "../hooks/useTimer";
-import type { Mode, TaskSplitMode, TaskSubSession } from "../types";
+import type { Mode, Task, TaskSplitMode, TaskSubSession } from "../types";
 import { newId } from "../lib/storage";
 import {
   AUTO_SPLIT_THRESHOLD_MINUTES,
@@ -42,8 +42,14 @@ export function TaskPanel({
   onOpenFullStats,
   onOpenFullTeamStats,
 }: TaskPanelProps) {
-  const { tasks, history, addTask, toggleDone, removeTask, pomosForTask } = useTasks();
+  const { tasks, history, addTask, updateTask, toggleDone, removeTask, pomosForTask } = useTasks();
   const [title, setTitle] = useState("");
+  // inline task editing -- which task's row is currently in edit mode, and its draft fields
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editCustomCategory, setEditCustomCategory] = useState("");
+  const [editEstimate, setEditEstimate] = useState("");
   const [categoryChoice, setCategoryChoice] = useState("");
   const [customCategory, setCustomCategory] = useState("");
   const [estimate, setEstimate] = useState("");
@@ -80,6 +86,29 @@ export function TaskPanel({
   const removeCustomSession = (id: string) => {
     setCustomSessionError(null);
     setCustomSessions((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const startEdit = (task: Task) => {
+    setEditingId(task.id);
+    setEditTitle(task.title);
+    // a category that isn't one of the presets is a custom one -- preselect "custom" and
+    // seed the free-text field so the existing value shows instead of silently resetting
+    const isPreset = (CATEGORY_OPTIONS as readonly string[]).includes(task.category);
+    setEditCategory(isPreset ? task.category : "custom");
+    setEditCustomCategory(isPreset ? "" : task.category);
+    setEditEstimate(task.durationMinutes != null ? String(task.durationMinutes) : "");
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = (id: string) => {
+    const trimmed = editTitle.trim();
+    if (!trimmed) return;
+    const category =
+      editCategory === "custom" ? editCustomCategory.trim() || "general" : editCategory || "general";
+    const durationMinutes = editEstimate ? Number(editEstimate) : null;
+    updateTask(id, { title: trimmed, category, durationMinutes });
+    setEditingId(null);
   };
 
   const handleAdd = (e: FormEvent) => {
@@ -298,38 +327,94 @@ export function TaskPanel({
 
           return (
             <li key={task.id} className={task.done ? "task task--done" : "task"}>
-              <div className="task__row">
-                <div className="task__main">
-                  <button
-                    type="button"
-                    className="task__check"
-                    aria-label={task.done ? "mark not done" : "mark done"}
-                    onClick={() => toggleDone(task.id)}
-                  >
-                    {task.done ? "×" : "○"}
-                  </button>
-                  <div className="task__body">
-                    <p className="task__title">{task.title}</p>
-                    <p className="task__meta">
-                      {task.category}
-                      {task.durationMinutes ? ` · ${task.durationMinutes}m` : ""}
-                      {hasMultipleSessions ? ` · ${sessions.length} sessions` : ""}
-                      {" · "}
-                      {pomosForTask(task.id)} logged
-                    </p>
+              {editingId === task.id ? (
+                <div className="task__edit">
+                  <input
+                    className="task-form__title"
+                    value={editTitle}
+                    autoFocus
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveEdit(task.id);
+                      if (e.key === "Escape") cancelEdit();
+                    }}
+                  />
+                  <div className="task-form__row">
+                    <select value={editCategory} onChange={(e) => setEditCategory(e.target.value)}>
+                      <option value="">category</option>
+                      {CATEGORY_OPTIONS.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                      <option value="custom">custom</option>
+                    </select>
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="duration (mins)"
+                      value={editEstimate}
+                      onChange={(e) => setEditEstimate(e.target.value)}
+                    />
+                  </div>
+                  {editCategory === "custom" && (
+                    <input
+                      placeholder="custom category"
+                      value={editCustomCategory}
+                      onChange={(e) => setEditCustomCategory(e.target.value)}
+                    />
+                  )}
+                  <div className="task__edit-actions">
+                    <button type="button" className="chip" onClick={cancelEdit}>
+                      cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="task-form__mode-btn"
+                      disabled={!editTitle.trim()}
+                      onClick={() => saveEdit(task.id)}
+                    >
+                      save
+                    </button>
                   </div>
                 </div>
-                <div className="task__actions">
-                  {!hasMultipleSessions && (
-                    <button type="button" className="link-btn" disabled={timerBusy} onClick={handleSingleStart}>
-                      {isActive ? "running" : "start pomo"}
+              ) : (
+                <div className="task__row">
+                  <div className="task__main">
+                    <button
+                      type="button"
+                      className="task__check"
+                      aria-label={task.done ? "mark not done" : "mark done"}
+                      onClick={() => toggleDone(task.id)}
+                    >
+                      {task.done ? "×" : "○"}
                     </button>
-                  )}
-                  <button type="button" className="link-btn link-btn--quiet" onClick={() => removeTask(task.id)}>
-                    remove
-                  </button>
+                    <div className="task__body">
+                      <p className="task__title">{task.title}</p>
+                      <p className="task__meta">
+                        {task.category}
+                        {task.durationMinutes ? ` · ${task.durationMinutes}m` : ""}
+                        {hasMultipleSessions ? ` · ${sessions.length} sessions` : ""}
+                        {" · "}
+                        {pomosForTask(task.id)} logged
+                      </p>
+                    </div>
+                  </div>
+                  <div className="task__actions">
+                    {!hasMultipleSessions && (
+                      <button type="button" className="link-btn" disabled={timerBusy} onClick={handleSingleStart}>
+                        {isActive ? "running" : "start pomo"}
+                      </button>
+                    )}
+                    <button type="button" className="link-btn" onClick={() => startEdit(task)}>
+                      edit
+                    </button>
+                    <button type="button" className="link-btn link-btn--quiet" onClick={() => removeTask(task.id)}>
+                      remove
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               {hasMultipleSessions && sessions && (
                 <div className="task__sessions">
                   {sessions.map((s, i) => {

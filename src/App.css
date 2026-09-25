@@ -2040,10 +2040,24 @@
   flex-shrink: 0;
 }
 
-/* scope the smaller size to the task row's own actions ("start pomo" / "remove") so they
-   sit in the same scale as the retuned title/meta -- .link-btn stays 0.9rem elsewhere */
+/* scope the smaller size to the task row's own actions ("start pomo" / "edit" / "remove")
+   so they sit in the same scale as the retuned title/meta -- .link-btn stays 0.9rem elsewhere */
 .task__actions .link-btn {
   font-size: 0.72rem;
+}
+
+/* inline task edit form -- reuses the add-task form's input/select styling (task-form__*),
+   so only the wrapper and the save/cancel row need their own rules */
+.task__edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.task__edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .task__sessions {

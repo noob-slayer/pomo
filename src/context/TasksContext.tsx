@@ -1,6 +1,14 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { newId, useLocalStorage } from "../lib/storage";
-import { deleteTaskRow, fetchHistory, fetchTasks, insertHistory, insertTask, updateTaskDone } from "../lib/cloudSync";
+import {
+  deleteTaskRow,
+  fetchHistory,
+  fetchTasks,
+  insertHistory,
+  insertTask,
+  updateTaskDone,
+  updateTaskFields,
+} from "../lib/cloudSync";
 import { useAuth } from "./AuthContext";
 import type { Mode, PomoRecord, Task, TaskSplitMode, TaskSubSession } from "../types";
 
@@ -25,6 +33,7 @@ interface TasksContextValue {
   // identical to "you just earned a bunch of badges", every single fresh login.
   historyReady: boolean;
   addTask: (input: NewTaskInput) => Task;
+  updateTask: (id: string, patch: { title: string; category: string; durationMinutes: number | null }) => void;
   toggleDone: (id: string) => void;
   removeTask: (id: string) => void;
   logCompletion: (record: Omit<PomoRecord, "id">) => void;
@@ -98,6 +107,15 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     return task;
   };
 
+  // edit an existing task's title/category/duration -- deliberately does NOT touch
+  // splitMode/subSessions here: those are derived from the duration at add time and editing
+  // them mid-task would need to reconcile already-logged session progress, out of scope for
+  // a straightforward "fix a typo / bump the estimate" edit
+  const updateTask = (id: string, patch: { title: string; category: string; durationMinutes: number | null }) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+    if (user) void updateTaskFields(user.id, id, patch);
+  };
+
   const toggleDone = (id: string) => {
     const current = tasks.find((t) => t.id === id);
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
@@ -120,7 +138,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   return (
     <TasksContext.Provider
-      value={{ tasks, history, historyReady, addTask, toggleDone, removeTask, logCompletion, pomosForTask }}
+      value={{ tasks, history, historyReady, addTask, updateTask, toggleDone, removeTask, logCompletion, pomosForTask }}
     >
       {children}
     </TasksContext.Provider>
