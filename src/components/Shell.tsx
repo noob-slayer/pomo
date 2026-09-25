@@ -14,6 +14,7 @@ import { resolveIdentityKey } from "../lib/identity";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
 import {
   connectLobbySync,
+  connectSelfSync,
   broadcastSyncAction,
   writeSyncState,
   clearSyncState,
@@ -87,6 +88,7 @@ export function Shell() {
   const topbarAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
+  const selfSyncChannelRef = useRef<RealtimeChannel | null>(null);
   const kudosChannelRef = useRef<{ lobbyId: string; channel: RealtimeChannel } | null>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const presenceSubscribedRef = useRef(false);
@@ -96,6 +98,10 @@ export function Shell() {
   const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
   const inSyncLobby = currentLobby?.mode === "sync";
+  // self-sync: keep this signed-in account's own timer in step across its own devices while
+  // in an individual-mode lobby. Requires a stable identity (a signed-in user) -- guests get
+  // a fresh per-device id, so there'd be no second device on the same channel anyway.
+  const selfSyncActive = currentLobby?.mode === "individual" && !!identityUserId;
 
   // best-effort: mirror a completion into the active lobby's stats too, if any. Never
   // blocks or affects the personal history write above -- a lobby-log failure shouldn't
@@ -174,6 +180,10 @@ export function Shell() {
   const broadcastIfSync = (action: SyncAction) => {
     if (inSyncLobby && syncChannelRef.current) broadcastSyncAction(syncChannelRef.current, action);
   };
+  // push a timer action to my own other devices (individual-mode lobby, signed in)
+  const broadcastSelf = (action: SyncAction) => {
+    if (selfSyncActive && selfSyncChannelRef.current) broadcastSyncAction(selfSyncChannelRef.current, action);
+  };
 
   // every sync-relevant action writes a full state snapshot, not just start/stop -- a
   // pause/resume/reset that only broadcast live (with nothing persisted) left the server's
@@ -209,6 +219,8 @@ export function Shell() {
       void persistSyncSnapshot("running", "focus", minutes * 60, minutes * 60, 0).then(() =>
         broadcastIfSync({ type: "startFocus", minutes }),
       );
+    } else if (selfSyncActive) {
+      broadcastSelf({ type: "startFocus", minutes });
     }
   };
   const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
@@ -220,6 +232,8 @@ export function Shell() {
           ? persistSyncSnapshot("running", "break", null, 0, 0)
           : persistSyncSnapshot("running", "break", minutes * 60, minutes * 60, 0);
       void write.then(() => broadcastIfSync({ type: "startBreak", minutes }));
+    } else if (selfSyncActive) {
+      broadcastSelf({ type: "startBreak", minutes });
     }
   };
   const syncedPause: TimerApi["pause"] = () => {
@@ -231,6 +245,8 @@ export function Shell() {
       void persistSyncSnapshot("paused", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
         broadcastIfSync({ type: "pause" }),
       );
+    } else if (selfSyncActive) {
+      broadcastSelf({ type: "pause" });
     }
   };
   const syncedResume: TimerApi["resume"] = () => {
@@ -242,12 +258,16 @@ export function Shell() {
       void persistSyncSnapshot("running", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
         broadcastIfSync({ type: "resume" }),
       );
+    } else if (selfSyncActive) {
+      broadcastSelf({ type: "resume" });
     }
   };
   const syncedStop: TimerApi["stop"] = () => {
     rawTimer.stop();
     if (inSyncLobby && currentLobby) {
       void clearSyncState(currentLobby.id).then(() => broadcastIfSync({ type: "stop" }));
+    } else if (selfSyncActive) {
+      broadcastSelf({ type: "stop" });
     }
   };
   const syncedReset: TimerApi["reset"] = () => {
@@ -262,6 +282,7 @@ export function Shell() {
     } else {
       broadcastIfSync({ type: "reset" });
     }
+    if (selfSyncActive) broadcastSelf({ type: "reset" });
   };
   const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
     if (rawTimer.status === "running") syncedPause();
@@ -387,6 +408,30 @@ export function Shell() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, currentLobby?.mode]);
+
+  // self-sync channel: in an individual-mode lobby, a signed-in user's own start/pause/etc
+  // is broadcast only to their own other devices (scoped to identityKey) and applied there,
+  // so web and phone stay in step while other members keep independent timers. No catch-up
+  // read -- this is a live nudge between open devices, not persisted lobby state.
+  useEffect(() => {
+    selfSyncChannelRef.current?.unsubscribe();
+    selfSyncChannelRef.current = null;
+    if (!currentLobby || currentLobby.mode !== "individual" || !identityUserId) return;
+    selfSyncChannelRef.current = connectSelfSync(currentLobby.id, identityKey, (action) => {
+      const t = rawTimerRef.current;
+      if (action.type === "startFocus") t.startFocus(action.minutes);
+      else if (action.type === "startBreak") t.startBreak(action.minutes);
+      else if (action.type === "pause") t.pause();
+      else if (action.type === "resume") t.resume();
+      else if (action.type === "stop") t.stop();
+      else if (action.type === "reset") t.reset();
+    });
+    return () => {
+      selfSyncChannelRef.current?.unsubscribe();
+      selfSyncChannelRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLobby?.id, currentLobby?.mode, identityKey, identityUserId]);
 
   // live "you got kudos" toast -- connected whenever a lobby is active, regardless of
   // individual/sync mode (unlike the sync channel above, which only matters in sync mode).
