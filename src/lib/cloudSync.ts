@@ -65,6 +65,22 @@ export async function updateTaskDone(userId: string, id: string, done: boolean):
   if (error) console.error("cloud sync: updateTaskDone failed", error);
 }
 
+// edits to an existing task's editable fields -- durationMinutes maps to the estimated_pomos
+// column, same as insertTask above
+export async function updateTaskFields(
+  userId: string,
+  id: string,
+  fields: { title: string; category: string; durationMinutes: number | null },
+): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase
+    .from("tasks")
+    .update({ title: fields.title, category: fields.category, estimated_pomos: fields.durationMinutes })
+    .eq("id", id)
+    .eq("user_id", userId);
+  if (error) console.error("cloud sync: updateTaskFields failed", error);
+}
+
 export async function deleteTaskRow(userId: string, id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("tasks").delete().eq("id", id).eq("user_id", userId);
