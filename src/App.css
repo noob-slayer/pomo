@@ -1118,10 +1118,36 @@
   font-weight: 700;
 }
 
-@media (max-width: 560px) {
+@media (max-width: 600px) {
+  /* on phones the summary was a narrow right-corner box (max-width: 40vw) absolutely
+     positioned over the timer -- with Android's larger font settings its text outgrew that
+     box, spilled off the right edge, and overlapped the clock. Put it in normal flow above
+     the timer instead: full-width, right-aligned, so it wraps within the screen AND pushes
+     the (now column-stacked) timer down rather than sitting on top of it. */
+  .stage {
+    flex-direction: column;
+    justify-content: center;
+    gap: 4vh;
+  }
+
   .corner-summary {
-    top: 14px;
-    right: 16px;
+    position: static;
+    order: -1;
+    width: 100%;
+    max-width: none;
+    gap: 10px;
+  }
+
+  .corner-summary > * {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .daily-summary__line,
+  .daily-summary__title,
+  .lobby-summary__title,
+  .lobby-summary__status {
+    overflow-wrap: anywhere;
   }
 }
 
