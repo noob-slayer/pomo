@@ -144,22 +144,28 @@ export function connectKudosNotifications(
 // member "offline" for everyone else with no heartbeat/timeout logic of our own. The
 // tradeoff is presence only ever reflects *currently connected* clients, which is exactly
 // what "active vs offline" wants: someone not connected simply isn't active.
+// three live states: "focus" (running a pomo -> green), "break" (running a break -> yellow),
+// "idle" (in the lobby but not in a session -> offline/red). A member not in the roster at
+// all (disconnected) also reads as offline.
+export type PresenceState = "focus" | "break" | "idle";
+
 export interface LobbyPresence {
   identityKey: string;
   personaName: string;
-  active: boolean; // true only while a focus session is actually running
-  taskTitle: string | null; // the current task, when active and named
-  durationMinutes: number | null; // the running pomo's length, when active
+  state: PresenceState;
+  taskTitle: string | null; // the current task, when focusing and named
+  durationMinutes: number | null; // the running pomo's length, when focusing
   at: number; // ms epoch of the last heartbeat -- Supabase's own presence-leave on
   // disconnect takes ~40s+, far too slow to read as "offline", so the client heartbeats
   // this and the consumer treats a stale `at` as offline (see PRESENCE_STALE_MS)
 }
 
-// an active member whose last heartbeat is older than this is treated as offline, even
-// though Supabase still lists their presence -- covers a closed laptop / dropped wifi /
-// crashed tab, where no clean "leave" is ever sent. Must comfortably exceed the heartbeat
-// interval so a merely-slow beat doesn't flap someone to offline mid-session.
-export const PRESENCE_STALE_MS = 20000;
+// a member whose last heartbeat is older than this is treated as offline, even though
+// Supabase still lists their presence -- covers a closed laptop / dropped wifi / crashed
+// tab, where no clean "leave" is ever sent. Must comfortably exceed the heartbeat interval
+// (with room for real-world network jitter across devices) so a merely-slow beat doesn't
+// flap an active peer to offline mid-session.
+export const PRESENCE_STALE_MS = 30000;
 export const PRESENCE_HEARTBEAT_MS = 8000;
 
 function presenceChannelName(lobbyId: string): string {
@@ -182,21 +188,28 @@ export function connectLobbyPresence(
   const channel = supabase.channel(presenceChannelName(lobbyId), {
     config: { presence: { key: identityKey } },
   });
-  channel.on("presence", { event: "sync" }, () => {
+  // rebuild the whole roster from the authoritative presenceState() on ANY change. We bind
+  // it to join and leave as well as sync, not just sync: depending on supabase-js version a
+  // peer's heartbeat re-track can surface as a join/leave pair rather than a sync, and if we
+  // only listened to sync we'd miss the fresh `at` and let an active peer go stale-offline.
+  const rebuild = () => {
     const state = channel.presenceState<LobbyPresence>();
     const roster: LobbyPresence[] = [];
     for (const key of Object.keys(state)) {
       const metas = state[key];
       // take the most recently tracked meta as the current state. presenceState appends
-      // each track() in order, so the last entry is newest -- this is deliberately NOT
-      // "find the active one": a client's own updates can leave earlier metas behind (most
-      // visibly under React StrictMode's double-invoked effects in dev, and briefly on any
-      // reconnect), and preferring an older active meta would wrongly keep someone shown as
-      // focusing after they've stopped. Last-wins reflects their latest action.
+      // each track() in order, so the last entry is newest -- deliberately NOT "find an
+      // active one": a client's own updates can leave earlier metas behind (most visibly
+      // under React StrictMode's double-invoked effects in dev, and briefly on any
+      // reconnect), and preferring an older meta would keep someone shown mid-session after
+      // they've stopped. Last-wins reflects their latest action.
       if (metas && metas.length) roster.push(metas[metas.length - 1]);
     }
     onSync(roster);
-  });
+  };
+  channel.on("presence", { event: "sync" }, rebuild);
+  channel.on("presence", { event: "join" }, rebuild);
+  channel.on("presence", { event: "leave" }, rebuild);
   channel.subscribe((status) => {
     if (status === "SUBSCRIBED") onSubscribed();
   });
