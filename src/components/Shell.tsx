@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -39,13 +39,15 @@ import { TaskPanel, type PanelTab } from "./TaskPanel";
 import { DailySummary } from "./DailySummary";
 import { LobbySummary } from "./LobbySummary";
 import { LobbyChat } from "./LobbyChat";
-import { PersonalStatsPage } from "./PersonalStatsPage";
-import { TeamStatsPage } from "./TeamStatsPage";
-import { FeaturesPage } from "./FeaturesPage";
-import { DvdBounce } from "./DvdBounce";
-import { F1Race } from "./F1Race";
-import { YtBackground } from "./YtBackground";
-import { JapanCurtain } from "./JapanCurtain";
+// code-split: these are opened on demand (stats/features modals) or only for a specific
+// background theme, so they're pulled out of the initial bundle and fetched when first used
+const PersonalStatsPage = lazy(() => import("./PersonalStatsPage").then((m) => ({ default: m.PersonalStatsPage })));
+const TeamStatsPage = lazy(() => import("./TeamStatsPage").then((m) => ({ default: m.TeamStatsPage })));
+const FeaturesPage = lazy(() => import("./FeaturesPage").then((m) => ({ default: m.FeaturesPage })));
+const DvdBounce = lazy(() => import("./DvdBounce").then((m) => ({ default: m.DvdBounce })));
+const F1Race = lazy(() => import("./F1Race").then((m) => ({ default: m.F1Race })));
+const YtBackground = lazy(() => import("./YtBackground").then((m) => ({ default: m.YtBackground })));
+const JapanCurtain = lazy(() => import("./JapanCurtain").then((m) => ({ default: m.JapanCurtain })));
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -913,7 +915,11 @@ export function Shell() {
               <div className="stage-forest1-overlay" />
             </div>
           )}
-          {showJapanLayer && <JapanCurtain />}
+          {showJapanLayer && (
+            <Suspense fallback={null}>
+              <JapanCurtain />
+            </Suspense>
+          )}
           {showMatrixLayer && (
             <div className="stage-matrix-wrap">
               <img className="stage-matrix" src="/matrix-bg.jpg" alt="" />
@@ -956,8 +962,16 @@ export function Shell() {
               <div className="stage-f1-overlay" />
             </div>
           )}
-          {showF1TrackLayer && <F1Race timer={timer} />}
-          {showYtLayer && <YtBackground url={ytBgUrl} />}
+          {showF1TrackLayer && (
+            <Suspense fallback={null}>
+              <F1Race timer={timer} />
+            </Suspense>
+          )}
+          {showYtLayer && (
+            <Suspense fallback={null}>
+              <YtBackground url={ytBgUrl} />
+            </Suspense>
+          )}
           {showSuccessionLayer && (
             <div className="stage-succession-wrap">
               <video
@@ -972,7 +986,11 @@ export function Shell() {
               <div className="stage-succession-overlay" />
             </div>
           )}
-          {showDvdLayer && <DvdBounce timer={timer} />}
+          {showDvdLayer && (
+            <Suspense fallback={null}>
+              <DvdBounce timer={timer} />
+            </Suspense>
+          )}
           <TimerStage
             timer={timer}
             selectedFocusMinutes={selectedFocusMinutes}
@@ -1029,9 +1047,21 @@ export function Shell() {
           onOpenFullTeamStats={() => setTeamStatsOpen(true)}
         />
       </div>
-      <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
-      <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} onGiveKudos={sendKudos} />
-      <FeaturesPage open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
+      {personalStatsOpen && (
+        <Suspense fallback={null}>
+          <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
+        </Suspense>
+      )}
+      {teamStatsOpen && (
+        <Suspense fallback={null}>
+          <TeamStatsPage open={teamStatsOpen} onClose={() => setTeamStatsOpen(false)} onGiveKudos={sendKudos} />
+        </Suspense>
+      )}
+      {featuresOpen && (
+        <Suspense fallback={null}>
+          <FeaturesPage open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
+        </Suspense>
+      )}
       {kudosToast && (
         <div className="kudos-toast" role="status">
           <span className="kudos-toast__icon">
