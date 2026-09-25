@@ -29,8 +29,26 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
   const identityKey = resolveIdentityKey(identityUserId);
   const showPresence = lobby.mode === "individual";
   const presenceByKey = new Map(presence.map((p) => [p.identityKey, p]));
-  const isLiveActive = (p: LobbyPresence | undefined): boolean =>
-    !!p?.active && Date.now() - p.at < PRESENCE_STALE_MS;
+
+  // resolve a member's live status. My own row reads the local timer (selfPresence) so a
+  // stale round-trip can't mislabel me; others come from the roster, with a stale heartbeat
+  // or a missing entry (disconnected) both counting as offline.
+  const liveStatus = (
+    memberKey: string,
+  ): { state: "focus" | "break" | "offline"; taskTitle: string | null; durationMinutes: number | null } => {
+    if (memberKey === identityKey) {
+      return {
+        state: selfPresence.state === "idle" ? "offline" : selfPresence.state,
+        taskTitle: selfPresence.taskTitle,
+        durationMinutes: selfPresence.durationMinutes,
+      };
+    }
+    const p = presenceByKey.get(memberKey);
+    if (!p || p.state === "idle" || Date.now() - p.at >= PRESENCE_STALE_MS) {
+      return { state: "offline", taskTitle: null, durationMinutes: null };
+    }
+    return { state: p.state, taskTitle: p.taskTitle, durationMinutes: p.durationMinutes };
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -61,10 +79,7 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
       <ul className="lobby-summary__list">
         {stats.map((s) => {
           const isMe = s.identityKey === identityKey;
-          // for my own row, trust the local timer (selfPresence) rather than the roster --
-          // otherwise a stale presence round-trip can show me offline mid-session
-          const live = isMe ? selfPresence : presenceByKey.get(s.identityKey);
-          const isActive = isMe ? selfPresence.active : isLiveActive(presenceByKey.get(s.identityKey));
+          const live = liveStatus(s.identityKey);
           return (
             <li key={s.identityKey} className="lobby-summary__member">
               <div className={isMe ? "lobby-summary__row lobby-summary__row--me" : "lobby-summary__row"}>
@@ -75,15 +90,14 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
                 </span>
               </div>
               {showPresence ? (
-                isActive ? (
-                  <p className="lobby-summary__status lobby-summary__status--active">
-                    <span className="lobby-summary__dot" aria-hidden="true" />
-                    {live?.taskTitle ? `${live.taskTitle} · ` : "focusing · "}
-                    {live?.durationMinutes ? formatDuration(live.durationMinutes) : "in session"}
-                  </p>
-                ) : (
-                  <p className="lobby-summary__status lobby-summary__status--offline">offline</p>
-                )
+                <p className={`lobby-summary__status lobby-summary__status--${live.state}`}>
+                  <span className={`lobby-summary__dot lobby-summary__dot--${live.state}`} aria-hidden="true" />
+                  {live.state === "focus"
+                    ? `${live.taskTitle ? `${live.taskTitle} · ` : "focusing · "}${live.durationMinutes ? formatDuration(live.durationMinutes) : "in session"}`
+                    : live.state === "break"
+                      ? "on break"
+                      : "offline"}
+                </p>
               ) : (
                 s.currentTask && <p className="lobby-summary__task">{s.currentTask}</p>
               )}

@@ -27,6 +27,7 @@ import {
   type SyncAction,
   type KudosNotification,
   type LobbyPresence,
+  type PresenceState,
 } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
@@ -410,13 +411,16 @@ export function Shell() {
 
   // "active vs offline" is exactly whether a focus session is currently running -- a break
   // or an idle timer both read as not-active, matching the summary's binary view
-  const presenceActive = timer.status === "running" && timer.phase === "focus";
+  // focus running -> "focus" (green), break running -> "break" (yellow), anything else ->
+  // "idle" (offline/red). task + duration only travel while focusing.
+  const presenceState: PresenceState =
+    timer.status === "running" ? (timer.phase === "focus" ? "focus" : "break") : "idle";
   const myPresence: Omit<LobbyPresence, "at"> = {
     identityKey,
     personaName: displayName,
-    active: presenceActive,
-    taskTitle: presenceActive ? (timer.activeTaskTitle ?? null) : null,
-    durationMinutes: presenceActive && timer.targetSeconds ? Math.round(timer.targetSeconds / 60) : null,
+    state: presenceState,
+    taskTitle: presenceState === "focus" ? (timer.activeTaskTitle ?? null) : null,
+    durationMinutes: presenceState === "focus" && timer.targetSeconds ? Math.round(timer.targetSeconds / 60) : null,
   };
   // always holds the latest, so the subscribe callback and heartbeat (which fire
   // asynchronously, after this value may have already changed) track current state
@@ -469,7 +473,7 @@ export function Shell() {
   useEffect(() => {
     pushPresenceRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presenceActive, myPresence.taskTitle, myPresence.durationMinutes, displayName]);
+  }, [presenceState, myPresence.taskTitle, myPresence.durationMinutes, displayName]);
 
   // live "badge unlocked" toast -- fires the moment a session pushes you past a threshold,
   // not just when you happen to open the full stats page. Kudos already got a live toast
