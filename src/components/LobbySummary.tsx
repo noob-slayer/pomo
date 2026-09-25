@@ -12,11 +12,15 @@ interface LobbySummaryProps {
   refreshToken: number;
   // live presence roster (individual-mode lobbies only); empty otherwise
   presence: LobbyPresence[];
+  // this device's own live status, computed straight from the local timer -- used for the
+  // "me" row instead of the roster, so we never show ourselves offline just because the
+  // presence channel round-trip is momentarily stale (we always know our own timer state)
+  selfPresence: Omit<LobbyPresence, "at">;
 }
 
 const POLL_MS = 8000;
 
-export function LobbySummary({ lobby, refreshToken, presence }: LobbySummaryProps) {
+export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: LobbySummaryProps) {
   const { identityUserId } = useAuth();
   const [stats, setStats] = useState<LobbyMemberStat[]>([]);
   // ticks so a member whose heartbeat has gone stale flips to "offline" on its own, without
@@ -56,11 +60,14 @@ export function LobbySummary({ lobby, refreshToken, presence }: LobbySummaryProp
       <p className="lobby-summary__title">{lobby.name} lobby</p>
       <ul className="lobby-summary__list">
         {stats.map((s) => {
-          const live = presenceByKey.get(s.identityKey);
-          const isActive = isLiveActive(live);
+          const isMe = s.identityKey === identityKey;
+          // for my own row, trust the local timer (selfPresence) rather than the roster --
+          // otherwise a stale presence round-trip can show me offline mid-session
+          const live = isMe ? selfPresence : presenceByKey.get(s.identityKey);
+          const isActive = isMe ? selfPresence.active : isLiveActive(presenceByKey.get(s.identityKey));
           return (
             <li key={s.identityKey} className="lobby-summary__member">
-              <div className={s.identityKey === identityKey ? "lobby-summary__row lobby-summary__row--me" : "lobby-summary__row"}>
+              <div className={isMe ? "lobby-summary__row lobby-summary__row--me" : "lobby-summary__row"}>
                 <span className="lobby-summary__name">{s.personaName}</span>
                 <span className="lobby-summary__value tabular">
                   {formatDuration(s.focusMinutes)}

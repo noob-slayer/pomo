@@ -935,7 +935,12 @@ export function Shell() {
           <div className="corner-summary">
             <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
             {currentLobby && (
-              <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} presence={lobbyPresence} />
+              <LobbySummary
+                lobby={currentLobby}
+                refreshToken={lobbyRefreshToken}
+                presence={lobbyPresence}
+                selfPresence={myPresence}
+              />
             )}
           </div>
           {sessionPrompt && (
