@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
 import { resolveIdentityKey } from "../lib/identity";
 import { connectLobbyChat, sendChatMessage, type LobbyChatMessage } from "../lib/lobbySync";
+import { playMessagePing } from "../lib/sound";
 
 // how many messages to keep in memory -- this chat is ephemeral (no DB, see lobbySync.ts),
 // so there's nothing to page through; an unbounded array would just grow for the life of
@@ -42,6 +43,9 @@ export function LobbyChat() {
     setUnread(0);
     const channel = connectLobbyChat(lobbyId, (message) => {
       setMessages((prev) => [...prev, message].slice(-MAX_MESSAGES));
+      // incoming messages are always from someone else (the channel is self:false), so a
+      // soft ping every time is right -- our own sends go through send() and never here
+      playMessagePing();
       if (!openRef.current) setUnread((n) => n + 1);
     });
     channelRef.current = channel;

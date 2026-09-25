@@ -137,6 +137,76 @@ export function connectKudosNotifications(
   return channel;
 }
 
+// live presence -- who's in the lobby right now and what they're doing. Powers the
+// individual-mode summary's "active vs offline" line. Uses Supabase Realtime Presence
+// (not a broadcast channel) specifically because presence auto-untracks a client the
+// moment its websocket drops -- closing the tab, going to sleep, losing wifi all turn a
+// member "offline" for everyone else with no heartbeat/timeout logic of our own. The
+// tradeoff is presence only ever reflects *currently connected* clients, which is exactly
+// what "active vs offline" wants: someone not connected simply isn't active.
+export interface LobbyPresence {
+  identityKey: string;
+  personaName: string;
+  active: boolean; // true only while a focus session is actually running
+  taskTitle: string | null; // the current task, when active and named
+  durationMinutes: number | null; // the running pomo's length, when active
+  at: number; // ms epoch of the last heartbeat -- Supabase's own presence-leave on
+  // disconnect takes ~40s+, far too slow to read as "offline", so the client heartbeats
+  // this and the consumer treats a stale `at` as offline (see PRESENCE_STALE_MS)
+}
+
+// an active member whose last heartbeat is older than this is treated as offline, even
+// though Supabase still lists their presence -- covers a closed laptop / dropped wifi /
+// crashed tab, where no clean "leave" is ever sent. Must comfortably exceed the heartbeat
+// interval so a merely-slow beat doesn't flap someone to offline mid-session.
+export const PRESENCE_STALE_MS = 20000;
+export const PRESENCE_HEARTBEAT_MS = 8000;
+
+function presenceChannelName(lobbyId: string): string {
+  return `pomo-lobby-presence-${lobbyId}`;
+}
+
+// keyed on identityKey so all of one person's tabs collapse to a single roster entry
+// (we prefer an active tab below), and so the roster maps cleanly onto the member list.
+// `onSubscribed` fires once the channel is actually joined -- track() before that is
+// silently dropped, which was the source of a flaky "active never shows / offline never
+// clears" race -- so the caller does its first track() from there and pushes every later
+// change with trackPresence.
+export function connectLobbyPresence(
+  lobbyId: string,
+  identityKey: string,
+  onSync: (roster: LobbyPresence[]) => void,
+  onSubscribed: () => void,
+): RealtimeChannel | null {
+  if (!supabase) return null;
+  const channel = supabase.channel(presenceChannelName(lobbyId), {
+    config: { presence: { key: identityKey } },
+  });
+  channel.on("presence", { event: "sync" }, () => {
+    const state = channel.presenceState<LobbyPresence>();
+    const roster: LobbyPresence[] = [];
+    for (const key of Object.keys(state)) {
+      const metas = state[key];
+      // take the most recently tracked meta as the current state. presenceState appends
+      // each track() in order, so the last entry is newest -- this is deliberately NOT
+      // "find the active one": a client's own updates can leave earlier metas behind (most
+      // visibly under React StrictMode's double-invoked effects in dev, and briefly on any
+      // reconnect), and preferring an older active meta would wrongly keep someone shown as
+      // focusing after they've stopped. Last-wins reflects their latest action.
+      if (metas && metas.length) roster.push(metas[metas.length - 1]);
+    }
+    onSync(roster);
+  });
+  channel.subscribe((status) => {
+    if (status === "SUBSCRIBED") onSubscribed();
+  });
+  return channel;
+}
+
+export function trackPresence(channel: RealtimeChannel, presence: LobbyPresence): void {
+  void channel.track(presence);
+}
+
 // live lobby chat -- deliberately its own ephemeral broadcast channel, same shape as the
 // kudos one above and connected for any lobby mode (not just sync). There is no database
 // write behind this: messages exist only for members currently connected, exactly like a
