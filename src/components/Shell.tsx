@@ -21,8 +21,12 @@ import {
   connectKudosNotifications,
   sendKudosOnChannel,
   broadcastKudos,
+  connectLobbyPresence,
+  trackPresence,
+  PRESENCE_HEARTBEAT_MS,
   type SyncAction,
   type KudosNotification,
+  type LobbyPresence,
 } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
@@ -83,6 +87,10 @@ export function Shell() {
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
   const kudosChannelRef = useRef<{ lobbyId: string; channel: RealtimeChannel } | null>(null);
+  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
+  const presenceSubscribedRef = useRef(false);
+  const myPresenceRef = useRef<Omit<LobbyPresence, "at"> | null>(null);
+  const [lobbyPresence, setLobbyPresence] = useState<LobbyPresence[]>([]);
 
   const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
@@ -399,6 +407,69 @@ export function Shell() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, identityKey]);
+
+  // "active vs offline" is exactly whether a focus session is currently running -- a break
+  // or an idle timer both read as not-active, matching the summary's binary view
+  const presenceActive = timer.status === "running" && timer.phase === "focus";
+  const myPresence: Omit<LobbyPresence, "at"> = {
+    identityKey,
+    personaName: displayName,
+    active: presenceActive,
+    taskTitle: presenceActive ? (timer.activeTaskTitle ?? null) : null,
+    durationMinutes: presenceActive && timer.targetSeconds ? Math.round(timer.targetSeconds / 60) : null,
+  };
+  // always holds the latest, so the subscribe callback and heartbeat (which fire
+  // asynchronously, after this value may have already changed) track current state
+  myPresenceRef.current = myPresence;
+
+  // stamps a fresh heartbeat timestamp at send time (not render time) so `at` is always
+  // "now" when it hits the wire, no matter how stale the last render was
+  const pushPresence = () => {
+    const channel = presenceChannelRef.current;
+    if (channel && presenceSubscribedRef.current && myPresenceRef.current) {
+      trackPresence(channel, { ...myPresenceRef.current, at: Date.now() });
+    }
+  };
+  const pushPresenceRef = useRef(pushPresence);
+  pushPresenceRef.current = pushPresence;
+
+  // live presence roster for the individual-mode summary -- who's connected and, if so,
+  // whether they're mid-pomo. Only individual mode: sync-mode lobbies already show one
+  // shared clock, so a per-member active/offline line would be redundant there.
+  useEffect(() => {
+    presenceChannelRef.current = null;
+    presenceSubscribedRef.current = false;
+    setLobbyPresence([]);
+    if (!currentLobby || currentLobby.mode !== "individual") return;
+    const channel = connectLobbyPresence(currentLobby.id, identityKey, setLobbyPresence, () => {
+      presenceSubscribedRef.current = true;
+      pushPresenceRef.current();
+    });
+    presenceChannelRef.current = channel;
+    // heartbeat: keep our `at` fresh so peers can tell "still here" from "silently gone"
+    const beat = window.setInterval(() => pushPresenceRef.current(), PRESENCE_HEARTBEAT_MS);
+    // a deliberate tab close/navigation -- untrack immediately so peers don't wait out the
+    // staleness window (Supabase's own leave is far slower). pagehide is the reliable hook
+    // (beforeunload is unreliable on mobile); a lost race just falls back to staleness.
+    const onPageHide = () => void channel?.untrack();
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.clearInterval(beat);
+      window.removeEventListener("pagehide", onPageHide);
+      channel?.unsubscribe();
+      presenceChannelRef.current = null;
+      presenceSubscribedRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentLobby?.id, currentLobby?.mode, identityKey]);
+
+  // push our own status onto the presence channel whenever the pomo-relevant state changes
+  // -- guarded on presenceSubscribedRef so a change that lands before the join completes is
+  // dropped here (it'll be tracked by the subscribe callback above) rather than mis-sent
+  useEffect(() => {
+    pushPresenceRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presenceActive, myPresence.taskTitle, myPresence.durationMinutes, displayName]);
 
   // live "badge unlocked" toast -- fires the moment a session pushes you past a threshold,
   // not just when you happen to open the full stats page. Kudos already got a live toast
@@ -844,7 +915,9 @@ export function Shell() {
           />
           <div className="corner-summary">
             <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
-            {currentLobby && <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} />}
+            {currentLobby && (
+              <LobbySummary lobby={currentLobby} refreshToken={lobbyRefreshToken} presence={lobbyPresence} />
+            )}
           </div>
           {sessionPrompt && (
             <SessionPrompt

@@ -1189,6 +1189,58 @@
   white-space: nowrap;
 }
 
+/* live active/offline line under a member's name (individual-mode lobbies) */
+.lobby-summary__status {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lobby-summary__status--active {
+  color: var(--stage-ink);
+  opacity: 0.95;
+}
+
+.lobby-summary__status--offline {
+  color: var(--stage-ink-muted);
+  opacity: 0.6;
+}
+
+.lobby-summary__dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #3fae5a;
+  box-shadow: 0 0 0 0 rgba(63, 174, 90, 0.6);
+  animation: lobby-pulse 2s ease-out infinite;
+}
+
+@keyframes lobby-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(63, 174, 90, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(63, 174, 90, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 174, 90, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-summary__dot {
+    animation: none;
+  }
+}
+
 .lobby-widget {
   position: relative;
 }
@@ -1966,13 +2018,17 @@
 
 .task__title {
   margin: 0;
-  font-size: 0.92rem;
+  /* kept in sync with the home-screen summary text scale (daily/lobby summary ~0.74rem)
+     -- was 0.92rem, which read noticeably larger than everything else in that corner */
+  font-size: 0.78rem;
   word-break: break-word;
 }
 
 .task__meta {
   margin: 3px 0 0;
-  font-size: 0.78rem;
+  /* the secondary line, one step down from .task__title -- matches the summary
+     texts' muted sub-line (lobby-summary__task 0.68rem, daily-summary__title 0.7rem) */
+  font-size: 0.7rem;
   color: var(--page-muted);
 }
 
@@ -1982,6 +2038,12 @@
   align-items: flex-end;
   gap: 4px;
   flex-shrink: 0;
+}
+
+/* scope the smaller size to the task row's own actions ("start pomo" / "remove") so they
+   sit in the same scale as the retuned title/meta -- .link-btn stays 0.9rem elsewhere */
+.task__actions .link-btn {
+  font-size: 0.72rem;
 }
 
 .task__sessions {

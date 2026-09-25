@@ -80,6 +80,27 @@ function schedule(ctx: AudioContext): void {
   }
 }
 
+// a short, soft two-note "blip" for an incoming lobby chat message -- deliberately nothing
+// like playChime's ~3s room-filling alert: a chat ping should be a quick, quiet nudge, not
+// something that talks over a focus session. Same shared-context/autoplay handling as the
+// chime (see playChime), so it stays silent rather than erroring if audio isn't unlocked.
+export function playMessagePing(): void {
+  const ctx = resolveCtx();
+  if (!ctx) return;
+  const run = () => {
+    try {
+      const now = ctx.currentTime;
+      // gentle rising pair, ~0.18s total, peaks well below the chime's 0.75 gain
+      playTone(ctx, ctx.destination, 660, now, 0.12, 0.28); // E5
+      playTone(ctx, ctx.destination, 880, now + 0.08, 0.14, 0.28); // A5
+    } catch {
+      // audio unavailable -- a missed ping should never surface as an error
+    }
+  };
+  if (ctx.state === "suspended") ctx.resume().then(run).catch(run);
+  else run();
+}
+
 // cuts a still-playing chime short, e.g. once the user dismisses the completion prompt
 export function stopChime(): void {
   for (const osc of activeOscillators) {
@@ -96,13 +117,20 @@ export function stopChime(): void {
   }
 }
 
-function playTone(ctx: AudioContext, destination: AudioNode, freq: number, start: number, duration: number): OscillatorNode {
+function playTone(
+  ctx: AudioContext,
+  destination: AudioNode,
+  freq: number,
+  start: number,
+  duration: number,
+  peak = 0.75,
+): OscillatorNode {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.type = "sine";
   osc.frequency.value = freq;
   gain.gain.setValueAtTime(0, start);
-  gain.gain.linearRampToValueAtTime(0.75, start + 0.02);
+  gain.gain.linearRampToValueAtTime(peak, start + 0.02);
   gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
   osc.connect(gain);
   gain.connect(destination);
