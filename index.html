@@ -4,36 +4,142 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="index, follow" />
     <title>pomo — a focus timer for work and personal time</title>
     <meta
       name="description"
-      content="pomo is a focus timer for work and personal time, with task tracking, history, group co-working sessions, and a gallery of playful backgrounds."
+      content="pomo is a free focus timer for work and personal time, with task tracking, history, live group co-working lobbies (body doubling), and a gallery of playful backgrounds."
     />
     <link rel="canonical" href="https://pomo.site/" />
+
+    <!-- PWA: installable app (manifest + public/sw.js, registered in src/lib/serviceWorker.ts) -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#8a234e" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="pomo" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="pomo" />
     <meta property="og:title" content="pomo — a focus timer for work and personal time" />
     <meta
       property="og:description"
-      content="A focus timer for work and personal time, with task tracking, history, group co-working sessions, and a gallery of playful backgrounds."
+      content="A free focus timer for work and personal time, with task tracking, history, live group co-working lobbies, and a gallery of playful backgrounds."
     />
     <meta property="og:image" content="https://pomo.site/og-image.png" />
+    <meta property="og:image:alt" content="pomo — a focus timer for work and personal time" />
     <meta property="og:url" content="https://pomo.site/" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="pomo — a focus timer for work and personal time" />
     <meta
       name="twitter:description"
-      content="A focus timer for work and personal time, with task tracking, history, group co-working sessions, and a gallery of playful backgrounds."
+      content="A free focus timer for work and personal time, with task tracking, history, live group co-working lobbies, and a gallery of playful backgrounds."
     />
     <meta name="twitter:image" content="https://pomo.site/og-image.png" />
+    <meta name="twitter:image:alt" content="pomo — a focus timer for work and personal time" />
+
+    <!-- structured data: helps search engines classify pomo and enables rich results -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "pomo",
+        "url": "https://pomo.site/",
+        "description": "A free focus timer for work and personal time, with task tracking, session history, live group co-working lobbies (body doubling), and a gallery of playful backgrounds. Installable, works offline.",
+        "applicationCategory": "ProductivityApplication",
+        "operatingSystem": "Web, iOS, Android",
+        "browserRequirements": "Requires JavaScript.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "featureList": [
+          "Pomodoro focus and break timer",
+          "Live group co-working lobbies (body doubling)",
+          "Task list and session history",
+          "Work and personal modes",
+          "Playful backgrounds and ambient sound",
+          "Installable PWA that works offline"
+        ]
+      }
+    </script>
 
     <!-- Noto Sans JP: used for the kanji glyphs in the "japan" make-it-fun theme -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@600&display=swap" rel="stylesheet" />
+
+    <!-- critical CSS for the pre-render splash below (removed from the DOM the moment React
+         mounts, so these rules never apply to the live app) -->
+    <style>
+      #root .prerender {
+        max-width: 660px;
+        margin: 0 auto;
+        padding: 12vh 24px 8vh;
+        text-align: center;
+        font-family: calibri, "segoe ui", ui-sans-serif, system-ui, sans-serif;
+        color: #211a17;
+      }
+      #root .prerender h1 {
+        margin: 0 0 6px;
+        font-size: 2.4rem;
+        letter-spacing: -0.01em;
+      }
+      #root .prerender .prerender__tag {
+        margin: 0 0 18px;
+        font-size: 1.05rem;
+        color: #6f645f;
+      }
+      #root .prerender p {
+        margin: 0 auto 18px;
+        max-width: 52ch;
+        line-height: 1.6;
+        color: #4a423e;
+      }
+      #root .prerender ul {
+        list-style: none;
+        padding: 0;
+        margin: 0 auto 22px;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 6px;
+        text-align: left;
+        color: #4a423e;
+      }
+      #root .prerender li::before {
+        content: "· ";
+        color: #8a234e;
+      }
+      #root .prerender .prerender__load {
+        font-size: 0.85rem;
+        color: #9a8f89;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Pre-rendered content: shown before the app's JavaScript loads (and to crawlers /
+           browsers with JavaScript disabled), then replaced by the live app on mount. -->
+      <main class="prerender">
+        <h1>pomo</h1>
+        <p class="prerender__tag">a focus timer for work &amp; personal time</p>
+        <p>
+          pomo is a free, Pomodoro-style focus timer. Run focus and break sessions, track your
+          tasks, and look back on your history — or start a live co-working lobby and focus
+          alongside friends, seeing who's on a session in real time (body doubling).
+        </p>
+        <ul>
+          <li>Pomodoro focus &amp; break timer</li>
+          <li>Live group co-working lobbies</li>
+          <li>Task list &amp; session history</li>
+          <li>Work and personal modes</li>
+          <li>Playful backgrounds &amp; ambient sound</li>
+          <li>Installable, works offline</li>
+        </ul>
+        <p class="prerender__load">Loading the timer…</p>
+        <noscript>
+          <p>pomo needs JavaScript enabled to run the interactive timer.</p>
+        </noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
