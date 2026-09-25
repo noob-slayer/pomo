@@ -90,13 +90,17 @@ export function playMessagePing(): void {
   const run = () => {
     try {
       const now = ctx.currentTime;
-      // gentle rising pair, ~0.18s total, peaks well below the chime's 0.75 gain
-      playTone(ctx, ctx.destination, 660, now, 0.12, 0.28); // E5
-      playTone(ctx, ctx.destination, 880, now + 0.08, 0.14, 0.28); // A5
+      // gentle rising pair, ~0.2s total -- still well under the chime's 0.75 gain, but
+      // bumped from 0.28 so it's actually noticeable as a nudge rather than easy to miss
+      playTone(ctx, ctx.destination, 660, now, 0.12, 0.42); // E5
+      playTone(ctx, ctx.destination, 880, now + 0.08, 0.16, 0.42); // A5
     } catch {
       // audio unavailable -- a missed ping should never surface as an error
     }
   };
+  // running is the common case now that Shell keeps the context warm while in a lobby, so
+  // this takes the immediate path; the resume() fallback only pays its latency if the
+  // context slipped to suspended between warm-up nudges
   if (ctx.state === "suspended") ctx.resume().then(run).catch(run);
   else run();
 }

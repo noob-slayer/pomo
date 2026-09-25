@@ -532,6 +532,25 @@ export function Shell() {
     };
   }, []);
 
+  // keep the AudioContext warm while in a lobby so an incoming chat ping plays *immediately*
+  // instead of paying resume() latency (the "laggy / sometimes silent" ping): the receiver
+  // of a message is usually idle -- reading, not clicking -- so the pointer/key unlock above
+  // isn't firing, and the context can slip to suspended between messages. Once any earlier
+  // gesture has unlocked it, these periodic + on-focus resumes succeed without a gesture and
+  // keep playMessagePing on its immediate path. Only while a lobby is active, so it costs
+  // nothing the rest of the time.
+  useEffect(() => {
+    if (!currentLobby) return;
+    unlockAudio();
+    const onVisible = () => document.visibilityState === "visible" && unlockAudio();
+    document.addEventListener("visibilitychange", onVisible);
+    const id = window.setInterval(unlockAudio, 5000);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(id);
+    };
+  }, [currentLobby?.id]);
+
   const { popOut: popOutPip, pipSupported } = useBackgroundTimerDisplay(timer);
 
   useKeyboardShortcuts({
