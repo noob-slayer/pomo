@@ -17,6 +17,9 @@ const JEWEL_SHEEN =
   "radial-gradient(120% 85% at 88% 0%, rgba(212,175,55,0.16), transparent 55%), radial-gradient(90% 70% at 0% 100%, rgba(0,0,0,0.28), transparent 60%)";
 const METAL_SHEEN =
   "radial-gradient(120% 85% at 88% 0%, rgba(255,255,255,0.32), transparent 55%), radial-gradient(90% 70% at 0% 100%, rgba(0,0,0,0.12), transparent 60%)";
+// McKinsey house colours -- deep navy ground with a glow of their signature #2251FF blue
+const MCK_SHEEN =
+  "radial-gradient(120% 90% at 85% 0%, rgba(34,81,255,0.34), transparent 55%), radial-gradient(90% 70% at 0% 100%, rgba(0,0,0,0.30), transparent 60%)";
 
 function light(ink: string): Pick<ThemeColors, "ink" | "inkMuted" | "line"> {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(ink.slice(i, i + 2), 16));
@@ -46,6 +49,7 @@ export const WORK_THEMES: Record<WorkTheme, ThemeColors> = {
   antiquegold: { label: "antique gold", bg: "#a57d2e", ...dark("#1d1505"), sheen: METAL_SHEEN },
   champagne: { label: "champagne", bg: "#dac6a3", ...dark("#2a2013"), sheen: METAL_SHEEN },
   rosegold: { label: "rose gold", bg: "#b8707a", ...dark("#2a1317"), sheen: METAL_SHEEN },
+  mck: { label: "mck", bg: "#051c2c", ...light("#eaf0ff"), sheen: MCK_SHEEN },
 };
 
 export const WORK_THEME_ORDER: WorkTheme[] = ["burgundy", "forest", "vistara", "slate", "goldenpink"];
@@ -64,6 +68,7 @@ export const EXTRA_THEME_ORDER: WorkTheme[] = [
   "antiquegold",
   "champagne",
   "rosegold",
+  "mck",
 ];
 
 // tolerant lookup: falls back to burgundy for any key that isn't a real WorkTheme

@@ -17,7 +17,8 @@ export type WorkTheme =
   | "onyx"
   | "antiquegold"
   | "champagne"
-  | "rosegold";
+  | "rosegold"
+  | "mck";
 export type PersonalTheme =
   | "photo"
   | "reveal"
