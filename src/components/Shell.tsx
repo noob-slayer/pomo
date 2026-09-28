@@ -1016,6 +1016,14 @@ export function Shell() {
     [theme],
   );
 
+  // the phone's status bar (installed app / Android Chrome) takes its colour from
+  // <meta name="theme-color">, which index.html pins to the default burgundy -- follow the
+  // chosen theme instead, so the strip above the app matches the stage under it
+  useEffect(() => {
+    const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+    if (meta && /^#[0-9a-f]{3,8}$/i.test(theme.bg)) meta.content = theme.bg;
+  }, [theme.bg]);
+
   // reveal theme: image starts blurred, sharpens as the focus session progresses
   const revealBlurPx = useMemo(() => {
     if (mode !== "personal" || personalTheme !== "reveal") return 0;

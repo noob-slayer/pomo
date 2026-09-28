@@ -120,3 +120,29 @@ export function IconWhatsApp() {
     </svg>
   );
 }
+
+// people -- the lobby button on phones
+export function IconPeople() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <circle cx="9" cy="8" r="3.2" />
+      <path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" />
+      <circle cx="17" cy="9" r="2.4" />
+      <path d="M16.5 13.6c2.6.2 4.5 2.1 4.5 5" />
+    </svg>
+  );
+}
+
+// checklist -- the tasks button on phones
+export function IconTasks() {
+  return (
+    <svg {...common} aria-hidden="true">
+      <path d="M4 6.5l1.5 1.5L8 5.5" />
+      <path d="M4 12.5l1.5 1.5L8 11.5" />
+      <path d="M4 18.5l1.5 1.5L8 17.5" />
+      <line x1="11" y1="7" x2="20" y2="7" />
+      <line x1="11" y1="13" x2="20" y2="13" />
+      <line x1="11" y1="19" x2="20" y2="19" />
+    </svg>
+  );
+}

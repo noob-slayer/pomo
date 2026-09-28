@@ -5,6 +5,7 @@ import { YtLinkForm } from "./YtLinkForm";
 import { PersonalThemeTabs } from "./PersonalThemeTabs";
 import { LobbyWidget } from "./LobbyWidget";
 import { AccountWidget } from "./AccountWidget";
+import { IconTasks } from "./icons";
 
 interface TopBarProps {
   tasksOpen: boolean;
@@ -45,9 +46,10 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats 
         ) : (
           <>
             <PersonalThemeTabs />
-            {personalTheme === "colour" ? (
-              <PersonalColorSwatches />
-            ) : personalTheme === "photo" ? (
+            {/* always rendered, but outside "colour" it's shown only on phones -- there the
+                "colour" tab is dropped and this circle doubles as it (see PersonalColorSwatches) */}
+            <PersonalColorSwatches phoneOnly={personalTheme !== "colour"} />
+            {personalTheme === "photo" ? (
               <BackgroundPicker />
             ) : personalTheme === "yt" ? (
               <YtLinkForm />
@@ -62,8 +64,12 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats 
           onClick={onToggleTasks}
           aria-pressed={tasksOpen}
           data-tasks-toggle
+          aria-label="tasks"
         >
-          tasks
+          <span className="topbar-btn__icon">
+            <IconTasks />
+          </span>
+          <span className="topbar-btn__label">tasks</span>
         </button>
       </div>
     </header>

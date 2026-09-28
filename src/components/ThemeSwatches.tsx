@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { EXTRA_THEME_ORDER, WORK_THEMES, WORK_THEME_ORDER } from "../lib/themes";
 import { useSettings } from "../context/SettingsContext";
 import { useClickAway } from "../hooks/useClickAway";
@@ -8,9 +8,10 @@ interface ThemeSwatchesProps {
   value: WorkTheme;
   onChange: (theme: WorkTheme) => void;
   label: string;
+  className?: string;
 }
 
-function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
+function Swatches({ value, onChange, label, className }: ThemeSwatchesProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -31,9 +32,13 @@ function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
     else if (r.right > window.innerWidth - gutter) setMenuShift(window.innerWidth - gutter - r.right);
   }, [moreOpen]);
   const activeExtra = EXTRA_THEME_ORDER.includes(value) ? WORK_THEMES[value] : null;
+  const current = WORK_THEMES[value];
+  // on phones the five dots are hidden and this one circle stands for the current colour,
+  // opening a menu that lists every colour (the base five included, see --base items)
+  const toggleVars = { "--swatch-current": current.bg, "--swatch-current-ink": current.ink } as CSSProperties;
 
   return (
-    <div className="swatches" role="radiogroup" aria-label={label}>
+    <div className={className ? `swatches ${className}` : "swatches"} role="radiogroup" aria-label={label}>
       {WORK_THEME_ORDER.map((key) => {
         const theme = WORK_THEMES[key];
         const active = key === value;
@@ -60,7 +65,7 @@ function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
         <button
           type="button"
           className={`swatch swatch-more__toggle${activeExtra ? " swatch--active" : ""}`}
-          style={activeExtra ? { background: activeExtra.bg, color: activeExtra.ink } : undefined}
+          style={activeExtra ? { ...toggleVars, background: activeExtra.bg, color: activeExtra.ink } : toggleVars}
           aria-haspopup="true"
           aria-expanded={moreOpen}
           aria-label={activeExtra ? `more colours (current: ${activeExtra.label})` : "more colours"}
@@ -80,16 +85,17 @@ function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
             aria-label={`${label} — more colours`}
             style={menuShift ? { transform: `translateX(${menuShift}px)` } : undefined}
           >
-            {EXTRA_THEME_ORDER.map((key) => {
+            {[...WORK_THEME_ORDER, ...EXTRA_THEME_ORDER].map((key) => {
               const theme = WORK_THEMES[key];
               const active = key === value;
+              const base = WORK_THEME_ORDER.includes(key);
               return (
                 <button
                   key={key}
                   type="button"
                   role="radio"
                   aria-checked={active}
-                  className={`swatch-more__item${active ? " swatch-more__item--active" : ""}`}
+                  className={`swatch-more__item${base ? " swatch-more__item--base" : ""}${active ? " swatch-more__item--active" : ""}`}
                   onClick={() => {
                     onChange(key);
                     setMoreOpen(false);
@@ -115,7 +121,19 @@ export function ThemeSwatches() {
   return <Swatches value={workTheme} onChange={setWorkTheme} label="work theme" />;
 }
 
-export function PersonalColorSwatches() {
-  const { personalColorTheme, setPersonalColorTheme } = useSettings();
-  return <Swatches value={personalColorTheme} onChange={setPersonalColorTheme} label="personal color theme" />;
+// phoneOnly: a fun theme is active -- desktop hides this (its "colour" tab is the way back),
+// phones keep it as the colour picker, so picking a colour here also switches to "colour"
+export function PersonalColorSwatches({ phoneOnly = false }: { phoneOnly?: boolean }) {
+  const { personalColorTheme, setPersonalColorTheme, setPersonalTheme } = useSettings();
+  return (
+    <Swatches
+      value={personalColorTheme}
+      onChange={(theme) => {
+        setPersonalColorTheme(theme);
+        setPersonalTheme("colour");
+      }}
+      label="personal color theme"
+      className={phoneOnly ? "swatches--phone-only" : undefined}
+    />
+  );
 }

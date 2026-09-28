@@ -47,7 +47,7 @@ export function PersonalThemeTabs() {
     <div className="theme-tabs" role="group" aria-label="personal theme">
       <button
         type="button"
-        className={personalTheme === "colour" ? "theme-tabs__item theme-tabs__item--active" : "theme-tabs__item"}
+        className={`theme-tabs__item theme-tabs__item--colour${personalTheme === "colour" ? " theme-tabs__item--active" : ""}`}
         onClick={() => setPersonalTheme("colour")}
       >
         colour
@@ -59,7 +59,8 @@ export function PersonalThemeTabs() {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
         >
-          make it fun
+          {/* "make it " drops on phones so the label fits the one-row header as "fun ▾" */}
+          <span className="fun-menu__long">make it </span>fun
           {activeFunOption && <span className="fun-menu__current">({activeFunOption.label})</span>} ▾
         </button>
         {open && (
