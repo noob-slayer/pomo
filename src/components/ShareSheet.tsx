@@ -12,6 +12,7 @@ import {
   type CardKind,
 } from "../lib/shareCards";
 import type { WorkTheme } from "../types";
+import { IconWhatsApp } from "./icons";
 
 interface ShareSheetProps {
   initialKind: CardKind;
@@ -45,8 +46,10 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
 
   const now = useMemo(() => new Date(), []);
   const name = personaName || "a pomo friend";
-  // the full link goes in the WhatsApp text; the card prints a shorter, protocol-less form
-  const fullLink = currentLobby ? buildLobbyUrl(currentLobby.code) : "https://pomo.site";
+  // every card links to the plain site -- the lobby code only rides along on the lobby
+  // invite card, the one card whose whole point is "join this lobby". The full link goes in
+  // the WhatsApp text; the card prints a shorter, protocol-less form.
+  const fullLink = kind === "lobby" && currentLobby ? buildLobbyUrl(currentLobby.code) : "https://pomo.site";
   const printedLink = fullLink.replace(/^https?:\/\//, "").replace(/^www\./, "");
 
   const badges = useMemo(() => computeBadges(history, mode).filter((b) => b.achieved), [history, mode]);
@@ -244,10 +247,10 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
 
         <div className="share-sheet__actions">
           <button type="button" className="share-sheet__primary" onClick={() => void shareImage()} disabled={!file}>
-            share to status
+            <IconWhatsApp /> share to status
           </button>
           <button type="button" className="share-sheet__secondary" onClick={sendWhatsApp}>
-            send on whatsapp
+            <IconWhatsApp /> send on whatsapp
           </button>
         </div>
         <div className="share-sheet__minor">

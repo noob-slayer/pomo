@@ -4012,3 +4012,40 @@ button.lobby-chat__text {
   border: none;
   cursor: pointer;
 }
+
+/* homepage share button -- a WhatsApp-green circle stacked just above the youtube toggle
+   (42px at bottom:20). Sits one z-level under .yt-widget so the open youtube panel covers
+   it rather than colliding. */
+.share-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 74px;
+  z-index: 39;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #fff;
+  background: #25d366;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(33, 26, 23, 0.25);
+  cursor: pointer;
+}
+
+.share-fab:hover {
+  background: #1ebe5b;
+}
+
+.share-sheet__primary svg,
+.share-sheet__secondary svg {
+  font-size: 1.05rem;
+  margin-right: 4px;
+  vertical-align: -3px;
+}
+
+.share-sheet__secondary svg {
+  color: #1f8f4e;
+}

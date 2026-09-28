@@ -55,7 +55,7 @@ import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
 import { Onboarding } from "./Onboarding";
-import { IconFlame, IconTrophy } from "./icons";
+import { IconFlame, IconTrophy, IconWhatsApp } from "./icons";
 
 export function Shell() {
   const {
@@ -1135,6 +1135,15 @@ export function Shell() {
           />
         </Suspense>
       )}
+      <button
+        type="button"
+        className="share-fab"
+        onClick={() => setShare({ kind: "today" })}
+        aria-label="share on whatsapp"
+        title="share on whatsapp"
+      >
+        <IconWhatsApp />
+      </button>
       <YoutubeWidget />
       <LobbyChat />
       <Credit onOpenFeatures={() => setFeaturesOpen(true)} />
