@@ -24,6 +24,7 @@ interface PersonalStatsPageProps {
   mode: Mode;
   open: boolean;
   onClose: () => void;
+  onShareBadge?: (badgeId: string) => void;
 }
 
 const HEATMAP_DAYS = 18 * 7;
@@ -51,7 +52,7 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, x: number, y: num
   if (line) ctx.fillText(line, x, cursorY);
 }
 
-export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProps) {
+export function PersonalStatsPage({ mode, open, onClose, onShareBadge }: PersonalStatsPageProps) {
   const { history, tasks } = useTasks();
   const {
     weeklyGoalWorkMinutes,
@@ -553,6 +554,11 @@ export function PersonalStatsPage({ mode, open, onClose }: PersonalStatsPageProp
                           {Math.min(badge.progress.current, badge.progress.target)}/{badge.progress.target}
                         </span>
                       </div>
+                    )}
+                    {badge.achieved && onShareBadge && (
+                      <button type="button" className="badge-tile__share" onClick={() => onShareBadge(badge.id)}>
+                        share ↗
+                      </button>
                     )}
                   </div>
                 ))}

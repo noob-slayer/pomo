@@ -3813,3 +3813,200 @@ button.lobby-chat__text {
   border-color: var(--page-ink);
   font-weight: 600;
 }
+
+/* ---------- share sheet (whatsapp status / text share cards) ---------- */
+.share-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(20, 14, 12, 0.55);
+}
+
+.share-sheet__card {
+  width: min(440px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 16px 18px 18px;
+  background: var(--page-surface);
+  color: var(--page-ink);
+  border-radius: var(--radius-md);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.5);
+}
+
+.share-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.share-sheet__title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.share-sheet__close {
+  padding: 0 4px;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: var(--page-muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.share-sheet__tabs,
+.share-sheet__badges {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 10px;
+}
+
+.share-sheet__tab,
+.share-sheet__badge {
+  flex-shrink: 0;
+  padding: 5px 11px;
+  font-size: 0.78rem;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.share-sheet__tab--active,
+.share-sheet__badge--active {
+  color: var(--page-bg);
+  background: var(--page-ink);
+  border-color: var(--page-ink);
+}
+
+.share-sheet__preview {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 12px;
+}
+
+.share-sheet__preview img {
+  height: min(46vh, 420px);
+  aspect-ratio: 9 / 16;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px -12px rgba(0, 0, 0, 0.45);
+}
+
+.share-sheet__themes {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.share-sheet__swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: 0 0 0 1px var(--page-border);
+  cursor: pointer;
+}
+
+.share-sheet__swatch--active {
+  border-color: var(--page-surface);
+  box-shadow: 0 0 0 2px var(--page-ink);
+}
+
+.share-sheet__message {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-transform: none;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+
+.share-sheet__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.share-sheet__primary,
+.share-sheet__secondary {
+  flex: 1;
+  padding: 11px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.share-sheet__primary {
+  color: #fff;
+  background: #1f8f4e; /* whatsapp-ish green, so the main action reads as "to whatsapp" */
+  border: none;
+}
+
+.share-sheet__primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.share-sheet__secondary {
+  color: var(--page-ink);
+  background: none;
+  border: 1px solid var(--page-ink);
+}
+
+.share-sheet__minor {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 10px;
+}
+
+.share-sheet__minor .link-btn {
+  font-size: 0.78rem;
+}
+
+.share-sheet__note {
+  margin: 10px 0 0;
+  font-size: 0.78rem;
+  text-align: center;
+  color: var(--page-muted);
+}
+
+/* entry points */
+.kudos-toast__action {
+  flex-shrink: 0;
+  align-self: center;
+  margin-left: 4px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.badge-tile__share {
+  margin-top: 6px;
+  padding: 0;
+  font-size: 0.72rem;
+  color: var(--page-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}

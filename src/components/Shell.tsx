@@ -25,12 +25,14 @@ import {
   connectLobbyPresence,
   trackPresence,
   PRESENCE_HEARTBEAT_MS,
+  PRESENCE_STALE_MS,
   type SyncAction,
   type KudosNotification,
   type LobbyPresence,
   type PresenceState,
 } from "../lib/lobbySync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
+import type { CardKind } from "../lib/shareCards";
 import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
 import { computeBadges, readSeenBadges, writeSeenBadges, type Badge } from "../lib/statsExtras";
 import { TopBar } from "./TopBar";
@@ -48,6 +50,7 @@ const DvdBounce = lazy(() => import("./DvdBounce").then((m) => ({ default: m.Dvd
 const F1Race = lazy(() => import("./F1Race").then((m) => ({ default: m.F1Race })));
 const YtBackground = lazy(() => import("./YtBackground").then((m) => ({ default: m.YtBackground })));
 const JapanCurtain = lazy(() => import("./JapanCurtain").then((m) => ({ default: m.JapanCurtain })));
+const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -83,6 +86,8 @@ export function Shell() {
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
   const [kudosToast, setKudosToast] = useState<KudosNotification | null>(null);
   const [badgeToast, setBadgeToast] = useState<Badge | null>(null);
+  // which share card is open (null = share sheet closed)
+  const [share, setShare] = useState<{ kind: CardKind; badgeId?: string } | null>(null);
   const badgeToastTimeoutRef = useRef<number | null>(null);
   const kudosToastTimeoutRef = useRef<number | null>(null);
   const [topbarRevealed, setTopbarRevealed] = useState(false);
@@ -472,6 +477,17 @@ export function Shell() {
   // always holds the latest, so the subscribe callback and heartbeat (which fire
   // asynchronously, after this value may have already changed) track current state
   myPresenceRef.current = myPresence;
+
+  // who's focusing in the active lobby right now, for the lobby invite share card -- the
+  // live roster (fresh heartbeats only) plus me, deduped by identity
+  const focusingNames = (() => {
+    const names = new Map<string, string>();
+    for (const p of lobbyPresence) {
+      if (p.state === "focus" && Date.now() - p.at < PRESENCE_STALE_MS) names.set(p.identityKey, p.personaName);
+    }
+    if (presenceState === "focus") names.set(identityKey, displayName);
+    return [...names.values()];
+  })();
 
   // stamps a fresh heartbeat timestamp at send time (not render time) so `at` is always
   // "now" when it hits the wire, no matter how stale the last render was
@@ -881,6 +897,7 @@ export function Shell() {
           onToggleTasks={() => setTasksOpen((v) => !v)}
           onOpenStats={() => setPersonalStatsOpen(true)}
           onOpenTeamStats={() => setTeamStatsOpen(true)}
+          onShareLobby={() => setShare({ kind: "lobby" })}
         />
       </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
@@ -1000,7 +1017,12 @@ export function Shell() {
             onOpenBreakPicker={() => setSessionPrompt("break-picker")}
           />
           <div className="corner-summary">
-            <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
+            <DailySummary
+              mode={mode}
+              onOpenStats={() => setPersonalStatsOpen(true)}
+              timer={timer}
+              onShare={() => setShare({ kind: "today" })}
+            />
             {currentLobby && (
               <LobbySummary
                 lobby={currentLobby}
@@ -1049,7 +1071,12 @@ export function Shell() {
       </div>
       {personalStatsOpen && (
         <Suspense fallback={null}>
-          <PersonalStatsPage mode={mode} open={personalStatsOpen} onClose={() => setPersonalStatsOpen(false)} />
+          <PersonalStatsPage
+            mode={mode}
+            open={personalStatsOpen}
+            onClose={() => setPersonalStatsOpen(false)}
+            onShareBadge={(badgeId) => setShare({ kind: "badge", badgeId })}
+          />
         </Suspense>
       )}
       {teamStatsOpen && (
@@ -1086,7 +1113,27 @@ export function Shell() {
           <p className="kudos-toast__body">
             <span className="kudos-toast__who">{badgeToast.label}</span> unlocked — {badgeToast.description}
           </p>
+          <button
+            type="button"
+            className="kudos-toast__action"
+            onClick={() => {
+              setShare({ kind: "badge", badgeId: badgeToast.id });
+              setBadgeToast(null);
+            }}
+          >
+            share ↗
+          </button>
         </div>
+      )}
+      {share && (
+        <Suspense fallback={null}>
+          <ShareSheet
+            initialKind={share.kind}
+            badgeId={share.badgeId}
+            focusingNames={focusingNames}
+            onClose={() => setShare(null)}
+          />
+        </Suspense>
       )}
       <YoutubeWidget />
       <LobbyChat />
