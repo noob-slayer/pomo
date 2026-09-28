@@ -4417,13 +4417,20 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
     align-items: center;
   }
 
+  /* the wordmark leads; work/personal sits a clear step below it */
   .wordmark {
-    font-size: 0.9rem;
+    font-size: 1rem;
   }
 
   .mode-switch {
     gap: 3px;
-    font-size: 0.68rem;
+    font-size: 0.8rem;
+  }
+
+  /* index.css gives every button 1rem, which outranked the size set on .mode-switch --
+     the items rendered at 16px, bigger than the wordmark */
+  .mode-switch__item {
+    font-size: inherit;
   }
 
   .topbar-right {
