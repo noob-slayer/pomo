@@ -4059,14 +4059,17 @@ button.lobby-chat__text {
 
 .swatch-more {
   position: relative;
+  /* flex so the wrapper is exactly the toggle's height -- as a plain block it picked up a
+     line box and sat the circle 1px lower than its neighbours */
+  display: flex;
+  align-items: center;
 }
 
 .swatch-more__toggle {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  line-height: 1;
+  line-height: 0;
   color: var(--page-muted);
   background: var(--page-surface);
   cursor: pointer;
@@ -4138,5 +4141,15 @@ button.lobby-chat__text {
 
 /* keep the paste shortcut as typed (⌘V / Ctrl+V) despite the app-wide lowercase style */
 .share-sheet__hint strong {
+  text-transform: none;
+}
+
+/* full sentences and brand names in the share sheet read wrong when forced to lowercase
+   ("whatsapp", "⌘v") -- keep them as written */
+.share-sheet__actions,
+.share-sheet__hint,
+.share-sheet__note,
+.share-sheet__minor,
+.share-sheet__open-wa {
   text-transform: none;
 }
