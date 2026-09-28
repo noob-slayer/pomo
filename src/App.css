@@ -4358,3 +4358,30 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
 .lobby-chat__sticker--mini:hover {
   transform: scale(1.03);
 }
+
+/* keep the emoji/sticker panel short so the conversation stays readable while it's open */
+.lobby-chat__picker-wrap .lobby-chat__picker {
+  max-height: 118px;
+  overflow-y: auto;
+}
+
+.lobby-chat__stickers {
+  max-height: 160px;
+}
+
+/* phones: a taller chat window so more of the conversation is visible */
+@media (max-width: 600px) {
+  .lobby-chat__panel {
+    height: min(62vh, 480px);
+  }
+}
+
+/* message bubbles hug their text -- without this an open reaction bar (wider than a short
+   message) stretched the bubble to its own width */
+.lobby-chat__msg {
+  align-items: flex-start;
+}
+
+.lobby-chat__msg--mine {
+  align-items: flex-end;
+}

@@ -1,10 +1,14 @@
 import { useEffect, type RefObject } from "react";
 
-export function useClickAway(ref: RefObject<HTMLElement | null>, onAway: () => void, active: boolean) {
+export function useClickAway(
+  ref: RefObject<HTMLElement | null>,
+  onAway: (event?: MouseEvent) => void,
+  active: boolean,
+) {
   useEffect(() => {
     if (!active) return;
     function handlePointerDown(event: MouseEvent) {
-      if (ref.current && !ref.current.contains(event.target as Node)) onAway();
+      if (ref.current && !ref.current.contains(event.target as Node)) onAway(event);
     }
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);

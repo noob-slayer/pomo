@@ -24,9 +24,76 @@ function resolveCtx(): AudioContext | null {
   }
 }
 
+// Safari also has an "interrupted" state (another app took audio, phone call, lock screen)
+// that isn't in the TS union -- anything other than running needs a resume
+function needsResume(ctx: AudioContext): boolean {
+  const state = ctx.state as string;
+  return state !== "running" && state !== "closed";
+}
+
 export function unlockAudio(): void {
   const ctx = resolveCtx();
-  if (ctx && ctx.state === "suspended") void ctx.resume();
+  if (ctx && needsResume(ctx)) void ctx.resume().catch(() => {});
+}
+
+// the completion chime, pre-scheduled on the audio clock the moment a session starts (or
+// resumes). A background tab's setInterval gets throttled -- Chrome batches hidden-tab
+// timers to once a minute after ~5 min -- so a chime played from the completion callback
+// could land up to a minute late, long after the user had stopped listening for it. The
+// AudioContext clock isn't throttled: tones scheduled on it fire on time even in a hidden
+// tab. The completion callback's playChime() then skips itself if this one already rang.
+let armedOscillators: OscillatorNode[] = [];
+let armedStartAt: number | null = null; // ctx.currentTime the armed chime begins
+let rangStartAt: number | null = null; // start of an armed chime that has already begun ringing
+
+export function armChime(secondsFromNow: number): void {
+  disarmChime();
+  if (secondsFromNow <= 0) return;
+  const ctx = resolveCtx();
+  if (!ctx) return;
+  const arm = () => {
+    try {
+      const start = ctx.currentTime + secondsFromNow;
+      armedOscillators = scheduleRun(ctx, start);
+      armedStartAt = start;
+    } catch {
+      // audio unavailable -- the completion callback's playChime is still the fallback
+    }
+  };
+  if (needsResume(ctx)) ctx.resume().then(arm).catch(() => {});
+  else arm();
+}
+
+// cancel a chime that hasn't started yet (pause/stop/reset); one already ringing is handed
+// over to stopChime's list so it finishes, or gets cut by dismissing the prompt as usual
+export function disarmChime(): void {
+  const ctx = sharedCtx;
+  if (armedStartAt !== null && ctx && ctx.currentTime >= armedStartAt - 0.05) {
+    activeOscillators.push(...armedOscillators);
+    rangStartAt = armedStartAt;
+  } else {
+    for (const osc of armedOscillators) {
+      try {
+        osc.stop();
+      } catch {
+        // never started -- nothing to stop
+      }
+    }
+  }
+  armedOscillators = [];
+  armedStartAt = null;
+}
+
+// did the armed chime start within the last few seconds (or is it about to)? The
+// completion callback asks this so the chime doesn't ring twice
+function armedChimeCoversNow(ctx: AudioContext): boolean {
+  const covers = (startAt: number | null) => {
+    if (startAt === null) return false;
+    const delta = ctx.currentTime - startAt;
+    return delta > -2 && delta < TOTAL_DURATION + 1;
+  };
+  // still armed, or already handed off to ring out (disarmed at the moment it started)
+  return (armedOscillators.length > 0 && covers(armedStartAt)) || covers(rangStartAt);
 }
 
 const NOTES = [880, 1108, 1318]; // A5, C#6, E6
@@ -39,12 +106,13 @@ const TOTAL_DURATION = 3; // seconds — a brief alert, not a single short beep
 export function playChime(): void {
   const ctx = resolveCtx();
   if (!ctx) return;
+  if (armedChimeCoversNow(ctx)) return; // the pre-scheduled chime is already ringing
   // scheduling tones against ctx.currentTime while the context is still "suspended"
   // schedules them against a clock that isn't actually advancing -- by the time resume()
   // completes, those start times can already be in the past and get silently dropped.
   // waiting for resume() to actually finish before reading currentTime and scheduling
   // fixes that; on an already-running context this branch is skipped entirely.
-  if (ctx.state === "suspended") {
+  if (needsResume(ctx)) {
     ctx
       .resume()
       .then(() => schedule(ctx))
@@ -57,20 +125,7 @@ export function playChime(): void {
 function schedule(ctx: AudioContext): void {
   try {
     stopChime();
-    // notes overlap (ascending run, pass repeated) and each is driven fairly loud, so
-    // route everything through a compressor to avoid clipping/distortion when several
-    // overlapping tones' peaks sum above 0dB, instead of just turning gain down overall
-    const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -12;
-    compressor.ratio.value = 12;
-    compressor.connect(ctx.destination);
-    const now = ctx.currentTime;
-    for (let t = 0; t < TOTAL_DURATION; t += REPEAT_EVERY) {
-      NOTES.forEach((freq, i) => {
-        const osc = playTone(ctx, compressor, freq, now + t + i * 0.11, 0.3);
-        activeOscillators.push(osc);
-      });
-    }
+    activeOscillators.push(...scheduleRun(ctx, ctx.currentTime));
     stopTimer = setTimeout(() => {
       activeOscillators = [];
       stopTimer = null;
@@ -78,6 +133,23 @@ function schedule(ctx: AudioContext): void {
   } catch {
     // audio unavailable (blocked, unsupported, etc.) — never let this break completion flow
   }
+}
+
+// the full ~3s chime starting at `start` (ctx time). Notes overlap (ascending run, pass
+// repeated) and each is driven fairly loud, so everything routes through a compressor to
+// avoid clipping when overlapping peaks sum above 0dB, instead of turning gain down overall
+function scheduleRun(ctx: AudioContext, start: number): OscillatorNode[] {
+  const compressor = ctx.createDynamicsCompressor();
+  compressor.threshold.value = -12;
+  compressor.ratio.value = 12;
+  compressor.connect(ctx.destination);
+  const oscs: OscillatorNode[] = [];
+  for (let t = 0; t < TOTAL_DURATION; t += REPEAT_EVERY) {
+    NOTES.forEach((freq, i) => {
+      oscs.push(playTone(ctx, compressor, freq, start + t + i * 0.11, 0.3));
+    });
+  }
+  return oscs;
 }
 
 // a short, soft two-note "blip" for an incoming lobby chat message -- deliberately nothing
@@ -101,7 +173,7 @@ export function playMessagePing(): void {
   // running is the common case now that Shell keeps the context warm while in a lobby, so
   // this takes the immediate path; the resume() fallback only pays its latency if the
   // context slipped to suspended between warm-up nudges
-  if (ctx.state === "suspended") ctx.resume().then(run).catch(run);
+  if (needsResume(ctx)) ctx.resume().then(run).catch(run);
   else run();
 }
 

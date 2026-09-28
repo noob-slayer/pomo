@@ -13,11 +13,9 @@ interface DailySummaryProps {
   mode: Mode;
   onOpenStats: () => void;
   timer: TimerApi;
-  // opens the share sheet on the "today" card
-  onShare?: () => void;
 }
 
-export function DailySummary({ mode, onOpenStats, timer, onShare }: DailySummaryProps) {
+export function DailySummary({ mode, onOpenStats, timer }: DailySummaryProps) {
   const { history, tasks } = useTasks();
   const {
     dailyGoalWorkMinutes,
@@ -114,12 +112,6 @@ export function DailySummary({ mode, onOpenStats, timer, onShare }: DailySummary
       ) : (
         <button type="button" className="daily-summary__set-goal" onClick={onOpenStats}>
           set daily goal
-        </button>
-      )}
-
-      {onShare && (
-        <button type="button" className="daily-summary__set-goal daily-summary__share" onClick={onShare}>
-          share my day ↗
         </button>
       )}
 
