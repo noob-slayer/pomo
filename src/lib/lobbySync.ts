@@ -235,6 +235,9 @@ export interface LobbyChatMessage {
   at: number; // ms epoch
   // set for a sticker (see lib/stickers.ts); `text` still carries its caption as a fallback
   sticker?: string;
+  // a GIPHY sticker (see lib/giphy.ts) -- rendered only if `url` is a GIPHY media URL;
+  // `text` carries its title as the fallback for older clients
+  giphy?: { url: string; width: number; height: number };
 }
 
 function chatChannelName(lobbyId: string): string {
