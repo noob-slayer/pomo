@@ -269,16 +269,32 @@ function chatChannelName(lobbyId: string): string {
 export function connectLobbyChat(
   lobbyId: string,
   onMessage: (message: LobbyChatMessage) => void,
+  onReaction?: (reaction: LobbyChatReaction) => void,
 ): RealtimeChannel | null {
   if (!supabase) return null;
   const channel = supabase.channel(chatChannelName(lobbyId), { config: { broadcast: { self: false } } });
   channel.on("broadcast", { event: "chat" }, ({ payload }) => onMessage(payload as LobbyChatMessage));
+  if (onReaction) channel.on("broadcast", { event: "react" }, ({ payload }) => onReaction(payload as LobbyChatReaction));
   channel.subscribe();
   return channel;
 }
 
 export function sendChatMessage(channel: RealtimeChannel, message: LobbyChatMessage): void {
   void channel.send({ type: "broadcast", event: "chat", payload: message });
+}
+
+// an emoji reaction toggled on a chat message -- same ephemeral channel as the messages, so
+// like them it only reaches whoever's connected right now. `on` false = the reaction was
+// removed (tapping your own reaction again).
+export interface LobbyChatReaction {
+  messageId: string;
+  emoji: string;
+  identityKey: string;
+  on: boolean;
+}
+
+export function sendChatReaction(channel: RealtimeChannel, reaction: LobbyChatReaction): void {
+  void channel.send({ type: "broadcast", event: "react", payload: reaction });
 }
 
 // sends on a channel the caller already has open (e.g. Shell's own kudos-notification
