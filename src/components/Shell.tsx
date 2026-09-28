@@ -62,6 +62,7 @@ const F1Race = lazy(() => import("./F1Race").then((m) => ({ default: m.F1Race })
 const YtBackground = lazy(() => import("./YtBackground").then((m) => ({ default: m.YtBackground })));
 const JapanCurtain = lazy(() => import("./JapanCurtain").then((m) => ({ default: m.JapanCurtain })));
 const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
+const ChangelogPage = lazy(() => import("./ChangelogPage").then((m) => ({ default: m.ChangelogPage })));
 import { YoutubeWidget } from "./YoutubeWidget";
 import { Credit } from "./Credit";
 import { SessionPrompt } from "./SessionPrompt";
@@ -94,6 +95,7 @@ export function Shell() {
   const [personalStatsOpen, setPersonalStatsOpen] = useState(false);
   const [teamStatsOpen, setTeamStatsOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   const [selectedFocusMinutes, setSelectedFocusMinutes] = useState(DEFAULT_FOCUS_MIN);
   const [sessionPrompt, setSessionPrompt] = useState<"choice" | "break-picker" | null>(null);
   const [lobbyRefreshToken, setLobbyRefreshToken] = useState(0);
@@ -1321,6 +1323,11 @@ export function Shell() {
           <FeaturesPage open={featuresOpen} onClose={() => setFeaturesOpen(false)} />
         </Suspense>
       )}
+      {changelogOpen && (
+        <Suspense fallback={null}>
+          <ChangelogPage open={changelogOpen} onClose={() => setChangelogOpen(false)} />
+        </Suspense>
+      )}
       {kudosToast && (
         <div className="kudos-toast" role="status">
           <span className="kudos-toast__icon">
@@ -1378,7 +1385,7 @@ export function Shell() {
       </button>
       <YoutubeWidget />
       <LobbyChat />
-      <Credit onOpenFeatures={() => setFeaturesOpen(true)} />
+      <Credit onOpenFeatures={() => setFeaturesOpen(true)} onOpenChangelog={() => setChangelogOpen(true)} />
       <Onboarding />
     </div>
   );
