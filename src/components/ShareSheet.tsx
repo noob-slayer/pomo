@@ -44,7 +44,7 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [needsOpen, setNeedsOpen] = useState(false);
-  // phones get the system share sheet; laptops get copy-and-paste into WhatsApp
+  // only affects wording: Status can be posted from a phone, not from WhatsApp on a laptop
   const isPhone = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pasteKey = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘V" : "Ctrl+V";
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -161,26 +161,27 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   // desktops), save the image instead so it can be posted from the phone.
   // api.whatsapp.com/send rather than wa.me: wa.me's redirect mangles a leading emoji into
   // a U+FFFD replacement character (confirmed), and every card message starts with one
+  const canShareFiles =
+    !!file && !!(navigator as Navigator & { canShare?: (d: ShareData) => boolean }).canShare?.({ files: [file] });
   const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
-  // Phone: the system share sheet hands the card straight to WhatsApp (a chat or My status).
-  // Laptop: websites can't pass an image to WhatsApp, so copy the card to the clipboard and
-  // open WhatsApp with the message -- the user picks a chat and pastes. The copy has to come
-  // first: clipboard writes only succeed while this tab still has focus, and opening
-  // WhatsApp moves focus away. If the browser then blocks that window (Safari can, after an
-  // await), fall back to an explicit "open whatsapp" button, which is a fresh click.
+  // The system share sheet hands the card itself to WhatsApp: on phones, and on most laptop
+  // browsers too (Chrome/Edge on Windows, Safari and recent Chrome on Mac) when the WhatsApp
+  // desktop app is installed -- fully automatic, no download or paste. Only where the
+  // browser can't share files at all (e.g. Firefox) do we fall back to copying the card and
+  // opening WhatsApp for a paste. The copy has to come before opening WhatsApp: clipboard
+  // writes only succeed while this tab still has focus.
   const shareImage = async () => {
     if (!file) return;
     setNeedsOpen(false);
-    const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    if (isPhone && nav.canShare?.({ files: [file] })) {
+    if (canShareFiles) {
       try {
         await navigator.share({ files: [file], text: message });
-        setNote("shared ✓");
+        setNote("Shared.");
       } catch (err) {
         if ((err as DOMException).name !== "AbortError") {
           download();
-          setNote("couldn't open the share sheet — image saved instead");
+          setNote("Couldn't open the share options, so the card was saved to your downloads instead.");
         }
       }
       return;
@@ -194,15 +195,15 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
     } catch {
       copied = false;
     }
-    if (!copied) {
-      download();
-      setNote("card saved — attach it in the WhatsApp chat");
-    }
     // no "noopener" feature string: with it, window.open returns null even on success, so a
     // blocked popup would be indistinguishable. Sever the opener by hand instead.
     const opened = window.open(waUrl, "_blank");
     if (opened) opened.opener = null;
-    if (copied) setNote(`card copied ✓ — in WhatsApp, pick a chat and press ${pasteKey} to paste it`);
+    if (copied) setNote(`Card copied. Choose a chat in WhatsApp and press ${pasteKey} to paste it.`);
+    else {
+      download();
+      setNote("Card saved to your downloads. Attach it in the WhatsApp chat.");
+    }
     if (!opened) setNeedsOpen(true);
   };
 
@@ -215,9 +216,9 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   const copyText = async () => {
     try {
       await navigator.clipboard.writeText(message);
-      setNote("message copied ✓");
+      setNote("Text copied.");
     } catch {
-      setNote("couldn't copy — select the text above instead");
+      setNote("Couldn't copy. Select the text above instead.");
     }
   };
 
@@ -269,35 +270,30 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
 
         <div className="share-sheet__actions">
           <button type="button" className="share-sheet__primary" onClick={() => void shareImage()} disabled={!file}>
-            <IconWhatsApp /> share on whatsapp
+            <IconWhatsApp /> Share on WhatsApp
           </button>
           <button type="button" className="share-sheet__secondary" onClick={sendTextOnly}>
-            <IconWhatsApp /> text only
+            <IconWhatsApp /> Send text only
           </button>
         </div>
         <p className="share-sheet__hint">
-          {isPhone ? (
-            <>
-              sends this exact card with the message — pick a chat, or <strong>my status</strong> to post it as a
-              story
-            </>
-          ) : (
-            <>
-              copies this card and opens WhatsApp — pick a chat and press <strong>{pasteKey}</strong> to paste it
-            </>
-          )}
+          {canShareFiles
+            ? isPhone
+              ? "Opens your share options. Pick WhatsApp, then a chat or My Status."
+              : "Opens your share options. Pick WhatsApp, then a chat."
+            : `Your browser can't send images to WhatsApp directly, so the card is copied for you to paste (${pasteKey}).`}
         </p>
         {needsOpen && (
           <a className="share-sheet__open-wa" href={waUrl} target="_blank" rel="noopener noreferrer">
-            open whatsapp →
+            Open WhatsApp →
           </a>
         )}
         <div className="share-sheet__minor">
           <button type="button" className="link-btn link-btn--quiet" onClick={() => void copyText()}>
-            copy message
+            Copy text
           </button>
           <button type="button" className="link-btn link-btn--quiet" onClick={download}>
-            save image
+            Download image
           </button>
         </div>
         {note && <p className="share-sheet__note">{note}</p>}

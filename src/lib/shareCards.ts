@@ -482,6 +482,7 @@ export function renderCard(canvas: HTMLCanvasElement, data: CardData, c: CardCon
 export function cardMessage(data: CardData, fullLink: string): string {
   switch (data.kind) {
     case "today":
+      if (data.minutes === 0) return `🍅 Starting my focus day on pomo. Come focus with me → ${fullLink}`;
       return `🍅 I focused ${formatDuration(data.minutes)} today on pomo${
         data.streak > 1 ? ` — ${data.streak}-day streak 🔥` : ""
       }. Come focus with me → ${fullLink}`;

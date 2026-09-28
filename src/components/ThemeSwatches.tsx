@@ -67,7 +67,10 @@ function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
           title={activeExtra ? activeExtra.label : "more colours"}
           onClick={() => setMoreOpen((v) => !v)}
         >
-          ▾
+          {/* an svg chevron rather than the "▾" glyph, which sits below centre in most fonts */}
+          <svg viewBox="0 0 12 8" width="10" height="7" aria-hidden="true">
+            <path d="M1.5 1.8 6 6.2l4.5-4.4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         {moreOpen && (
           <div
