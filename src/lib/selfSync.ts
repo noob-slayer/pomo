@@ -28,7 +28,7 @@ export interface SelfSnapshot {
   at: number; // ms epoch the snapshot was taken; running values are exact as of this moment
 }
 
-export const SELF_STALE_MS = 30000;
+export const SELF_STALE_MS = 90000; // only for "is the owning device still around" -- see logIfOwner
 export const SELF_HEARTBEAT_MS = 8000;
 
 // per tab (sessionStorage), so it survives a reload of this tab but two tabs are two devices
