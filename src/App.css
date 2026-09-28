@@ -3732,7 +3732,9 @@
 /* message bubble became a <button> (tap to react) -- strip button chrome, keep the bubble look */
 button.lobby-chat__text {
   border: none;
-  font: inherit;
+  /* family only -- the `font` shorthand would also reset .lobby-chat__text's own 0.8rem
+     size and line-height, blowing messages up to the surrounding font size */
+  font-family: inherit;
   text-align: left;
   cursor: pointer;
 }
