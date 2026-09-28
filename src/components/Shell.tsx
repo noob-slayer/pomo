@@ -57,6 +57,8 @@ import { SessionPrompt } from "./SessionPrompt";
 import { Onboarding } from "./Onboarding";
 import { IconFlame, IconTrophy, IconWhatsApp } from "./icons";
 
+const PHONE_QUERY = "(max-width: 600px)";
+
 export function Shell() {
   const {
     mode,
@@ -91,6 +93,12 @@ export function Shell() {
   const badgeToastTimeoutRef = useRef<number | null>(null);
   const kudosToastTimeoutRef = useRef<number | null>(null);
   const [topbarRevealed, setTopbarRevealed] = useState(false);
+  // phones (<=600px -- not tablets/iPads) get a decluttered stage: the top bar auto-hides
+  // even when idle, and the corner summary steps aside while a session is on
+  const [isPhone, setIsPhone] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(PHONE_QUERY).matches,
+  );
+  const topbarZoneRef = useRef<HTMLDivElement | null>(null);
   const taskAutoHideRef = useRef<number | null>(null);
   const topbarAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
@@ -746,15 +754,48 @@ export function Shell() {
   const revealTopbar = () => {
     setTopbarRevealed(true);
     if (topbarAutoHideRef.current) window.clearTimeout(topbarAutoHideRef.current);
-    topbarAutoHideRef.current = window.setTimeout(() => setTopbarRevealed(false), 6000);
+    const hideLater = () => {
+      topbarAutoHideRef.current = window.setTimeout(
+        () => {
+          // don't yank the bar away mid-action: typing in it (lobby name/code), or a menu of
+          // its own still open (lobby panel, "more" colours, make-it-fun) -- check again later
+          const zone = topbarZoneRef.current;
+          const busy =
+            !!zone &&
+            // a tapped button keeps focus too, so only a focused text field counts as busy
+            ((zone.contains(document.activeElement) && !!document.activeElement?.matches("input, textarea, select")) ||
+              !!zone.querySelector(".lobby-panel, .swatch-more__menu, .fun-menu__panel"));
+          if (busy) hideLater();
+          else setTopbarRevealed(false);
+        },
+        isPhone ? 5000 : 6000,
+      );
+    };
+    hideLater();
   };
 
   useEffect(() => {
-    if (timer.status !== "running") {
+    const mq = window.matchMedia(PHONE_QUERY);
+    const onChange = () => setIsPhone(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // phones: show the bar on arrival, then let it tuck away after 5s like it does mid-session
+  useEffect(() => {
+    if (isPhone) revealTopbar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPhone]);
+
+  useEffect(() => {
+    // off phones the bar only auto-hides mid-session, so pin it back once the timer stops
+    if (timer.status !== "running" && !isPhone) {
       setTopbarRevealed(false);
       if (topbarAutoHideRef.current) window.clearTimeout(topbarAutoHideRef.current);
     }
-  }, [timer.status]);
+  }, [timer.status, isPhone]);
+
+  const topbarAutoHide = timer.status === "running" || isPhone;
 
   useEffect(() => {
     if (!topbarRevealed) return;
@@ -883,14 +924,15 @@ export function Shell() {
   return (
     <div className="shell" style={themeVars} ref={shellRef}>
       <div
+        ref={topbarZoneRef}
         className={
-          timer.status === "running"
+          topbarAutoHide
             ? topbarRevealed
               ? "topbar-zone topbar-zone--auto-hide topbar-zone--revealed"
               : "topbar-zone topbar-zone--auto-hide"
             : "topbar-zone"
         }
-        onPointerDown={timer.status === "running" ? revealTopbar : undefined}
+        onPointerDown={topbarAutoHide ? revealTopbar : undefined}
       >
         <div className="topbar-hover-trigger" />
         <TopBar
@@ -1016,7 +1058,7 @@ export function Shell() {
             splitFlap={showSplitFlap}
             onOpenBreakPicker={() => setSessionPrompt("break-picker")}
           />
-          <div className="corner-summary">
+          <div className={timer.status === "idle" ? "corner-summary" : "corner-summary corner-summary--in-session"}>
             <DailySummary
               mode={mode}
               onOpenStats={() => setPersonalStatsOpen(true)}
