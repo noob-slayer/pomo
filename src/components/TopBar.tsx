@@ -11,10 +11,9 @@ interface TopBarProps {
   onToggleTasks: () => void;
   onOpenStats: () => void;
   onOpenTeamStats: () => void;
-  onShareLobby: () => void;
 }
 
-export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats, onShareLobby }: TopBarProps) {
+export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats }: TopBarProps) {
   const { mode, personalTheme, setMode } = useSettings();
 
   return (
@@ -55,7 +54,7 @@ export function TopBar({ tasksOpen, onToggleTasks, onOpenStats, onOpenTeamStats,
             ) : null}
           </>
         )}
-        <LobbyWidget onOpenTeamStats={onOpenTeamStats} onShareLobby={onShareLobby} />
+        <LobbyWidget onOpenTeamStats={onOpenTeamStats} />
         <AccountWidget onOpenStats={onOpenStats} />
         <button
           type="button"

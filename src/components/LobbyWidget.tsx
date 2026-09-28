@@ -10,10 +10,9 @@ type PanelView = "menu" | "create" | "join";
 
 interface LobbyWidgetProps {
   onOpenTeamStats: () => void;
-  onShareLobby: () => void;
 }
 
-export function LobbyWidget({ onOpenTeamStats, onShareLobby }: LobbyWidgetProps) {
+export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
   const { user, identityUserId } = useAuth();
   const { personaName, currentLobby, setCurrentLobby } = useSettings();
   const [open, setOpen] = useState(false);
@@ -125,16 +124,6 @@ export function LobbyWidget({ onOpenTeamStats, onShareLobby }: LobbyWidgetProps)
                 <a className="chip" href={whatsappShareUrl(lobbyLink ?? "")} target="_blank" rel="noreferrer">
                   whatsapp
                 </a>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={() => {
-                    onShareLobby();
-                    setOpen(false);
-                  }}
-                >
-                  share card
-                </button>
                 <button type="button" className="chip" onClick={() => void handleLeave()}>
                   leave
                 </button>

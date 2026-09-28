@@ -897,7 +897,6 @@ export function Shell() {
           onToggleTasks={() => setTasksOpen((v) => !v)}
           onOpenStats={() => setPersonalStatsOpen(true)}
           onOpenTeamStats={() => setTeamStatsOpen(true)}
-          onShareLobby={() => setShare({ kind: "lobby" })}
         />
       </div>
       <div className={tasksOpen ? "layout" : "layout layout--full"}>
