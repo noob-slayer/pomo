@@ -11,10 +11,10 @@ import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
+import { supabase } from "../lib/supabaseClient";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
 import {
   connectLobbySync,
-  connectSelfSync,
   broadcastSyncAction,
   writeSyncState,
   clearSyncState,
@@ -31,7 +31,17 @@ import {
   type LobbyPresence,
   type PresenceState,
 } from "../lib/lobbySync";
-import { playChime, stopChime, unlockAudio } from "../lib/sound";
+import {
+  connectSelfSync,
+  getDeviceId,
+  liveValues,
+  readSelfSyncMeta,
+  writeSelfSyncMeta,
+  SELF_HEARTBEAT_MS,
+  SELF_STALE_MS,
+  type SelfSnapshot,
+} from "../lib/selfSync";
+import { armChime, disarmChime, playChime, stopChime, unlockAudio } from "../lib/sound";
 import type { CardKind } from "../lib/shareCards";
 import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
 import { computeBadges, readSeenBadges, writeSeenBadges, type Badge } from "../lib/statsExtras";
@@ -104,6 +114,14 @@ export function Shell() {
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
   const selfSyncChannelRef = useRef<RealtimeChannel | null>(null);
+  const selfSubscribedRef = useRef(false);
+  // this tab's id on the self-sync channel, when it came up, and the last timer action this
+  // device knows about (its own or adopted from a peer) -- see lib/selfSync.ts
+  const [deviceId] = useState(getDeviceId);
+  const [bootAt] = useState(Date.now);
+  const selfMetaRef = useRef(readSelfSyncMeta());
+  const selfPeersRef = useRef<SelfSnapshot[]>([]);
+  const [selfTick, setSelfTick] = useState(0);
   const kudosChannelRef = useRef<{ lobbyId: string; channel: RealtimeChannel } | null>(null);
   const presenceChannelRef = useRef<RealtimeChannel | null>(null);
   const presenceSubscribedRef = useRef(false);
@@ -113,10 +131,32 @@ export function Shell() {
   const identityKey = resolveIdentityKey(identityUserId);
   const displayName = personaName || "guest";
   const inSyncLobby = currentLobby?.mode === "sync";
-  // self-sync: keep this signed-in account's own timer in step across its own devices while
-  // in an individual-mode lobby. Requires a stable identity (a signed-in user) -- guests get
-  // a fresh per-device id, so there'd be no second device on the same channel anyway.
-  const selfSyncActive = currentLobby?.mode === "individual" && !!identityUserId;
+
+  // a timer action taken on THIS device: it becomes the newest state for every device on
+  // the account, and this device owns logging the session it starts/ends
+  const markLocalAction = () => {
+    selfMetaRef.current = { actionAt: Date.now(), ownerDeviceId: deviceId };
+    writeSelfSyncMeta(selfMetaRef.current);
+    setSelfTick((v) => v + 1);
+  };
+
+  // history is written once per session, by the device that owns it. A device that's only
+  // mirroring another one's session skips the write -- unless that owner has since gone
+  // offline (laptop closed mid-pomo), in which case this device logs it so it isn't lost. The
+  // short wait lets presence fill in on a device that opened after the session already ended.
+  const logIfOwner = (write: () => void) => {
+    const owner = selfMetaRef.current.ownerDeviceId;
+    if (!owner || owner === deviceId) {
+      write();
+      return;
+    }
+    window.setTimeout(() => {
+      const ownerOnline = selfPeersRef.current.some(
+        (p) => p.deviceId === owner && Date.now() - p.at < SELF_STALE_MS,
+      );
+      if (!ownerOnline) write();
+    }, 4000);
+  };
 
   // best-effort: mirror a completion into the active lobby's stats too, if any. Never
   // blocks or affects the personal history write above -- a lobby-log failure shouldn't
@@ -132,6 +172,7 @@ export function Shell() {
 
   const rawTimer = useTimer({
     onFocusComplete: (minutes, taskId, taskTitle, subSessionId) => {
+      logIfOwner(() => {
       logCompletion({
         taskId,
         taskTitle,
@@ -143,11 +184,13 @@ export function Shell() {
         subSessionId: subSessionId ?? undefined,
       });
       logToLobbyIfActive("focus", minutes, taskTitle);
+      });
       playChime();
       notifyCompletion("focus", taskTitle);
       setSessionPrompt("choice");
     },
     onBreakComplete: (minutes) => {
+      logIfOwner(() => {
       logCompletion({
         taskId: null,
         taskTitle: null,
@@ -158,6 +201,7 @@ export function Shell() {
         completed: true,
       });
       logToLobbyIfActive("break", minutes, null);
+      });
       playChime();
       notifyCompletion("break", null);
       setSessionPrompt("choice");
@@ -168,6 +212,7 @@ export function Shell() {
     // completed: false is what makes this distinguishable from a natural finish -- see
     // computeCompletionStats in lib/statsExtras.ts.
     onPartialStop: (phase, minutes, taskId, taskTitle, subSessionId) => {
+      logIfOwner(() => {
       logCompletion({
         taskId,
         taskTitle,
@@ -179,6 +224,7 @@ export function Shell() {
         subSessionId: subSessionId ?? undefined,
       });
       logToLobbyIfActive(phase, minutes, taskTitle);
+      });
     },
   });
 
@@ -194,10 +240,6 @@ export function Shell() {
 
   const broadcastIfSync = (action: SyncAction) => {
     if (inSyncLobby && syncChannelRef.current) broadcastSyncAction(syncChannelRef.current, action);
-  };
-  // push a timer action to my own other devices (individual-mode lobby, signed in)
-  const broadcastSelf = (action: SyncAction) => {
-    if (selfSyncActive && selfSyncChannelRef.current) broadcastSyncAction(selfSyncChannelRef.current, action);
   };
 
   // every sync-relevant action writes a full state snapshot, not just start/stop -- a
@@ -228,17 +270,17 @@ export function Shell() {
   };
 
   const syncedStartFocus: TimerApi["startFocus"] = (minutes, taskId, taskTitle, subSessionId) => {
+    markLocalAction();
     rawTimer.startFocus(minutes, taskId, taskTitle, subSessionId);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
       void persistSyncSnapshot("running", "focus", minutes * 60, minutes * 60, 0).then(() =>
         broadcastIfSync({ type: "startFocus", minutes }),
       );
-    } else if (selfSyncActive) {
-      broadcastSelf({ type: "startFocus", minutes });
     }
   };
   const syncedStartBreak: TimerApi["startBreak"] = (minutes) => {
+    markLocalAction();
     rawTimer.startBreak(minutes);
     requestCompletionPermission();
     if (inSyncLobby && currentLobby) {
@@ -247,11 +289,10 @@ export function Shell() {
           ? persistSyncSnapshot("running", "break", null, 0, 0)
           : persistSyncSnapshot("running", "break", minutes * 60, minutes * 60, 0);
       void write.then(() => broadcastIfSync({ type: "startBreak", minutes }));
-    } else if (selfSyncActive) {
-      broadcastSelf({ type: "startBreak", minutes });
     }
   };
   const syncedPause: TimerApi["pause"] = () => {
+    markLocalAction();
     // read before calling pause() -- pause() only flips status, it doesn't touch these
     // values, so the pre-call closure already holds exactly what should be persisted
     const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
@@ -260,11 +301,10 @@ export function Shell() {
       void persistSyncSnapshot("paused", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
         broadcastIfSync({ type: "pause" }),
       );
-    } else if (selfSyncActive) {
-      broadcastSelf({ type: "pause" });
     }
   };
   const syncedResume: TimerApi["resume"] = () => {
+    markLocalAction();
     // same reasoning as pause(): resume() re-anchors endAt/startedAt to now but doesn't
     // change the frozen remaining/elapsed values themselves
     const { phase, targetSeconds, remainingSeconds, elapsedSeconds } = rawTimer;
@@ -273,19 +313,17 @@ export function Shell() {
       void persistSyncSnapshot("running", phase, targetSeconds, remainingSeconds, elapsedSeconds).then(() =>
         broadcastIfSync({ type: "resume" }),
       );
-    } else if (selfSyncActive) {
-      broadcastSelf({ type: "resume" });
     }
   };
   const syncedStop: TimerApi["stop"] = () => {
+    markLocalAction();
     rawTimer.stop();
     if (inSyncLobby && currentLobby) {
       void clearSyncState(currentLobby.id).then(() => broadcastIfSync({ type: "stop" }));
-    } else if (selfSyncActive) {
-      broadcastSelf({ type: "stop" });
     }
   };
   const syncedReset: TimerApi["reset"] = () => {
+    markLocalAction();
     // reset() preserves whatever status/phase/targetSeconds already were -- only the
     // countdown itself goes back to full
     const { status, phase, targetSeconds } = rawTimer;
@@ -297,7 +335,6 @@ export function Shell() {
     } else {
       broadcastIfSync({ type: "reset" });
     }
-    if (selfSyncActive) broadcastSelf({ type: "reset" });
   };
   const syncedTogglePrimary: TimerApi["togglePrimary"] = (fallbackMinutes) => {
     if (rawTimer.status === "running") syncedPause();
@@ -424,29 +461,152 @@ export function Shell() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, currentLobby?.mode]);
 
-  // self-sync channel: in an individual-mode lobby, a signed-in user's own start/pause/etc
-  // is broadcast only to their own other devices (scoped to identityKey) and applied there,
-  // so web and phone stay in step while other members keep independent timers. No catch-up
-  // read -- this is a live nudge between open devices, not persisted lobby state.
+  // self-sync across this account's own devices (see lib/selfSync.ts). Off inside a
+  // sync-mode lobby, whose shared clock already drives every device.
+  const buildSelfSnapshot = (): SelfSnapshot => {
+    const t = rawTimerRef.current;
+    const live = t.getLiveSeconds();
+    return {
+      deviceId,
+      ownerDeviceId: selfMetaRef.current.ownerDeviceId ?? deviceId,
+      actionAt: selfMetaRef.current.actionAt,
+      bootAt,
+      phase: t.phase,
+      status: t.status,
+      targetSeconds: t.targetSeconds,
+      remainingSeconds: t.targetSeconds === null ? 0 : live,
+      elapsedSeconds: t.targetSeconds === null ? live : 0,
+      taskId: t.activeTaskId,
+      taskTitle: t.activeTaskTitle,
+      at: Date.now(),
+    };
+  };
+  const pushSelf = () => {
+    const channel = selfSyncChannelRef.current;
+    if (channel && selfSubscribedRef.current) void channel.track(buildSelfSnapshot());
+  };
+  const pushSelfRef = useRef(pushSelf);
+  pushSelfRef.current = pushSelf;
+
+  // adopt the newest state among my other devices, if it's newer than what this one shows
+  const reconcileSelf = (peers: SelfSnapshot[]) => {
+    const now = Date.now();
+    const fresh = peers.filter((p) => now - p.at < SELF_STALE_MS);
+    selfPeersRef.current = fresh;
+    if (!fresh.length) return;
+    const best = fresh.reduce((a, b) =>
+      b.actionAt > a.actionAt || (b.actionAt === a.actionAt && b.bootAt < a.bootAt) ? b : a,
+    );
+    const mine = selfMetaRef.current.actionAt;
+    if (best.actionAt < mine) return;
+    // same last action on both: only the device that has been up longer is trusted (this
+    // one reloaded and may be showing its pagehide "paused" restore instead of the truth)
+    if (best.actionAt === mine && best.bootAt >= bootAt) return;
+
+    const t = rawTimerRef.current;
+    const myLive = t.getLiveSeconds();
+    const { remaining, elapsed } = liveValues(best, now);
+    const peerLive = best.targetSeconds === null ? elapsed : remaining;
+    const agree =
+      best.status === t.status &&
+      (best.status === "idle" ||
+        (best.phase === t.phase && best.targetSeconds === t.targetSeconds && Math.abs(peerLive - myLive) <= 2));
+    // either side is a few seconds from finishing on its own -- let it, rather than yanking
+    // this device to idle (or back into the last seconds) and eating its chime
+    const finishing =
+      best.actionAt === mine &&
+      ((t.status === "running" && t.targetSeconds !== null && myLive <= 3) ||
+        (best.status === "running" && best.targetSeconds !== null && remaining <= 3));
+    if (!agree && !finishing) {
+      if (best.status === "idle") {
+        t.restoreSnapshot({
+          phase: best.phase,
+          status: "idle",
+          targetSeconds: best.targetSeconds,
+          remainingSeconds: best.targetSeconds ?? 0,
+          elapsedSeconds: 0,
+          activeTaskId: null,
+          activeTaskTitle: null,
+        });
+      } else {
+        t.restoreSnapshot({
+          phase: best.phase,
+          status: best.status,
+          targetSeconds: best.targetSeconds,
+          remainingSeconds: Math.round(remaining),
+          elapsedSeconds: Math.floor(elapsed),
+          activeTaskId: best.taskId,
+          activeTaskTitle: best.taskTitle,
+        });
+      }
+    }
+    if (best.actionAt !== mine || selfMetaRef.current.ownerDeviceId !== best.ownerDeviceId) {
+      selfMetaRef.current = { actionAt: best.actionAt, ownerDeviceId: best.ownerDeviceId };
+      writeSelfSyncMeta(selfMetaRef.current);
+      setSelfTick((v) => v + 1);
+    }
+  };
+  const reconcileSelfRef = useRef(reconcileSelf);
+  reconcileSelfRef.current = reconcileSelf;
+
   useEffect(() => {
-    selfSyncChannelRef.current?.unsubscribe();
-    selfSyncChannelRef.current = null;
-    if (!currentLobby || currentLobby.mode !== "individual" || !identityUserId) return;
-    selfSyncChannelRef.current = connectSelfSync(currentLobby.id, identityKey, (action) => {
-      const t = rawTimerRef.current;
-      if (action.type === "startFocus") t.startFocus(action.minutes);
-      else if (action.type === "startBreak") t.startBreak(action.minutes);
-      else if (action.type === "pause") t.pause();
-      else if (action.type === "resume") t.resume();
-      else if (action.type === "stop") t.stop();
-      else if (action.type === "reset") t.reset();
+    selfSubscribedRef.current = false;
+    selfPeersRef.current = [];
+    // wait for sign-in to settle: before it does, identityKey is the per-browser guest id,
+    // which would briefly put this device on the wrong channel with a half-restored state
+    if (inSyncLobby || authLoading || !identityUserId) return;
+    let lastPeers: SelfSnapshot[] = [];
+    let cancelled = false;
+    let channel: RealtimeChannel | null = null;
+    void connectSelfSync(
+      identityKey,
+      deviceId,
+      (peers) => {
+        lastPeers = peers;
+        reconcileSelfRef.current(peers);
+      },
+      () => {
+        selfSubscribedRef.current = true;
+        pushSelfRef.current();
+      },
+      () => cancelled,
+    ).then((ch) => {
+      if (cancelled) {
+        if (ch) void supabase?.removeChannel(ch);
+        return;
+      }
+      channel = ch;
+      selfSyncChannelRef.current = ch;
+      pushSelfRef.current(); // in case the join completed before this ran
     });
+    const beat = window.setInterval(() => pushSelfRef.current(), SELF_HEARTBEAT_MS);
+    // back from the background: announce ourselves and re-check what peers last showed
+    // (the reconnect's own presence sync then brings any newer state)
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      pushSelfRef.current();
+      reconcileSelfRef.current(lastPeers);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const onPageHide = () => void channel?.untrack();
+    window.addEventListener("pagehide", onPageHide);
     return () => {
-      selfSyncChannelRef.current?.unsubscribe();
+      cancelled = true;
+      window.clearInterval(beat);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pagehide", onPageHide);
+      if (channel) void supabase?.removeChannel(channel);
       selfSyncChannelRef.current = null;
+      selfSubscribedRef.current = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLobby?.id, currentLobby?.mode, identityKey, identityUserId]);
+  }, [identityKey, identityUserId, authLoading, inSyncLobby]);
+
+  // publish right away on any change, not just on the next heartbeat
+  useEffect(() => {
+    pushSelfRef.current();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selfTick, rawTimer.status, rawTimer.phase, rawTimer.targetSeconds, rawTimer.activeTaskTitle]);
 
   // live "you got kudos" toast -- connected whenever a lobby is active, regardless of
   // individual/sync mode (unlike the sync channel above, which only matters in sync mode).
@@ -614,8 +774,13 @@ export function Shell() {
   // gesture has unlocked it, these periodic + on-focus resumes succeed without a gesture and
   // keep playMessagePing on its immediate path. Only while a lobby is active, so it costs
   // nothing the rest of the time.
+  //
+  // the same warm-keeping runs through every timed session too, lobby or not: a 25-minute
+  // focus with no clicks is exactly when a browser lets the context slip to suspended, and
+  // the completion chime then has no gesture to wake it with -- the "sometimes no sound".
+  const keepAudioWarm = !!currentLobby || timer.status === "running";
   useEffect(() => {
-    if (!currentLobby) return;
+    if (!keepAudioWarm) return;
     unlockAudio();
     const onVisible = () => document.visibilityState === "visible" && unlockAudio();
     document.addEventListener("visibilitychange", onVisible);
@@ -624,7 +789,23 @@ export function Shell() {
       document.removeEventListener("visibilitychange", onVisible);
       window.clearInterval(id);
     };
-  }, [currentLobby?.id]);
+  }, [keepAudioWarm]);
+
+  // pre-schedule the completion chime on the audio clock (see armChime in lib/sound.ts) so
+  // it rings on time even in a throttled background tab. Re-armed whenever the countdown
+  // could have moved -- start, resume, reset, a synced change from another device -- which
+  // the 5s bucket of remainingSeconds catches (a reset jumps it; normal ticking re-arms
+  // harmlessly every 5s from the wall-clock value, correcting any drift). Disarmed on pause,
+  // stop, or once it's finished.
+  const chimeBucket = Math.floor(timer.remainingSeconds / 5);
+  useEffect(() => {
+    if (timer.status === "running" && timer.targetSeconds !== null) {
+      armChime(rawTimerRef.current.getLiveSeconds());
+    } else {
+      disarmChime();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timer.status, timer.phase, timer.targetSeconds, chimeBucket]);
 
   const { popOut: popOutPip, pipSupported } = useBackgroundTimerDisplay(timer);
 
@@ -1059,12 +1240,7 @@ export function Shell() {
             onOpenBreakPicker={() => setSessionPrompt("break-picker")}
           />
           <div className={timer.status === "idle" ? "corner-summary" : "corner-summary corner-summary--in-session"}>
-            <DailySummary
-              mode={mode}
-              onOpenStats={() => setPersonalStatsOpen(true)}
-              timer={timer}
-              onShare={() => setShare({ kind: "today" })}
-            />
+            <DailySummary mode={mode} onOpenStats={() => setPersonalStatsOpen(true)} timer={timer} />
             {currentLobby && (
               <LobbySummary
                 lobby={currentLobby}

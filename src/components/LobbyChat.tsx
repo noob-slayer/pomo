@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useClickAway } from "../hooks/useClickAway";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -56,6 +57,15 @@ export function LobbyChat() {
   const [unread, setUnread] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerTab, setPickerTab] = useState<"emoji" | "stickers">("emoji");
+  // the emoji/sticker panel closes on any tap outside it (messages, elsewhere on the page) so
+  // it never sits over the conversation; tapping emojis inside it keeps it open for several
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const emojiBtnRef = useRef<HTMLButtonElement>(null);
+  useClickAway(pickerRef, (e) => {
+    // the 😊 toggle handles its own open/close -- don't let click-away race it
+    if (emojiBtnRef.current?.contains(e?.target as Node)) return;
+    setPickerOpen(false);
+  }, pickerOpen);
   const [reactFor, setReactFor] = useState<string | null>(null);
   const [reactions, setReactions] = useState<ReactionMap>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -93,6 +103,19 @@ export function LobbyChat() {
       channelRef.current = null;
     };
   }, [lobbyId]);
+
+  // the quick-reaction bar closes on any tap that isn't on it or on a message bubble --
+  // otherwise it lingers over the conversation after you've moved on
+  useEffect(() => {
+    if (!reactFor) return;
+    const onDown = (e: MouseEvent) => {
+      const el = e.target as Element | null;
+      if (el?.closest(".lobby-chat__react-bar, .lobby-chat__text, .lobby-chat__sticker")) return;
+      setReactFor(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [reactFor]);
 
   // autoscroll to the newest message while the panel is open
   useLayoutEffect(() => {
@@ -241,7 +264,7 @@ export function LobbyChat() {
             )}
           </div>
           {pickerOpen && (
-            <div className="lobby-chat__picker-wrap">
+            <div className="lobby-chat__picker-wrap" ref={pickerRef}>
               <div className="lobby-chat__picker-tabs" role="tablist">
                 {(["emoji", "stickers"] as const).map((t) => (
                   <button
@@ -285,6 +308,7 @@ export function LobbyChat() {
           )}
           <div className="lobby-chat__compose">
             <button
+              ref={emojiBtnRef}
               type="button"
               className="lobby-chat__emoji-btn"
               onClick={() => setPickerOpen((v) => !v)}
