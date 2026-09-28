@@ -33,9 +33,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!client) return;
     let cancelled = false;
 
+    // realtime private channels authorize against the user's JWT -- supabase-js only
+    // auto-pushes it to the socket on SIGNED_IN/TOKEN_REFRESHED, not for a session merely
+    // restored here on load, so set it explicitly whenever we resolve one
+    const armRealtime = (token: string | undefined) => {
+      if (token) client.realtime.setAuth(token);
+    };
+
     client.auth.getSession().then(async ({ data }) => {
       if (cancelled) return;
       if (data.session) {
+        armRealtime(data.session.access_token);
         setRawUser(data.session.user);
         setLoading(false);
         return;
@@ -48,11 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data: anon, error } = await client.auth.signInAnonymously();
       if (cancelled) return;
       if (error) console.error("anonymous sign-in failed", error);
+      armRealtime(anon?.session?.access_token);
       setRawUser(anon?.session?.user ?? null);
       setLoading(false);
     });
     const { data: subscription } = client.auth.onAuthStateChange((_event, session) => {
-      if (!cancelled) setRawUser(session?.user ?? null);
+      if (cancelled) return;
+      armRealtime(session?.access_token);
+      setRawUser(session?.user ?? null);
     });
     return () => {
       cancelled = true;

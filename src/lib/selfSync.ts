@@ -84,7 +84,7 @@ export async function connectSelfSync(
   const stale = supabase.getChannels().find((c) => c.topic === `realtime:${topic}`);
   if (stale) await supabase.removeChannel(stale);
   if (isCancelled()) return null;
-  const channel = supabase.channel(topic, { config: { presence: { key: deviceId } } });
+  const channel = supabase.channel(topic, { config: { private: true, presence: { key: deviceId } } });
   const rebuild = () => {
     const state = channel.presenceState<SelfSnapshot>();
     const peers: SelfSnapshot[] = [];
