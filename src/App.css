@@ -4385,3 +4385,153 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
 .lobby-chat__msg--mine {
   align-items: flex-end;
 }
+
+/* the base five colours only appear inside the "more" menu on phones (see below) */
+.swatch-more__item--base {
+  display: none;
+}
+
+/* lobby/tasks buttons carry an icon for phones and a text label for everything larger */
+.topbar-btn__icon {
+  display: none;
+}
+
+.swatches--phone-only {
+  display: none;
+}
+
+/* ---------- phone: one-row header ---------- */
+/* on a phone the header wrapped to three rows (~157px). Everything now sits on one row:
+   tighter spacing and type, the five colour dots fold into the single current-colour
+   circle (its menu lists every colour), and "make it fun" shortens to "fun". */
+@media (max-width: 600px) {
+  .topbar {
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .topbar-left {
+    gap: 8px;
+    flex-shrink: 0;
+    align-items: center;
+  }
+
+  .wordmark {
+    font-size: 0.9rem;
+  }
+
+  .mode-switch {
+    gap: 3px;
+    font-size: 0.76rem;
+  }
+
+  .topbar-right {
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .theme-tabs {
+    gap: 2px;
+  }
+
+  .theme-tabs__item {
+    padding: 3px 5px;
+    font-size: 0.74rem;
+    white-space: nowrap;
+  }
+
+  .fun-menu__long,
+  .fun-menu__current {
+    display: none;
+  }
+
+  .swatches > .swatch:not(.swatch-more__toggle) {
+    display: none;
+  }
+
+  .swatch-more__toggle {
+    width: 22px;
+    height: 22px;
+    background: var(--swatch-current);
+    color: var(--swatch-current-ink);
+    box-shadow: 0 0 0 2px var(--page-bg), 0 0 0 3px var(--page-ink);
+  }
+
+  .swatch-more__item--base {
+    display: flex;
+  }
+
+  /* lobby + tasks become square icon buttons */
+  .topbar .tasks-toggle {
+    width: 30px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .topbar-btn__label {
+    display: none;
+  }
+
+  .topbar-btn__icon {
+    position: relative;
+    display: inline-flex;
+  }
+
+  /* "you're in a lobby" -- its name is on the stage's lobby summary */
+  .topbar-btn__dot {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #2f9e5b;
+    box-shadow: 0 0 0 1.5px var(--page-bg);
+  }
+
+  /* the colour circle doubles as the "colour" tab, so the tab itself goes */
+  .theme-tabs__item--colour {
+    display: none;
+  }
+
+  .swatches--phone-only {
+    display: flex;
+  }
+
+  /* a fun theme is on: the circle still shows your colour, but without the "selected" ring */
+  .swatches--phone-only .swatch-more__toggle {
+    box-shadow: none;
+  }
+
+  .account-avatar {
+    width: 26px;
+    height: 26px;
+    font-size: 0.85rem;
+  }
+
+  .topbar .tasks-toggle,
+  .topbar .swatches,
+  .topbar .account-widget,
+  .topbar .theme-tabs {
+    flex-shrink: 0;
+  }
+
+  /* photo / youtube backdrops add an extra control -- it hangs in a slim strip right under
+     the header rather than breaking the row (the phone header is always position:fixed) */
+  .topbar-right > .bg-picker,
+  .topbar-right > .yt-link-form {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    justify-content: flex-end;
+    padding: 6px 12px 8px;
+    background: var(--page-bg);
+    border-bottom: 1px solid var(--page-border);
+  }
+}

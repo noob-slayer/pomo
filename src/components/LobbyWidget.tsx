@@ -1,3 +1,4 @@
+import { IconPeople } from "./icons";
 import { useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useSettings } from "../context/SettingsContext";
@@ -98,8 +99,14 @@ export function LobbyWidget({ onOpenTeamStats }: LobbyWidgetProps) {
           setError(null);
         }}
         aria-expanded={open}
+        aria-label={currentLobby ? `lobby: ${currentLobby.name}` : "lobby"}
       >
-        {currentLobby ? currentLobby.name : "lobby"}
+        {/* phones show just the icon (plus a dot while in a lobby) to keep the header one row */}
+        <span className="topbar-btn__icon">
+          <IconPeople />
+          {currentLobby && <span className="topbar-btn__dot" />}
+        </span>
+        <span className="topbar-btn__label">{currentLobby ? currentLobby.name : "lobby"}</span>
       </button>
       {open && (
         <div className="lobby-panel">
