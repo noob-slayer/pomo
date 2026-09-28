@@ -20,7 +20,7 @@ function channelName(lobbyId: string): string {
 
 export function connectLobbySync(lobbyId: string, onAction: (action: SyncAction) => void): RealtimeChannel | null {
   if (!supabase) return null;
-  const channel = supabase.channel(channelName(lobbyId), { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(channelName(lobbyId), { config: { private: true, broadcast: { self: false } } });
   channel.on("broadcast", { event: "action" }, ({ payload }) => onAction(payload as SyncAction));
   channel.subscribe();
   return channel;
@@ -131,7 +131,7 @@ export function connectKudosNotifications(
   onKudos: (notification: KudosNotification) => void,
 ): RealtimeChannel | null {
   if (!supabase) return null;
-  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { private: true, broadcast: { self: false } } });
   channel.on("broadcast", { event: "kudos" }, ({ payload }) => onKudos(payload as KudosNotification));
   channel.subscribe();
   return channel;
@@ -186,7 +186,7 @@ export function connectLobbyPresence(
 ): RealtimeChannel | null {
   if (!supabase) return null;
   const channel = supabase.channel(presenceChannelName(lobbyId), {
-    config: { presence: { key: identityKey } },
+    config: { private: true, presence: { key: identityKey } },
   });
   // rebuild the whole roster from the authoritative presenceState() on ANY change. We bind
   // it to join and leave as well as sync, not just sync: depending on supabase-js version a
@@ -253,7 +253,7 @@ export function connectLobbyChat(
   onReaction?: (reaction: LobbyChatReaction) => void,
 ): RealtimeChannel | null {
   if (!supabase) return null;
-  const channel = supabase.channel(chatChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(chatChannelName(lobbyId), { config: { private: true, broadcast: { self: false } } });
   channel.on("broadcast", { event: "chat" }, ({ payload }) => onMessage(payload as LobbyChatMessage));
   if (onReaction) channel.on("broadcast", { event: "react" }, ({ payload }) => onReaction(payload as LobbyChatReaction));
   channel.subscribe();
@@ -294,7 +294,7 @@ export function sendKudosOnChannel(channel: RealtimeChannel, notification: Kudos
 // before that can be silently dropped), then lets it go
 export function broadcastKudos(lobbyId: string, notification: KudosNotification): void {
   if (!supabase) return;
-  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { broadcast: { self: false } } });
+  const channel = supabase.channel(kudosChannelName(lobbyId), { config: { private: true, broadcast: { self: false } } });
   channel.subscribe((status) => {
     if (status !== "SUBSCRIBED") return;
     sendKudosOnChannel(channel, notification);
