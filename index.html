@@ -77,16 +77,18 @@
         text-align: center;
         font-family: calibri, "segoe ui", ui-sans-serif, system-ui, sans-serif;
         color: #211a17;
-        /* invisible on a normal load -- the app replaces it within a moment, and flashing a
-           wall of text first read as a glitch. Only fades in if the app still hasn't mounted
-           after 1.5s (slow network, JS disabled). Crawlers read the text regardless. */
-        opacity: 0;
-        animation: prerender-reveal 0.3s ease-out 1.5s forwards;
-      }
-      @keyframes prerender-reveal {
-        to {
-          opacity: 1;
-        }
+        /* never shown to people -- it's only here for crawlers and screen readers, and even a
+           brief flash before the app mounted read as a glitch. Visually hidden (not
+           display:none) so it stays in the accessibility tree and page text. */
+        position: absolute;
+        padding: 0;
+        margin: 0;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
       #root .prerender h1 {
         margin: 0 0 6px;
