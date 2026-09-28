@@ -4064,26 +4064,12 @@ button.lobby-chat__text {
 .swatch-more__toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 2px 9px;
-  font-size: 0.72rem;
+  justify-content: center;
+  font-size: 10px;
+  line-height: 1;
   color: var(--page-muted);
-  background: none;
-  border: 1px solid var(--page-border);
-  border-radius: 999px;
+  background: var(--page-surface);
   cursor: pointer;
-  white-space: nowrap;
-}
-
-.swatch-more__toggle--active {
-  color: var(--page-ink);
-  border-color: var(--page-ink);
-}
-
-.swatch-more__current {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
 }
 
 .swatch-more__menu {
@@ -4139,4 +4125,18 @@ button.lobby-chat__text {
   line-height: 1.4;
   text-align: center;
   color: var(--page-muted);
+}
+
+.share-sheet__open-wa {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: center;
+  color: #1f8f4e;
+}
+
+/* keep the paste shortcut as typed (⌘V / Ctrl+V) despite the app-wide lowercase style */
+.share-sheet__hint strong {
+  text-transform: none;
 }

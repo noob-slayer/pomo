@@ -55,16 +55,19 @@ function Swatches({ value, onChange, label }: ThemeSwatchesProps) {
           When one of these is active the pill shows it, so the current colour is always
           visible even with the dropdown closed. */}
       <div className="swatch-more" ref={moreRef}>
+        {/* same size as the swatches: an empty ring with a ▾, filled with the chosen colour
+            once one from this collection is active */}
         <button
           type="button"
-          className={`swatch-more__toggle${activeExtra ? " swatch-more__toggle--active" : ""}`}
+          className={`swatch swatch-more__toggle${activeExtra ? " swatch--active" : ""}`}
+          style={activeExtra ? { background: activeExtra.bg, color: activeExtra.ink } : undefined}
           aria-haspopup="true"
           aria-expanded={moreOpen}
+          aria-label={activeExtra ? `more colours (current: ${activeExtra.label})` : "more colours"}
           title={activeExtra ? activeExtra.label : "more colours"}
           onClick={() => setMoreOpen((v) => !v)}
         >
-          {activeExtra && <span className="swatch-more__current" style={{ background: activeExtra.bg }} />}
-          more ▾
+          ▾
         </button>
         {moreOpen && (
           <div

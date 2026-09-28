@@ -29,5 +29,6 @@ export function clearShareFromLocation(): void {
 
 export function whatsappShareUrl(link: string): string {
   const text = `focus with me — ${link}`;
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  // api.whatsapp.com directly -- wa.me's redirect can corrupt non-ASCII characters
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "../context/SettingsContext";
 import { useTasks } from "../context/TasksContext";
 import { computeBadges, computeStreaks } from "../lib/statsExtras";
-import { resolveWorkTheme, WORK_THEME_ORDER, WORK_THEMES } from "../lib/themes";
+import { resolveWorkTheme } from "../lib/themes";
 import { buildLobbyUrl } from "../lib/lobby";
 import {
   BADGE_EMOJI,
@@ -38,10 +38,15 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   const { mode, workTheme, personalColorTheme, personaName, currentLobby } = useSettings();
   const { history } = useTasks();
   const [kind, setKind] = useState<CardKind>(initialKind);
-  const [themeKey, setThemeKey] = useState<WorkTheme>(mode === "work" ? workTheme : personalColorTheme);
+  // the card always uses the colour theme currently applied in the app
+  const themeKey: WorkTheme = mode === "work" ? workTheme : personalColorTheme;
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [needsOpen, setNeedsOpen] = useState(false);
+  // phones get the system share sheet; laptops get copy-and-paste into WhatsApp
+  const isPhone = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+  const pasteKey = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘V" : "Ctrl+V";
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const now = useMemo(() => new Date(), []);
@@ -154,10 +159,21 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   // WhatsApp Status only takes an image, and the web can only hand one over through the
   // system share sheet (pick WhatsApp -> "My status"). Where that isn't available (most
   // desktops), save the image instead so it can be posted from the phone.
+  // api.whatsapp.com/send rather than wa.me: wa.me's redirect mangles a leading emoji into
+  // a U+FFFD replacement character (confirmed), and every card message starts with one
+  const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+
+  // Phone: the system share sheet hands the card straight to WhatsApp (a chat or My status).
+  // Laptop: websites can't pass an image to WhatsApp, so copy the card to the clipboard and
+  // open WhatsApp with the message -- the user picks a chat and pastes. The copy has to come
+  // first: clipboard writes only succeed while this tab still has focus, and opening
+  // WhatsApp moves focus away. If the browser then blocks that window (Safari can, after an
+  // await), fall back to an explicit "open whatsapp" button, which is a fresh click.
   const shareImage = async () => {
     if (!file) return;
+    setNeedsOpen(false);
     const nav = navigator as Navigator & { canShare?: (d: ShareData) => boolean };
-    if (nav.canShare?.({ files: [file] })) {
+    if (isPhone && nav.canShare?.({ files: [file] })) {
       try {
         await navigator.share({ files: [file], text: message });
         setNote("shared ✓");
@@ -167,16 +183,33 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
           setNote("couldn't open the share sheet — image saved instead");
         }
       }
-    } else {
-      download();
-      setNote("image saved — send it on WhatsApp (or post to your status) from your phone");
+      return;
     }
+    let copied = false;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": file })]);
+        copied = true;
+      }
+    } catch {
+      copied = false;
+    }
+    if (!copied) {
+      download();
+      setNote("card saved — attach it in the WhatsApp chat");
+    }
+    // no "noopener" feature string: with it, window.open returns null even on success, so a
+    // blocked popup would be indistinguishable. Sever the opener by hand instead.
+    const opened = window.open(waUrl, "_blank");
+    if (opened) opened.opener = null;
+    if (copied) setNote(`card copied ✓ — in WhatsApp, pick a chat and press ${pasteKey} to paste it`);
+    if (!opened) setNeedsOpen(true);
   };
 
-  // text-only fallback: wa.me can't attach an image, so WhatsApp shows the site's generic
+  // text-only fallback: a text link can't attach an image, so WhatsApp shows the site's generic
   // link preview here -- which is why the image share above is the primary action
   const sendTextOnly = () => {
-    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
+    window.open(waUrl, "_blank", "noopener");
   };
 
   const copyText = async () => {
@@ -232,20 +265,6 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
           {previewUrl && <img src={previewUrl} alt={`${KIND_LABEL[kind]} share card`} />}
         </div>
 
-        <div className="share-sheet__themes" aria-label="card colour">
-          {/* the five main colours, plus the current theme if it's one from the "more" set */}
-          {[...WORK_THEME_ORDER, ...(WORK_THEME_ORDER.includes(themeKey) ? [] : [themeKey])].map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={t === themeKey ? "share-sheet__swatch share-sheet__swatch--active" : "share-sheet__swatch"}
-              style={{ background: WORK_THEMES[t].bg }}
-              onClick={() => setThemeKey(t)}
-              aria-label={WORK_THEMES[t].label}
-            />
-          ))}
-        </div>
-
         <p className="share-sheet__message">{message}</p>
 
         <div className="share-sheet__actions">
@@ -257,8 +276,22 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
           </button>
         </div>
         <p className="share-sheet__hint">
-          sends this exact card with the message — pick a chat, or <strong>my status</strong> to post it as a story
+          {isPhone ? (
+            <>
+              sends this exact card with the message — pick a chat, or <strong>my status</strong> to post it as a
+              story
+            </>
+          ) : (
+            <>
+              copies this card and opens WhatsApp — pick a chat and press <strong>{pasteKey}</strong> to paste it
+            </>
+          )}
         </p>
+        {needsOpen && (
+          <a className="share-sheet__open-wa" href={waUrl} target="_blank" rel="noopener noreferrer">
+            open whatsapp →
+          </a>
+        )}
         <div className="share-sheet__minor">
           <button type="button" className="link-btn link-btn--quiet" onClick={() => void copyText()}>
             copy message
