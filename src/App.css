@@ -4423,7 +4423,7 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
 
   .mode-switch {
     gap: 3px;
-    font-size: 0.76rem;
+    font-size: 0.68rem;
   }
 
   .topbar-right {
