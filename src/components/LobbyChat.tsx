@@ -11,6 +11,7 @@ import {
   type LobbyChatReaction,
 } from "../lib/lobbySync";
 import { playMessagePing } from "../lib/sound";
+import { STICKERS, STICKERS_BY_ID, type Sticker } from "../lib/stickers";
 
 // how many messages to keep in memory -- this chat is ephemeral (no DB, see lobbySync.ts),
 // so there's nothing to page through; an unbounded array would just grow for the life of
@@ -54,6 +55,7 @@ export function LobbyChat() {
   const [draft, setDraft] = useState("");
   const [unread, setUnread] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerTab, setPickerTab] = useState<"emoji" | "stickers">("emoji");
   const [reactFor, setReactFor] = useState<string | null>(null);
   const [reactions, setReactions] = useState<ReactionMap>({});
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -122,6 +124,22 @@ export function LobbyChat() {
     setPickerOpen(false);
   };
 
+  // stickers send straight away, like in WhatsApp -- they aren't inserted into the draft
+  const sendSticker = (s: Sticker) => {
+    if (!channelRef.current) return;
+    const message: LobbyChatMessage = {
+      id: messageId(),
+      identityKey,
+      personaName: displayName,
+      text: `${s.emoji} ${s.text}`,
+      sticker: s.id,
+      at: Date.now(),
+    };
+    setMessages((prev) => [...prev, message].slice(-MAX_MESSAGES));
+    sendChatMessage(channelRef.current, message);
+    setPickerOpen(false);
+  };
+
   // insert at the cursor rather than always appending, so an emoji can go mid-sentence
   const insertEmoji = (emoji: string) => {
     const el = inputRef.current;
@@ -164,17 +182,32 @@ export function LobbyChat() {
               messages.map((m) => {
                 const mine = m.identityKey === identityKey;
                 const msgReactions = Object.entries(reactions[m.id] ?? {});
+                const sticker = m.sticker ? STICKERS_BY_ID[m.sticker] : undefined;
                 return (
                   <div key={m.id} className={mine ? "lobby-chat__msg lobby-chat__msg--mine" : "lobby-chat__msg"}>
                     {!mine && <span className="lobby-chat__from">{m.personaName}</span>}
-                    <button
-                      type="button"
-                      className="lobby-chat__text"
-                      onClick={() => setReactFor((cur) => (cur === m.id ? null : m.id))}
-                      title="tap to react"
-                    >
-                      {m.text}
-                    </button>
+                    {sticker ? (
+                      <button
+                        type="button"
+                        className="lobby-chat__sticker"
+                        style={{ background: sticker.bg, color: sticker.ink }}
+                        onClick={() => setReactFor((cur) => (cur === m.id ? null : m.id))}
+                        title="tap to react"
+                        aria-label={`sticker: ${sticker.text}`}
+                      >
+                        <span className="lobby-chat__sticker-emoji">{sticker.emoji}</span>
+                        <span className="lobby-chat__sticker-text">{sticker.text}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="lobby-chat__text"
+                        onClick={() => setReactFor((cur) => (cur === m.id ? null : m.id))}
+                        title="tap to react"
+                      >
+                        {m.text}
+                      </button>
+                    )}
                     {reactFor === m.id && (
                       <div className="lobby-chat__react-bar" role="group" aria-label="react">
                         {REACTIONS.map((e) => (
@@ -208,12 +241,46 @@ export function LobbyChat() {
             )}
           </div>
           {pickerOpen && (
-            <div className="lobby-chat__picker" role="dialog" aria-label="emoji">
-              {EMOJIS.map((e) => (
-                <button key={e} type="button" onClick={() => insertEmoji(e)}>
-                  {e}
-                </button>
-              ))}
+            <div className="lobby-chat__picker-wrap">
+              <div className="lobby-chat__picker-tabs" role="tablist">
+                {(["emoji", "stickers"] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    role="tab"
+                    aria-selected={pickerTab === t}
+                    className={pickerTab === t ? "lobby-chat__picker-tab lobby-chat__picker-tab--active" : "lobby-chat__picker-tab"}
+                    onClick={() => setPickerTab(t)}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              {pickerTab === "emoji" ? (
+                <div className="lobby-chat__picker" role="dialog" aria-label="emoji">
+                  {EMOJIS.map((e) => (
+                    <button key={e} type="button" onClick={() => insertEmoji(e)}>
+                      {e}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="lobby-chat__stickers" role="dialog" aria-label="stickers">
+                  {STICKERS.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      className="lobby-chat__sticker lobby-chat__sticker--mini"
+                      style={{ background: s.bg, color: s.ink }}
+                      onClick={() => sendSticker(s)}
+                      title={`send "${s.text}"`}
+                    >
+                      <span className="lobby-chat__sticker-emoji">{s.emoji}</span>
+                      <span className="lobby-chat__sticker-text">{s.text}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
           <div className="lobby-chat__compose">

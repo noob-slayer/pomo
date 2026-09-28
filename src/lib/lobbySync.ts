@@ -257,6 +257,8 @@ export interface LobbyChatMessage {
   personaName: string;
   text: string;
   at: number; // ms epoch
+  // set for a sticker (see lib/stickers.ts); `text` still carries its caption as a fallback
+  sticker?: string;
 }
 
 function chatChannelName(lobbyId: string): string {
