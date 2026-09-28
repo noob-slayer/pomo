@@ -169,11 +169,13 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
       }
     } else {
       download();
-      setNote("image saved — post it to your WhatsApp status from your phone");
+      setNote("image saved — send it on WhatsApp (or post to your status) from your phone");
     }
   };
 
-  const sendWhatsApp = () => {
+  // text-only fallback: wa.me can't attach an image, so WhatsApp shows the site's generic
+  // link preview here -- which is why the image share above is the primary action
+  const sendTextOnly = () => {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, "_blank", "noopener");
   };
 
@@ -231,7 +233,8 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
         </div>
 
         <div className="share-sheet__themes" aria-label="card colour">
-          {WORK_THEME_ORDER.map((t) => (
+          {/* the five main colours, plus the current theme if it's one from the "more" set */}
+          {[...WORK_THEME_ORDER, ...(WORK_THEME_ORDER.includes(themeKey) ? [] : [themeKey])].map((t) => (
             <button
               key={t}
               type="button"
@@ -247,12 +250,15 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
 
         <div className="share-sheet__actions">
           <button type="button" className="share-sheet__primary" onClick={() => void shareImage()} disabled={!file}>
-            <IconWhatsApp /> share to status
+            <IconWhatsApp /> share on whatsapp
           </button>
-          <button type="button" className="share-sheet__secondary" onClick={sendWhatsApp}>
-            <IconWhatsApp /> send on whatsapp
+          <button type="button" className="share-sheet__secondary" onClick={sendTextOnly}>
+            <IconWhatsApp /> text only
           </button>
         </div>
+        <p className="share-sheet__hint">
+          sends this exact card with the message — pick a chat, or <strong>my status</strong> to post it as a story
+        </p>
         <div className="share-sheet__minor">
           <button type="button" className="link-btn link-btn--quiet" onClick={() => void copyText()}>
             copy message
