@@ -3727,3 +3727,89 @@
     bottom: 12px;
   }
 }
+
+/* ---------- lobby chat: emoji picker + reactions ---------- */
+/* message bubble became a <button> (tap to react) -- strip button chrome, keep the bubble look */
+button.lobby-chat__text {
+  border: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lobby-chat__msg--mine button.lobby-chat__text {
+  text-align: right;
+}
+
+.lobby-chat__emoji-btn {
+  flex-shrink: 0;
+  padding: 0 6px;
+  font-size: 1.05rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.lobby-chat__picker {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--page-border);
+}
+
+.lobby-chat__picker button,
+.lobby-chat__react-bar button {
+  padding: 4px 0;
+  font-size: 1.1rem;
+  line-height: 1;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.lobby-chat__picker button:hover,
+.lobby-chat__react-bar button:hover {
+  background: var(--page-bg);
+}
+
+.lobby-chat__react-bar {
+  display: flex;
+  gap: 2px;
+  padding: 3px 4px;
+  background: var(--page-surface);
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  box-shadow: 0 4px 12px -6px rgba(0, 0, 0, 0.3);
+}
+
+.lobby-chat__react-bar button {
+  padding: 3px 5px;
+}
+
+.lobby-chat__reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.lobby-chat__msg--mine .lobby-chat__reactions {
+  justify-content: flex-end;
+}
+
+.lobby-chat__reaction {
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  color: var(--page-ink);
+  background: var(--page-bg);
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.lobby-chat__reaction--mine {
+  border-color: var(--page-ink);
+  font-weight: 600;
+}
