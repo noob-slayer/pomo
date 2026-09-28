@@ -65,6 +65,13 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   const badges = useMemo(() => computeBadges(history, mode).filter((b) => b.achieved), [history, mode]);
   const [badgeId, setBadgeId] = useState<string | undefined>(initialBadgeId ?? badges[badges.length - 1]?.id);
 
+  // Shell rebuilds focusingNames on every render (once a second while a timer runs), so
+  // key it on its contents -- otherwise each tick looked like new card data, re-rendered the
+  // image and disabled the share button until the PNG re-encoded (the "blinking" button)
+  const focusingKey = focusingNames.join("\u0000");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableFocusing = useMemo(() => focusingNames, [focusingKey]);
+
   const kinds: CardKind[] = [
     "today",
     "week",
@@ -121,7 +128,7 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
       };
     }
     if (kind === "lobby") {
-      return { kind: "lobby", lobbyName: currentLobby?.name ?? "my lobby", focusing: focusingNames };
+      return { kind: "lobby", lobbyName: currentLobby?.name ?? "my lobby", focusing: stableFocusing };
     }
     return {
       kind: "today",
@@ -129,7 +136,7 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
       sessions: today.length,
       streak: computeStreaks(history, mode).current,
     };
-  }, [kind, history, mode, now, badges, badgeId, currentLobby, focusingNames]);
+  }, [kind, history, mode, now, badges, badgeId, currentLobby, stableFocusing]);
 
   const message = cardMessage(data, fullLink);
 
@@ -140,6 +147,8 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
     canvasRef.current = canvas;
     renderCard(canvas, data, { theme: resolveWorkTheme(themeKey), name, link: printedLink, date: now });
     setPreviewUrl(canvas.toDataURL("image/png"));
+    // cleared so a tap mid-encode can't share the previous card -- this only happens on a
+    // real change now (card, colour), not on every tick of the parent (see stableFocusing)
     setFile(null);
     canvas.toBlob((blob) => {
       if (blob) setFile(new File([blob], `pomo-${data.kind}.png`, { type: "image/png" }));
