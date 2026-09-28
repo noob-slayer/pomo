@@ -49,9 +49,17 @@
   z-index: 100;
 }
 
-.topbar-zone--auto-hide:hover .topbar,
 .topbar-zone--auto-hide.topbar-zone--revealed .topbar {
   transform: translateY(0);
+}
+
+/* hover-to-reveal only for real pointers (mouse/trackpad). Touch browsers keep a "sticky"
+   :hover on whatever was last tapped, which would pin the bar open on phones and defeat the
+   auto-hide; they use tap-to-reveal (topbar-zone--revealed) instead. */
+@media (hover: hover) {
+  .topbar-zone--auto-hide:hover .topbar {
+    transform: translateY(0);
+  }
 }
 
 .topbar-left {
@@ -4152,4 +4160,68 @@ button.lobby-chat__text {
 .share-sheet__minor,
 .share-sheet__open-wa {
   text-transform: none;
+}
+
+/* ---------- phone declutter (<=600px: phones only, not tablets/iPads) ---------- */
+@media (max-width: 600px) {
+  /* a session is on -- just the clock; the summary comes back once the timer is idle */
+  .corner-summary--in-session {
+    display: none;
+  }
+
+  /* smaller summary text so it stops dominating the screen when it is shown */
+  .daily-summary__title,
+  .lobby-summary__title {
+    font-size: 0.6rem;
+  }
+
+  .daily-summary__line,
+  .lobby-summary__row {
+    font-size: 0.66rem;
+  }
+
+  .daily-summary__goal-label,
+  .daily-summary__set-goal,
+  .lobby-summary__status,
+  .lobby-summary__task {
+    font-size: 0.6rem;
+  }
+
+  .corner-summary {
+    gap: 8px;
+  }
+
+  /* keyboard shortcuts mean nothing on a touch screen */
+  .shortcut-footer {
+    display: none;
+  }
+
+  /* the bar hides itself on phones -- a small grab handle marks where to tap to bring it back */
+  .topbar-zone--auto-hide:not(.topbar-zone--revealed) .topbar-hover-trigger::after {
+    content: "";
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 38px;
+    height: 4px;
+    margin-left: -19px;
+    border-radius: 999px;
+    background: var(--stage-ink);
+    opacity: 0.35;
+  }
+}
+
+/* while any popup is open, the auto-hidden top bar and its invisible 44px tap strip must stay
+   out of the way -- the strip (z-index 99) otherwise sits over the top of popups and swallows
+   taps on their close buttons (hit on phones, where the bar now auto-hides even when idle) */
+body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onboarding)
+  .topbar-zone--auto-hide
+  .topbar-hover-trigger {
+  display: none;
+}
+
+body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onboarding)
+  .topbar-zone--auto-hide
+  .topbar {
+  transform: translateY(-100%);
 }
