@@ -1,5 +1,23 @@
 export type Mode = "work" | "personal";
-export type WorkTheme = "burgundy" | "forest" | "vistara" | "slate" | "goldenpink";
+export type WorkTheme =
+  | "burgundy"
+  | "forest"
+  | "vistara"
+  | "slate"
+  | "goldenpink"
+  // the "more" collection -- deeper jewel tones and metallics
+  | "sapphire"
+  | "imperial"
+  | "emerald"
+  | "oxblood"
+  | "midnight"
+  | "aubergine"
+  | "peacock"
+  | "mahogany"
+  | "onyx"
+  | "antiquegold"
+  | "champagne"
+  | "rosegold";
 export type PersonalTheme =
   | "photo"
   | "reveal"

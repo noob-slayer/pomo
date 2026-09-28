@@ -783,6 +783,7 @@ export function Shell() {
         "--stage-ink": theme.ink,
         "--stage-ink-muted": theme.inkMuted,
         "--stage-line": theme.line,
+        "--stage-sheen": theme.sheen ?? "none",
       }) as CSSProperties,
     [theme],
   );
