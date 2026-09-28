@@ -279,9 +279,9 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
         <p className="share-sheet__hint">
           {canShareFiles
             ? isPhone
-              ? "Opens your share options. Pick WhatsApp, then a chat or My Status."
-              : "Opens your share options. Pick WhatsApp, then a chat."
-            : `Your browser can't send images to WhatsApp directly, so the card is copied for you to paste (${pasteKey}).`}
+              ? "Choose WhatsApp from your share options, then pick a chat or My Status."
+              : "Choose WhatsApp from your share options, then pick a chat."
+            : `Your browser can't send images to WhatsApp directly, so we'll copy the card for you to paste (${pasteKey}).`}
         </p>
         {needsOpen && (
           <a className="share-sheet__open-wa" href={waUrl} target="_blank" rel="noopener noreferrer">
