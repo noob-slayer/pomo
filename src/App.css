@@ -4542,3 +4542,108 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
     border-bottom: 1px solid var(--page-border);
   }
 }
+
+/* ---------- lobby chat: GIPHY stickers ---------- */
+.giphy-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px 4px;
+}
+
+.giphy-picker__search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  background: var(--page-bg);
+  font-size: 0.8rem;
+  text-transform: none;
+}
+
+.giphy-picker__chips {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.giphy-picker__chips::-webkit-scrollbar {
+  display: none;
+}
+
+.giphy-picker__chip {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  color: var(--page-muted);
+  white-space: nowrap;
+}
+
+.giphy-picker__chip--active {
+  background: var(--page-ink);
+  border-color: var(--page-ink);
+  color: var(--page-bg);
+}
+
+.giphy-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.giphy-picker__item {
+  aspect-ratio: 1;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.giphy-picker__item:hover {
+  background: var(--page-bg);
+}
+
+.giphy-picker__item img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.giphy-picker__note {
+  grid-column: 1 / -1;
+  margin: 12px 0;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--page-muted);
+}
+
+.giphy-picker__attribution {
+  margin: 0;
+  text-align: right;
+  font-size: 0.62rem;
+  letter-spacing: 0.03em;
+  color: var(--page-muted);
+  text-transform: none;
+}
+
+/* a received GIPHY sticker: no bubble, just the cut-out, like WhatsApp */
+.lobby-chat__giphy {
+  padding: 0;
+  background: none;
+  border: none;
+  line-height: 0;
+}
+
+.lobby-chat__giphy img {
+  width: 120px;
+  max-height: 140px;
+  object-fit: contain;
+}

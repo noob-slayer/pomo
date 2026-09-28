@@ -13,6 +13,8 @@ import {
 } from "../lib/lobbySync";
 import { playMessagePing } from "../lib/sound";
 import { STICKERS, STICKERS_BY_ID, type Sticker } from "../lib/stickers";
+import { GIPHY_ENABLED, isGiphyMediaUrl, type GiphySticker } from "../lib/giphy";
+import { GiphyPicker } from "./GiphyPicker";
 
 // how many messages to keep in memory -- this chat is ephemeral (no DB, see lobbySync.ts),
 // so there's nothing to page through; an unbounded array would just grow for the life of
@@ -56,7 +58,7 @@ export function LobbyChat() {
   const [draft, setDraft] = useState("");
   const [unread, setUnread] = useState(0);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerTab, setPickerTab] = useState<"emoji" | "stickers">("emoji");
+  const [pickerTab, setPickerTab] = useState<"emoji" | "stickers" | "memes">("emoji");
   // the emoji/sticker panel closes on any tap outside it (messages, elsewhere on the page) so
   // it never sits over the conversation; tapping emojis inside it keeps it open for several
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -110,7 +112,7 @@ export function LobbyChat() {
     if (!reactFor) return;
     const onDown = (e: MouseEvent) => {
       const el = e.target as Element | null;
-      if (el?.closest(".lobby-chat__react-bar, .lobby-chat__text, .lobby-chat__sticker")) return;
+      if (el?.closest(".lobby-chat__react-bar, .lobby-chat__text, .lobby-chat__sticker, .lobby-chat__giphy")) return;
       setReactFor(null);
     };
     document.addEventListener("mousedown", onDown);
@@ -163,6 +165,21 @@ export function LobbyChat() {
     setPickerOpen(false);
   };
 
+  const sendGiphy = (g: GiphySticker) => {
+    if (!channelRef.current) return;
+    const message: LobbyChatMessage = {
+      id: messageId(),
+      identityKey,
+      personaName: displayName,
+      text: g.title,
+      giphy: { url: g.url, width: g.width, height: g.height },
+      at: Date.now(),
+    };
+    setMessages((prev) => [...prev, message].slice(-MAX_MESSAGES));
+    sendChatMessage(channelRef.current, message);
+    setPickerOpen(false);
+  };
+
   // insert at the cursor rather than always appending, so an emoji can go mid-sentence
   const insertEmoji = (emoji: string) => {
     const el = inputRef.current;
@@ -206,10 +223,26 @@ export function LobbyChat() {
                 const mine = m.identityKey === identityKey;
                 const msgReactions = Object.entries(reactions[m.id] ?? {});
                 const sticker = m.sticker ? STICKERS_BY_ID[m.sticker] : undefined;
+                const giphy = m.giphy && isGiphyMediaUrl(m.giphy.url) ? m.giphy : undefined;
                 return (
                   <div key={m.id} className={mine ? "lobby-chat__msg lobby-chat__msg--mine" : "lobby-chat__msg"}>
                     {!mine && <span className="lobby-chat__from">{m.personaName}</span>}
-                    {sticker ? (
+                    {giphy ? (
+                      <button
+                        type="button"
+                        className="lobby-chat__giphy"
+                        onClick={() => setReactFor((cur) => (cur === m.id ? null : m.id))}
+                        title="tap to react"
+                        aria-label={`sticker: ${m.text}`}
+                      >
+                        <img
+                          src={giphy.url}
+                          alt={m.text}
+                          loading="lazy"
+                          style={{ aspectRatio: `${giphy.width} / ${giphy.height}` }}
+                        />
+                      </button>
+                    ) : sticker ? (
                       <button
                         type="button"
                         className="lobby-chat__sticker"
@@ -266,7 +299,7 @@ export function LobbyChat() {
           {pickerOpen && (
             <div className="lobby-chat__picker-wrap" ref={pickerRef}>
               <div className="lobby-chat__picker-tabs" role="tablist">
-                {(["emoji", "stickers"] as const).map((t) => (
+                {(GIPHY_ENABLED ? (["emoji", "stickers", "memes"] as const) : (["emoji", "stickers"] as const)).map((t) => (
                   <button
                     key={t}
                     type="button"
@@ -279,7 +312,9 @@ export function LobbyChat() {
                   </button>
                 ))}
               </div>
-              {pickerTab === "emoji" ? (
+              {pickerTab === "memes" && GIPHY_ENABLED ? (
+                <GiphyPicker onPick={sendGiphy} />
+              ) : pickerTab === "emoji" ? (
                 <div className="lobby-chat__picker" role="dialog" aria-label="emoji">
                   {EMOJIS.map((e) => (
                     <button key={e} type="button" onClick={() => insertEmoji(e)}>
