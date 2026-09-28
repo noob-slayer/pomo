@@ -47,6 +47,11 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   // only affects wording: Status can be posted from a phone, not from WhatsApp on a laptop
   const isPhone = typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
   const pasteKey = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? "⌘V" : "Ctrl+V";
+  // desktop macOS (iPadOS also reports "Macintosh", but has touch points). WhatsApp for Mac
+  // doesn't register a share extension, so the macOS share sheet never lists it -- Macs go
+  // straight to the WhatsApp app instead (copy the card, open the app, paste).
+  const isMacDesktop =
+    typeof navigator !== "undefined" && /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints === 0;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const now = useMemo(() => new Date(), []);
@@ -164,17 +169,20 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
   const canShareFiles =
     !!file && !!(navigator as Navigator & { canShare?: (d: ShareData) => boolean }).canShare?.({ files: [file] });
   const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+  // opens the installed WhatsApp desktop app directly, message pre-filled, chat picker shown
+  const waAppUrl = `whatsapp://send?text=${encodeURIComponent(message)}`;
+  const useShareSheet = canShareFiles && !isMacDesktop;
 
-  // The system share sheet hands the card itself to WhatsApp: on phones, and on most laptop
-  // browsers too (Chrome/Edge on Windows, Safari and recent Chrome on Mac) when the WhatsApp
-  // desktop app is installed -- fully automatic, no download or paste. Only where the
-  // browser can't share files at all (e.g. Firefox) do we fall back to copying the card and
-  // opening WhatsApp for a paste. The copy has to come before opening WhatsApp: clipboard
-  // writes only succeed while this tab still has focus.
+  // Phones, and laptops whose share sheet can list WhatsApp (e.g. Windows): the system share
+  // sheet hands the card itself to WhatsApp -- no download, no paste.
+  // Mac: the share sheet can't list WhatsApp, so copy the card and open the WhatsApp app via
+  // its whatsapp:// link; the user picks a chat and pastes.
+  // Anything else (e.g. Firefox, no file sharing): copy the card and open WhatsApp on the web.
+  // The copy always comes first: clipboard writes only succeed while this tab has focus.
   const shareImage = async () => {
     if (!file) return;
     setNeedsOpen(false);
-    if (canShareFiles) {
+    if (useShareSheet) {
       try {
         await navigator.share({ files: [file], text: message });
         setNote("Shared.");
@@ -195,15 +203,28 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
     } catch {
       copied = false;
     }
+    if (!copied) download();
+    if (isMacDesktop) {
+      // hand off to the app; the page stays put. We can't tell whether the app actually
+      // opened, so always offer WhatsApp Web as a backup underneath.
+      window.location.href = waAppUrl;
+      setNeedsOpen(true);
+      setNote(
+        copied
+          ? `Card copied. In WhatsApp, pick a chat and press ${pasteKey} to paste it.`
+          : "Card saved to your downloads. Attach it in the WhatsApp chat.",
+      );
+      return;
+    }
     // no "noopener" feature string: with it, window.open returns null even on success, so a
     // blocked popup would be indistinguishable. Sever the opener by hand instead.
     const opened = window.open(waUrl, "_blank");
     if (opened) opened.opener = null;
-    if (copied) setNote(`Card copied. Choose a chat in WhatsApp and press ${pasteKey} to paste it.`);
-    else {
-      download();
-      setNote("Card saved to your downloads. Attach it in the WhatsApp chat.");
-    }
+    setNote(
+      copied
+        ? `Card copied. In WhatsApp, pick a chat and press ${pasteKey} to paste it.`
+        : "Card saved to your downloads. Attach it in the WhatsApp chat.",
+    );
     if (!opened) setNeedsOpen(true);
   };
 
@@ -277,15 +298,17 @@ export function ShareSheet({ initialKind, badgeId: initialBadgeId, focusingNames
           </button>
         </div>
         <p className="share-sheet__hint">
-          {canShareFiles
+          {useShareSheet
             ? isPhone
               ? "Choose WhatsApp from your share options, then pick a chat or My Status."
               : "Choose WhatsApp from your share options, then pick a chat."
-            : `Your browser can't send images to WhatsApp directly, so we'll copy the card for you to paste (${pasteKey}).`}
+            : isMacDesktop
+              ? `We'll copy the card and open the WhatsApp app. Pick a chat, then press ${pasteKey} to paste it.`
+              : `Your browser can't send images to WhatsApp directly, so we'll copy the card for you to paste (${pasteKey}).`}
         </p>
         {needsOpen && (
           <a className="share-sheet__open-wa" href={waUrl} target="_blank" rel="noopener noreferrer">
-            Open WhatsApp →
+            {isMacDesktop ? "App didn't open? Use WhatsApp Web →" : "Open WhatsApp →"}
           </a>
         )}
         <div className="share-sheet__minor">
