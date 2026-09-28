@@ -12,6 +12,7 @@ import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
 import { supabase } from "../lib/supabaseClient";
+import { startHeartbeat } from "../lib/heartbeat";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
 import {
   connectLobbySync,
@@ -491,7 +492,12 @@ export function Shell() {
   // adopt the newest state among my other devices, if it's newer than what this one shows
   const reconcileSelf = (peers: SelfSnapshot[]) => {
     const now = Date.now();
-    const fresh = peers.filter((p) => now - p.at < SELF_STALE_MS);
+    // deliberately NOT filtered by heartbeat age: presence membership already means the
+    // peer is connected, and its snapshot carries its own timestamp, so even an old one
+    // (a background tab that couldn't heartbeat on time) still yields the right countdown.
+    // Dropping "stale" peers here is what left a phone sitting at 25:00 while the laptop,
+    // pomo in a background tab, was mid-session.
+    const fresh = peers;
     selfPeersRef.current = fresh;
     if (!fresh.length) return;
     const best = fresh.reduce((a, b) =>
@@ -579,7 +585,7 @@ export function Shell() {
       selfSyncChannelRef.current = ch;
       pushSelfRef.current(); // in case the join completed before this ran
     });
-    const beat = window.setInterval(() => pushSelfRef.current(), SELF_HEARTBEAT_MS);
+    const stopBeat = startHeartbeat(SELF_HEARTBEAT_MS, () => pushSelfRef.current());
     // back from the background: announce ourselves and re-check what peers last showed
     // (the reconnect's own presence sync then brings any newer state)
     const onVisible = () => {
@@ -592,7 +598,7 @@ export function Shell() {
     window.addEventListener("pagehide", onPageHide);
     return () => {
       cancelled = true;
-      window.clearInterval(beat);
+      stopBeat();
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("pagehide", onPageHide);
       if (channel) void supabase?.removeChannel(channel);
@@ -682,14 +688,14 @@ export function Shell() {
     });
     presenceChannelRef.current = channel;
     // heartbeat: keep our `at` fresh so peers can tell "still here" from "silently gone"
-    const beat = window.setInterval(() => pushPresenceRef.current(), PRESENCE_HEARTBEAT_MS);
+    const stopBeat = startHeartbeat(PRESENCE_HEARTBEAT_MS, () => pushPresenceRef.current());
     // a deliberate tab close/navigation -- untrack immediately so peers don't wait out the
     // staleness window (Supabase's own leave is far slower). pagehide is the reliable hook
     // (beforeunload is unreliable on mobile); a lost race just falls back to staleness.
     const onPageHide = () => void channel?.untrack();
     window.addEventListener("pagehide", onPageHide);
     return () => {
-      window.clearInterval(beat);
+      stopBeat();
       window.removeEventListener("pagehide", onPageHide);
       channel?.unsubscribe();
       presenceChannelRef.current = null;
