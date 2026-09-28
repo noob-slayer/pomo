@@ -1134,15 +1134,31 @@
      box, spilled off the right edge, and overlapped the clock. Put it in normal flow above
      the timer instead: full-width, right-aligned, so it wraps within the screen AND pushes
      the (now column-stacked) timer down rather than sitting on top of it. */
+  /* keep the timer in the true middle of the screen, never overlapped: a 3-row grid of
+     [flexible space | timer | flexible space]. The two 1fr rows split the leftover height
+     equally, so the timer is exactly centred; the summary lives in the top row. `1fr` keeps
+     an auto minimum, so a summary taller than its half grows its own row and nudges the
+     timer down only as far as needed -- they can't collide. (Mid-session the summary is
+     hidden entirely, so the timer is always dead-centre then.) Every other stage child is
+     absolutely positioned, so only these two take part in the grid. */
   .stage {
-    flex-direction: column;
-    justify-content: center;
-    gap: 4vh;
+    display: grid;
+    grid-template-rows: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    row-gap: 3vh;
+  }
+
+  .stage-inner {
+    grid-row: 2;
   }
 
   .corner-summary {
     position: static;
-    order: -1;
+    grid-row: 1;
+    align-self: start;
+    justify-self: stretch;
     width: 100%;
     max-width: none;
     gap: 10px;
