@@ -37,7 +37,8 @@ export type PersonalTheme =
   | "p"
   | "cozy"
   | "mood"
-  | "desk";
+  | "desk"
+  | "ops";
 export type Phase = "focus" | "break";
 export type Status = "idle" | "running" | "paused";
 

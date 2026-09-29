@@ -23,6 +23,7 @@ const FUN_OPTIONS: { value: PersonalTheme; label: string }[] = [
   { value: "splitflap", label: "split - flap" },
   { value: "japan", label: "japan - curtain" },
   { value: "matrix", label: "matrix" },
+  { value: "ops", label: "ops board" },
   { value: "p", label: "p" },
   { value: "cozy", label: "cozy college room" },
   // still being tuned -- import.meta.env.DEV keeps these available while working on them

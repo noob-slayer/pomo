@@ -4707,3 +4707,219 @@ body:has(.stats-overlay, .feedback-overlay, .share-sheet, .session-prompt, .onbo
     display: none;
   }
 }
+
+/* ---------- "ops board" make-it-fun theme (faux terminal focus dashboard) ---------- */
+.ops {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #0a0e14;
+  color: #e6edf3;
+  font-family: var(--font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: clamp(10px, 1.35vw, 15px);
+  line-height: 1.6;
+}
+
+.ops__inner {
+  position: absolute;
+  inset: 0;
+  padding: clamp(16px, 3vw, 40px);
+  opacity: 0.5; /* dimmed so the timer on top stays readable */
+  overflow: hidden;
+}
+
+/* darken the middle where the clock sits, keep the edges legible */
+.ops__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(58% 48% at 50% 46%, rgba(10, 14, 20, 0.92), rgba(10, 14, 20, 0.35) 78%);
+  pointer-events: none;
+}
+
+.ops__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  border-bottom: 1px solid #1c2430;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+}
+
+.ops__logo {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+  width: 46px;
+  flex-shrink: 0;
+}
+
+.ops__px {
+  aspect-ratio: 1;
+  border-radius: 1px;
+}
+.ops__px--on {
+  background: #2dd4bf;
+  box-shadow: 0 0 6px rgba(45, 212, 191, 0.5);
+}
+
+.ops__name {
+  color: #e6edf3;
+  font-weight: 700;
+}
+.ops__dim {
+  color: #5b6673;
+}
+.ops__meta {
+  color: #8a94a6;
+  margin-top: 2px;
+}
+.ops__clock {
+  margin-left: auto;
+  color: #e6edf3;
+  font-weight: 700;
+}
+.ops__cursor {
+  color: #2dd4bf;
+  animation: ops-blink 1.1s step-end infinite;
+}
+@keyframes ops-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* status dots */
+.ops__d,
+.ops__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  vertical-align: baseline;
+  margin-right: 2px;
+}
+.ops__d--g {
+  background: #39d98a;
+  box-shadow: 0 0 6px rgba(57, 217, 138, 0.6);
+  animation: ops-pulse 2.4s ease-in-out infinite;
+}
+.ops__d--y {
+  background: #f5c451;
+}
+.ops__d--b {
+  background: #4a9eff;
+}
+.ops__d--s {
+  background: #5b6673;
+}
+@keyframes ops-pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.ops__sec {
+  margin-bottom: 14px;
+}
+.ops__h {
+  color: #38bdf8;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin: 0 0 6px;
+  text-transform: uppercase; /* the TUI look uses caps headers, despite the app-wide lowercase */
+}
+
+/* board rows with bars */
+.ops__board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ops__brow {
+  display: grid;
+  grid-template-columns: 8.5em 1fr 2em;
+  align-items: center;
+  gap: 10px;
+}
+.ops__blabel {
+  color: #c3ccd8;
+}
+.ops__track {
+  height: 12px;
+  background: repeating-linear-gradient(90deg, #131a24 0 3px, transparent 3px 6px);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.ops__fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+}
+.ops__fill--g {
+  background: #39d98a;
+}
+.ops__fill--y {
+  background: #f5c451;
+}
+.ops__fill--b {
+  background: #4a9eff;
+}
+.ops__fill--s {
+  background: #5b6673;
+}
+.ops__count {
+  color: #c3ccd8;
+  text-align: right;
+}
+
+/* crew */
+.ops__member {
+  color: #e6edf3;
+  font-weight: 700;
+  margin: 6px 0 0;
+}
+.ops__line {
+  color: #c3ccd8;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops__line--dim {
+  color: #6b7686;
+}
+.ops__branch {
+  color: #3a4656;
+  margin-right: 4px;
+}
+.ops__note {
+  color: #6b7686;
+  margin-left: 8px;
+}
+.ops__note--y {
+  color: #f5c451;
+}
+.ops__note--s {
+  color: #6b7686;
+}
+
+/* queue */
+.ops__queue {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ops__qrow {
+  display: flex;
+  gap: 10px;
+  white-space: nowrap;
+}
+.ops__qid {
+  color: #38bdf8;
+}
+.ops__qtask {
+  color: #c3ccd8;
+}
+.ops__qrow .ops__note {
+  margin-left: auto;
+}
