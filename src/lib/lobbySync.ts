@@ -155,6 +155,11 @@ export interface LobbyPresence {
   state: PresenceState;
   taskTitle: string | null; // the current task, when focusing and named
   durationMinutes: number | null; // the running pomo's length, when focusing
+  // wall-clock ms when the current fixed-length session ends (null for idle or an open-ended
+  // break). Lets a peer keep showing "focusing" for the whole session even if this client's
+  // heartbeat stalls -- e.g. its tab is backgrounded while the person actually does the work,
+  // which is exactly when a co-working member most needs to still read as focusing, not offline.
+  sessionEndsAt: number | null;
   at: number; // ms epoch of the last heartbeat -- Supabase's own presence-leave on
   // disconnect takes ~40s+, far too slow to read as "offline", so the client heartbeats
   // this and the consumer treats a stale `at` as offline (see PRESENCE_STALE_MS)

@@ -44,7 +44,13 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
       };
     }
     const p = presenceByKey.get(memberKey);
-    if (!p || p.state === "idle" || Date.now() - p.at >= PRESENCE_STALE_MS) {
+    // a member reads as active if we've heard from them recently OR they're inside a session
+    // whose end time hasn't passed yet -- the latter keeps a focusing member (whose tab is
+    // backgrounded while they work, so their heartbeat has stalled) green for the whole pomo
+    // instead of flipping them to offline after 30s.
+    const fresh = !!p && Date.now() - p.at < PRESENCE_STALE_MS;
+    const inSession = !!p && p.sessionEndsAt != null && Date.now() < p.sessionEndsAt;
+    if (!p || p.state === "idle" || (!fresh && !inSession)) {
       return { state: "offline", taskTitle: null, durationMinutes: null };
     }
     return { state: p.state, taskTitle: p.taskTitle, durationMinutes: p.durationMinutes };
