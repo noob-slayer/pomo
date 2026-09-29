@@ -84,7 +84,14 @@ export async function connectSelfSync(
   const stale = supabase.getChannels().find((c) => c.topic === `realtime:${topic}`);
   if (stale) await supabase.removeChannel(stale);
   if (isCancelled()) return null;
-  const channel = supabase.channel(topic, { config: { private: true, presence: { key: deviceId } } });
+  // deliberately a PUBLIC channel (unlike the lobby channels, which are private). Making it
+  // private gated it behind realtime RLS + a live auth token, which added failure modes a
+  // personal cross-device timer sync shouldn't have -- a token race on a slow device, and
+  // (most visibly) a device on old cached code joining as public while a freshly-deployed
+  // device joins as private, which silently never sync. The only thing this channel carries
+  // is your own timer state to your own devices; the residual exposure (a lobby co-member who
+  // digs out your uid could watch it) is low, and reliability of the sync wins here.
+  const channel = supabase.channel(topic, { config: { presence: { key: deviceId } } });
   const rebuild = () => {
     const state = channel.presenceState<SelfSnapshot>();
     const peers: SelfSnapshot[] = [];
