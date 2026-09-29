@@ -36,77 +36,22 @@ export function unlockAudio(): void {
   if (ctx && needsResume(ctx)) void ctx.resume().catch(() => {});
 }
 
-// the completion chime, pre-scheduled on the audio clock the moment a session starts (or
-// resumes). A background tab's setInterval gets throttled -- Chrome batches hidden-tab
-// timers to once a minute after ~5 min -- so a chime played from the completion callback
-// could land up to a minute late, long after the user had stopped listening for it. The
-// AudioContext clock isn't throttled: tones scheduled on it fire on time even in a hidden
-// tab. The completion callback's playChime() then skips itself if this one already rang.
-let armedOscillators: OscillatorNode[] = [];
-let armedStartAt: number | null = null; // ctx.currentTime the armed chime begins
-let rangStartAt: number | null = null; // start of an armed chime that has already begun ringing
-
-export function armChime(secondsFromNow: number): void {
-  disarmChime();
-  if (secondsFromNow <= 0) return;
-  const ctx = resolveCtx();
-  if (!ctx) return;
-  const arm = () => {
-    try {
-      const start = ctx.currentTime + secondsFromNow;
-      armedOscillators = scheduleRun(ctx, start);
-      armedStartAt = start;
-    } catch {
-      // audio unavailable -- the completion callback's playChime is still the fallback
-    }
-  };
-  if (needsResume(ctx)) ctx.resume().then(arm).catch(() => {});
-  else arm();
-}
-
-// cancel a chime that hasn't started yet (pause/stop/reset); one already ringing is handed
-// over to stopChime's list so it finishes, or gets cut by dismissing the prompt as usual
-export function disarmChime(): void {
-  const ctx = sharedCtx;
-  if (armedStartAt !== null && ctx && ctx.currentTime >= armedStartAt - 0.05) {
-    activeOscillators.push(...armedOscillators);
-    rangStartAt = armedStartAt;
-  } else {
-    for (const osc of armedOscillators) {
-      try {
-        osc.stop();
-      } catch {
-        // never started -- nothing to stop
-      }
-    }
-  }
-  armedOscillators = [];
-  armedStartAt = null;
-}
-
-// did the armed chime start within the last few seconds (or is it about to)? The
-// completion callback asks this so the chime doesn't ring twice
-function armedChimeCoversNow(ctx: AudioContext): boolean {
-  const covers = (startAt: number | null) => {
-    if (startAt === null) return false;
-    const delta = ctx.currentTime - startAt;
-    return delta > -2 && delta < TOTAL_DURATION + 1;
-  };
-  // still armed, or already handed off to ring out (disarmed at the moment it started)
-  return (armedOscillators.length > 0 && covers(armedStartAt)) || covers(rangStartAt);
-}
-
 const NOTES = [880, 1108, 1318]; // A5, C#6, E6
 const REPEAT_EVERY = 1.25; // seconds between the start of each ascending run
 const TOTAL_DURATION = 3; // seconds — a brief alert, not a single short beep
 
 // a ~3s alert (the ascending three-note run repeated a few times), loud enough to
-// notice from another room. Call stopChime() to cut it short once the user has already
-// acted on the completion (e.g. dismissed the continue/break prompt).
+// notice from another room. Called straight from the completion callback -- deliberately
+// NOT pre-scheduled minutes ahead on the audio clock: that fired silently in browsers that
+// suspend an idle AudioContext (notably Edge's Sleeping Tabs / efficiency mode), and worse,
+// its "already rang" guard then suppressed this fallback too, so nothing played at all. The
+// context is kept warm while a session runs (see Shell), so this resume-and-play stays
+// prompt; a fully-backgrounded tab that finishes unheard is covered by the desktop
+// notification (lib/completionNotifications.ts). Call stopChime() to cut it short once the
+// user has acted on the completion (e.g. dismissed the continue/break prompt).
 export function playChime(): void {
   const ctx = resolveCtx();
   if (!ctx) return;
-  if (armedChimeCoversNow(ctx)) return; // the pre-scheduled chime is already ringing
   // scheduling tones against ctx.currentTime while the context is still "suspended"
   // schedules them against a clock that isn't actually advancing -- by the time resume()
   // completes, those start times can already be in the past and get silently dropped.
