@@ -61,6 +61,7 @@ const DvdBounce = lazy(() => import("./DvdBounce").then((m) => ({ default: m.Dvd
 const F1Race = lazy(() => import("./F1Race").then((m) => ({ default: m.F1Race })));
 const YtBackground = lazy(() => import("./YtBackground").then((m) => ({ default: m.YtBackground })));
 const JapanCurtain = lazy(() => import("./JapanCurtain").then((m) => ({ default: m.JapanCurtain })));
+const OpsBoard = lazy(() => import("./OpsBoard").then((m) => ({ default: m.OpsBoard })));
 const ShareSheet = lazy(() => import("./ShareSheet").then((m) => ({ default: m.ShareSheet })));
 const ChangelogPage = lazy(() => import("./ChangelogPage").then((m) => ({ default: m.ChangelogPage })));
 import { YoutubeWidget } from "./YoutubeWidget";
@@ -1060,6 +1061,7 @@ export function Shell() {
   const showSplitFlap = mode === "personal" && personalTheme === "splitflap";
   const showJapanLayer = mode === "personal" && personalTheme === "japan";
   const showMatrixLayer = mode === "personal" && personalTheme === "matrix";
+  const showOpsLayer = mode === "personal" && personalTheme === "ops";
   const showPLayer = mode === "personal" && personalTheme === "p";
   const showCozyLayer = mode === "personal" && personalTheme === "cozy";
   // dev-only, still being tuned -- see the matching gate in PersonalThemeTabs
@@ -1175,6 +1177,11 @@ export function Shell() {
               <img className="stage-matrix" src="/matrix-bg.jpg" alt="" />
               <div className="stage-matrix-overlay" />
             </div>
+          )}
+          {showOpsLayer && (
+            <Suspense fallback={null}>
+              <OpsBoard />
+            </Suspense>
           )}
           {showPLayer && (
             <div className="stage-p-wrap">
