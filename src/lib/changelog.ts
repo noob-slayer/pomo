@@ -10,6 +10,17 @@ export interface ChangelogGroup {
 export const CHANGELOG: ChangelogGroup[] = [
   {
     date: "September 2026",
+    title: "privacy, polish & a warm welcome",
+    items: [
+      "New members get a welcome email the first time they sign in with Google.",
+      "Lobby chat, presence and reactions are now private to the people in your lobby.",
+      "You stay shown as “focusing” to your lobby for the whole session, even with pomo in the background.",
+      "More reliable timer sync between your laptop and phone.",
+      "A new deep-navy colour theme in the “more” palette.",
+    ],
+  },
+  {
+    date: "September 2026",
     title: "sharing, stickers & a phone glow-up",
     items: [
       "Send GIPHY stickers in lobby chat — search movies, memes and reactions right from the picker.",
