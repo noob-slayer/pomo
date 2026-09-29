@@ -649,6 +649,10 @@ export function Shell() {
     state: presenceState,
     taskTitle: presenceState === "focus" ? (timer.activeTaskTitle ?? null) : null,
     durationMinutes: presenceState === "focus" && timer.targetSeconds ? Math.round(timer.targetSeconds / 60) : null,
+    // a fixed-length running session's end time; recomputed each render but stays ~constant
+    // as remainingSeconds ticks down. null for idle or an open-ended break.
+    sessionEndsAt:
+      timer.status === "running" && timer.targetSeconds ? Date.now() + timer.remainingSeconds * 1000 : null,
   };
   // always holds the latest, so the subscribe callback and heartbeat (which fire
   // asynchronously, after this value may have already changed) track current state
@@ -659,7 +663,8 @@ export function Shell() {
   const focusingNames = (() => {
     const names = new Map<string, string>();
     for (const p of lobbyPresence) {
-      if (p.state === "focus" && Date.now() - p.at < PRESENCE_STALE_MS) names.set(p.identityKey, p.personaName);
+      const liveOrInSession = Date.now() - p.at < PRESENCE_STALE_MS || (p.sessionEndsAt != null && Date.now() < p.sessionEndsAt);
+      if (p.state === "focus" && liveOrInSession) names.set(p.identityKey, p.personaName);
     }
     if (presenceState === "focus") names.set(identityKey, displayName);
     return [...names.values()];
@@ -691,10 +696,14 @@ export function Shell() {
     presenceChannelRef.current = channel;
     // heartbeat: keep our `at` fresh so peers can tell "still here" from "silently gone"
     const stopBeat = startHeartbeat(PRESENCE_HEARTBEAT_MS, () => pushPresenceRef.current());
-    // a deliberate tab close/navigation -- untrack immediately so peers don't wait out the
-    // staleness window (Supabase's own leave is far slower). pagehide is the reliable hook
-    // (beforeunload is unreliable on mobile); a lost race just falls back to staleness.
-    const onPageHide = () => void channel?.untrack();
+    // a deliberate leave while idle -- untrack immediately so peers don't wait out the
+    // staleness window (Supabase's own leave is far slower). Deliberately NOT while in a
+    // session: pagehide also fires when a phone just backgrounds the tab, and untracking a
+    // focusing member there is exactly what wrongly flipped them to offline mid-pomo. A
+    // focusing member who really closed the tab is removed by Supabase's own leave instead.
+    const onPageHide = () => {
+      if (myPresenceRef.current?.state === "idle") void channel?.untrack();
+    };
     window.addEventListener("pagehide", onPageHide);
     return () => {
       stopBeat();
