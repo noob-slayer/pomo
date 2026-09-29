@@ -42,7 +42,7 @@ import {
   SELF_STALE_MS,
   type SelfSnapshot,
 } from "../lib/selfSync";
-import { armChime, disarmChime, playChime, stopChime, unlockAudio } from "../lib/sound";
+import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import type { CardKind } from "../lib/shareCards";
 import { requestCompletionPermission, notifyCompletion } from "../lib/completionNotifications";
 import { computeBadges, readSeenBadges, writeSeenBadges, type Badge } from "../lib/statsExtras";
@@ -808,21 +808,6 @@ export function Shell() {
     };
   }, [keepAudioWarm]);
 
-  // pre-schedule the completion chime on the audio clock (see armChime in lib/sound.ts) so
-  // it rings on time even in a throttled background tab. Re-armed whenever the countdown
-  // could have moved -- start, resume, reset, a synced change from another device -- which
-  // the 5s bucket of remainingSeconds catches (a reset jumps it; normal ticking re-arms
-  // harmlessly every 5s from the wall-clock value, correcting any drift). Disarmed on pause,
-  // stop, or once it's finished.
-  const chimeBucket = Math.floor(timer.remainingSeconds / 5);
-  useEffect(() => {
-    if (timer.status === "running" && timer.targetSeconds !== null) {
-      armChime(rawTimerRef.current.getLiveSeconds());
-    } else {
-      disarmChime();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timer.status, timer.phase, timer.targetSeconds, chimeBucket]);
 
   const { popOut: popOutPip, pipSupported } = useBackgroundTimerDisplay(timer);
 
