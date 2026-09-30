@@ -24,12 +24,11 @@ import {
   sendKudosOnChannel,
   broadcastKudos,
   connectLobbyPresence,
-  trackPresence,
   PRESENCE_HEARTBEAT_MS,
-  PRESENCE_STALE_MS,
   type SyncAction,
   type KudosNotification,
   type LobbyPresence,
+  type PresenceConnection,
   type PresenceState,
 } from "../lib/lobbySync";
 import {
@@ -127,8 +126,7 @@ export function Shell() {
   const selfPeersRef = useRef<SelfSnapshot[]>([]);
   const [selfTick, setSelfTick] = useState(0);
   const kudosChannelRef = useRef<{ lobbyId: string; channel: RealtimeChannel } | null>(null);
-  const presenceChannelRef = useRef<RealtimeChannel | null>(null);
-  const presenceSubscribedRef = useRef(false);
+  const presenceConnRef = useRef<PresenceConnection | null>(null);
   const myPresenceRef = useRef<Omit<LobbyPresence, "at"> | null>(null);
   const [lobbyPresence, setLobbyPresence] = useState<LobbyPresence[]>([]);
 
@@ -650,10 +648,6 @@ export function Shell() {
     state: presenceState,
     taskTitle: presenceState === "focus" ? (timer.activeTaskTitle ?? null) : null,
     durationMinutes: presenceState === "focus" && timer.targetSeconds ? Math.round(timer.targetSeconds / 60) : null,
-    // a fixed-length running session's end time; recomputed each render but stays ~constant
-    // as remainingSeconds ticks down. null for idle or an open-ended break.
-    sessionEndsAt:
-      timer.status === "running" && timer.targetSeconds ? Date.now() + timer.remainingSeconds * 1000 : null,
   };
   // always holds the latest, so the subscribe callback and heartbeat (which fire
   // asynchronously, after this value may have already changed) track current state
@@ -664,21 +658,18 @@ export function Shell() {
   const focusingNames = (() => {
     const names = new Map<string, string>();
     for (const p of lobbyPresence) {
-      const liveOrInSession = Date.now() - p.at < PRESENCE_STALE_MS || (p.sessionEndsAt != null && Date.now() < p.sessionEndsAt);
-      if (p.state === "focus" && liveOrInSession) names.set(p.identityKey, p.personaName);
+      // trust the roster: anyone Supabase still lists as focusing is focusing (see the
+      // liveStatus note in LobbySummary -- no heartbeat-age gate any more)
+      if (p.state === "focus") names.set(p.identityKey, p.personaName);
     }
     if (presenceState === "focus") names.set(identityKey, displayName);
     return [...names.values()];
   })();
 
-  // stamps a fresh heartbeat timestamp at send time (not render time) so `at` is always
-  // "now" when it hits the wire, no matter how stale the last render was
-  const pushPresence = () => {
-    const channel = presenceChannelRef.current;
-    if (channel && presenceSubscribedRef.current && myPresenceRef.current) {
-      trackPresence(channel, { ...myPresenceRef.current, at: Date.now() });
-    }
-  };
+  // broadcast our current status now. announce() reads getSelf() (-> myPresenceRef) and
+  // stamps a fresh `at` at send time, and is a no-op until the channel is subscribed, so an
+  // early call before the join completes is harmless (the SUBSCRIBED callback re-announces).
+  const pushPresence = () => presenceConnRef.current?.announce();
   const pushPresenceRef = useRef(pushPresence);
   pushPresenceRef.current = pushPresence;
 
@@ -686,39 +677,31 @@ export function Shell() {
   // whether they're mid-pomo. Only individual mode: sync-mode lobbies already show one
   // shared clock, so a per-member active/offline line would be redundant there.
   useEffect(() => {
-    presenceChannelRef.current = null;
-    presenceSubscribedRef.current = false;
+    presenceConnRef.current = null;
     setLobbyPresence([]);
     if (!currentLobby || currentLobby.mode !== "individual") return;
-    const channel = connectLobbyPresence(currentLobby.id, identityKey, setLobbyPresence, () => {
-      presenceSubscribedRef.current = true;
-      pushPresenceRef.current();
-    });
-    presenceChannelRef.current = channel;
-    // heartbeat: keep our `at` fresh so peers can tell "still here" from "silently gone"
+    const conn = connectLobbyPresence(
+      currentLobby.id,
+      () => myPresenceRef.current ?? { identityKey, personaName: displayName, state: "idle", taskTitle: null, durationMinutes: null },
+      setLobbyPresence,
+    );
+    presenceConnRef.current = conn;
+    // heartbeat: re-broadcast our status so peers keep our `at` fresh (still here) and any
+    // newcomer converges even if it missed our "hello". No pagehide/leave handling needed --
+    // stopping the timer broadcasts an "idle" status (instant offline), and a silent drop
+    // (closed tab, dropped wifi) ages out of every peer's map after PRESENCE_STALE_MS.
     const stopBeat = startHeartbeat(PRESENCE_HEARTBEAT_MS, () => pushPresenceRef.current());
-    // a deliberate leave while idle -- untrack immediately so peers don't wait out the
-    // staleness window (Supabase's own leave is far slower). Deliberately NOT while in a
-    // session: pagehide also fires when a phone just backgrounds the tab, and untracking a
-    // focusing member there is exactly what wrongly flipped them to offline mid-pomo. A
-    // focusing member who really closed the tab is removed by Supabase's own leave instead.
-    const onPageHide = () => {
-      if (myPresenceRef.current?.state === "idle") void channel?.untrack();
-    };
-    window.addEventListener("pagehide", onPageHide);
     return () => {
       stopBeat();
-      window.removeEventListener("pagehide", onPageHide);
-      channel?.unsubscribe();
-      presenceChannelRef.current = null;
-      presenceSubscribedRef.current = false;
+      conn?.dispose();
+      presenceConnRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLobby?.id, currentLobby?.mode, identityKey]);
 
-  // push our own status onto the presence channel whenever the pomo-relevant state changes
-  // -- guarded on presenceSubscribedRef so a change that lands before the join completes is
-  // dropped here (it'll be tracked by the subscribe callback above) rather than mis-sent
+  // broadcast our own status whenever the pomo-relevant state changes -- announce() is a
+  // no-op until subscribed, so a change that lands before the join completes is simply
+  // dropped here and covered by the first announce from the subscribe callback instead.
   useEffect(() => {
     pushPresenceRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
