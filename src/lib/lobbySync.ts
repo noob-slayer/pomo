@@ -138,15 +138,20 @@ export function connectKudosNotifications(
 }
 
 // live presence -- who's in the lobby right now and what they're doing. Powers the
-// individual-mode summary's "active vs offline" line. Uses Supabase Realtime Presence
-// (not a broadcast channel) specifically because presence auto-untracks a client the
-// moment its websocket drops -- closing the tab, going to sleep, losing wifi all turn a
-// member "offline" for everyone else with no heartbeat/timeout logic of our own. The
-// tradeoff is presence only ever reflects *currently connected* clients, which is exactly
-// what "active vs offline" wants: someone not connected simply isn't active.
+// individual-mode summary's "active vs offline" line.
+//
+// Deliberately built on BROADCAST, not Supabase Realtime Presence. We used Presence, and
+// measured (two authenticated members, this project's live Realtime) that presence diffs on
+// a private channel take 3-4s when they arrive at all and are frequently dropped, while a
+// broadcast on the very same private channel lands in ~30ms every time. That flakiness was
+// the real "status doesn't update, refresh to see it" bug -- not the staleness gate we used
+// to blame. So each client just broadcasts its own status; peers keep a small map of the
+// latest they've heard from everyone.
+//
 // three live states: "focus" (running a pomo -> green), "break" (running a break -> yellow),
-// "idle" (in the lobby but not in a session -> offline/red). A member not in the roster at
-// all (disconnected) also reads as offline.
+// "idle" (in the lobby but not in a session -> offline/red). Someone we've stopped hearing
+// from (closed tab / dropped wifi) ages out of the map after PRESENCE_STALE_MS and also
+// reads as offline.
 export type PresenceState = "focus" | "break" | "idle";
 
 export interface LobbyPresence {
@@ -155,74 +160,106 @@ export interface LobbyPresence {
   state: PresenceState;
   taskTitle: string | null; // the current task, when focusing and named
   durationMinutes: number | null; // the running pomo's length, when focusing
-  // wall-clock ms when the current fixed-length session ends (null for idle or an open-ended
-  // break). Lets a peer keep showing "focusing" for the whole session even if this client's
-  // heartbeat stalls -- e.g. its tab is backgrounded while the person actually does the work,
-  // which is exactly when a co-working member most needs to still read as focusing, not offline.
-  sessionEndsAt: number | null;
-  at: number; // ms epoch of the last heartbeat -- Supabase's own presence-leave on
-  // disconnect takes ~40s+, far too slow to read as "offline", so the client heartbeats
-  // this and the consumer treats a stale `at` as offline (see PRESENCE_STALE_MS)
+  at: number; // ms epoch this status was broadcast -- used to age out a peer we've stopped
+  // hearing from (see PRESENCE_STALE_MS). An explicit stop/break broadcasts a fresh status
+  // instantly, so `at` only ever backstops a *silent* disconnect, never gates a real change.
 }
 
-// a member whose last heartbeat is older than this is treated as offline, even though
-// Supabase still lists their presence -- covers a closed laptop / dropped wifi / crashed
-// tab, where no clean "leave" is ever sent. Must comfortably exceed the heartbeat interval
-// (with room for real-world network jitter across devices) so a merely-slow beat doesn't
-// flap an active peer to offline mid-session.
-export const PRESENCE_STALE_MS = 30000;
+// how often each client re-broadcasts its current status: keeps its `at` fresh so peers
+// don't age it out, re-announces to anyone who joined since the last beat, and stays well
+// inside PRESENCE_STALE_MS so a single dropped beat can't flap an active member offline.
 export const PRESENCE_HEARTBEAT_MS = 8000;
+// a peer whose last broadcast is older than this is treated as gone (tab closed, wifi
+// dropped -- no graceful "leave" is ever sent). Comfortably more than 2 heartbeats so a
+// merely-late beat never flaps an active member; an *explicit* stop shows offline instantly
+// via a fresh "idle" broadcast, so this only bounds how long a SILENT drop lingers.
+export const PRESENCE_STALE_MS = 20000;
+// how often we re-check the map for peers that have gone stale, independent of any incoming
+// message (a silently-dropped peer sends nothing, so only this sweep can remove them).
+const PRESENCE_SWEEP_MS = 3000;
 
 function presenceChannelName(lobbyId: string): string {
   return `pomo-lobby-presence-${lobbyId}`;
 }
 
-// keyed on identityKey so all of one person's tabs collapse to a single roster entry
-// (we prefer an active tab below), and so the roster maps cleanly onto the member list.
-// `onSubscribed` fires once the channel is actually joined -- track() before that is
-// silently dropped, which was the source of a flaky "active never shows / offline never
-// clears" race -- so the caller does its first track() from there and pushes every later
-// change with trackPresence.
-export function connectLobbyPresence(
-  lobbyId: string,
-  identityKey: string,
-  onSync: (roster: LobbyPresence[]) => void,
-  onSubscribed: () => void,
-): RealtimeChannel | null {
-  if (!supabase) return null;
-  const channel = supabase.channel(presenceChannelName(lobbyId), {
-    config: { private: true, presence: { key: identityKey } },
-  });
-  // rebuild the whole roster from the authoritative presenceState() on ANY change. We bind
-  // it to join and leave as well as sync, not just sync: depending on supabase-js version a
-  // peer's heartbeat re-track can surface as a join/leave pair rather than a sync, and if we
-  // only listened to sync we'd miss the fresh `at` and let an active peer go stale-offline.
-  const rebuild = () => {
-    const state = channel.presenceState<LobbyPresence>();
-    const roster: LobbyPresence[] = [];
-    for (const key of Object.keys(state)) {
-      const metas = state[key];
-      // take the most recently tracked meta as the current state. presenceState appends
-      // each track() in order, so the last entry is newest -- deliberately NOT "find an
-      // active one": a client's own updates can leave earlier metas behind (most visibly
-      // under React StrictMode's double-invoked effects in dev, and briefly on any
-      // reconnect), and preferring an older meta would keep someone shown mid-session after
-      // they've stopped. Last-wins reflects their latest action.
-      if (metas && metas.length) roster.push(metas[metas.length - 1]);
-    }
-    onSync(roster);
-  };
-  channel.on("presence", { event: "sync" }, rebuild);
-  channel.on("presence", { event: "join" }, rebuild);
-  channel.on("presence", { event: "leave" }, rebuild);
-  channel.subscribe((status) => {
-    if (status === "SUBSCRIBED") onSubscribed();
-  });
-  return channel;
+// what the caller hands back when asked for its own current status (to broadcast). Returning
+// it lazily via a callback means the heartbeat and the "someone just joined" re-announce
+// always send the latest state, without the caller having to push a new closure each change.
+export type SelfPresenceProvider = () => Omit<LobbyPresence, "at">;
+
+export interface PresenceConnection {
+  // broadcast our current status now (on any local change) -- a no-op until subscribed
+  announce: () => void;
+  // unsubscribe and stop the staleness sweep
+  dispose: () => void;
 }
 
-export function trackPresence(channel: RealtimeChannel, presence: LobbyPresence): void {
-  void channel.track(presence);
+// broadcast-based presence. `getSelf` supplies our current status on demand; `onRoster` is
+// called with the live peer list (self excluded -- the caller renders its own row from its
+// local timer) whenever it changes, including when a peer ages out.
+export function connectLobbyPresence(
+  lobbyId: string,
+  getSelf: SelfPresenceProvider,
+  onRoster: (roster: LobbyPresence[]) => void,
+): PresenceConnection | null {
+  if (!supabase) return null;
+  const channel = supabase.channel(presenceChannelName(lobbyId), {
+    config: { private: true, broadcast: { self: false } },
+  });
+
+  const peers = new Map<string, LobbyPresence>();
+  let subscribed = false;
+
+  // drop anyone we haven't heard from within the window, then emit -- but only when the
+  // roster actually changed, so the periodic sweep doesn't churn a re-render every few
+  // seconds while everyone's still around.
+  const emit = (force: boolean) => {
+    const now = Date.now();
+    let changed = force;
+    for (const [key, p] of peers) {
+      if (now - p.at > PRESENCE_STALE_MS) {
+        peers.delete(key);
+        changed = true;
+      }
+    }
+    if (changed) onRoster([...peers.values()]);
+  };
+
+  const announce = () => {
+    if (!subscribed) return; // a send before SUBSCRIBED is silently dropped
+    void channel.send({
+      type: "broadcast",
+      event: "status",
+      payload: { ...getSelf(), at: Date.now() } as LobbyPresence,
+    });
+  };
+
+  channel.on("broadcast", { event: "status" }, ({ payload }) => {
+    const p = payload as LobbyPresence;
+    if (!p?.identityKey) return;
+    peers.set(p.identityKey, p);
+    emit(true);
+  });
+  // a newcomer asks everyone to re-announce so it doesn't have to wait for the next
+  // heartbeat to populate -- broadcast is ephemeral, so it never saw our earlier status.
+  channel.on("broadcast", { event: "hello" }, () => announce());
+
+  channel.subscribe((status) => {
+    if (status !== "SUBSCRIBED") return;
+    subscribed = true;
+    announce(); // tell everyone we're here...
+    void channel.send({ type: "broadcast", event: "hello", payload: {} }); // ...and ask them to reply
+  });
+
+  const sweep = setInterval(() => emit(false), PRESENCE_SWEEP_MS);
+
+  return {
+    announce,
+    dispose: () => {
+      clearInterval(sweep);
+      void channel.unsubscribe();
+    },
+  };
 }
 
 // live lobby chat -- deliberately its own ephemeral broadcast channel, same shape as the

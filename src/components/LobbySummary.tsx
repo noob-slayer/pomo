@@ -3,7 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import type { CurrentLobby } from "../context/SettingsContext";
 import { resolveIdentityKey } from "../lib/identity";
 import { fetchLobbyMembers, fetchTodayLobbyStats, type LobbyMemberStat } from "../lib/lobby";
-import { PRESENCE_STALE_MS, type LobbyPresence } from "../lib/lobbySync";
+import { type LobbyPresence } from "../lib/lobbySync";
 import { formatDuration } from "../lib/durations";
 
 interface LobbySummaryProps {
@@ -23,9 +23,6 @@ const POLL_MS = 8000;
 export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: LobbySummaryProps) {
   const { identityUserId } = useAuth();
   const [stats, setStats] = useState<LobbyMemberStat[]>([]);
-  // ticks so a member whose heartbeat has gone stale flips to "offline" on its own, without
-  // waiting for the next stats poll or a fresh presence event to force a re-render
-  const [, setNowTick] = useState(0);
   const identityKey = resolveIdentityKey(identityUserId);
   const showPresence = lobby.mode === "individual";
   const presenceByKey = new Map(presence.map((p) => [p.identityKey, p]));
@@ -44,13 +41,12 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
       };
     }
     const p = presenceByKey.get(memberKey);
-    // a member reads as active if we've heard from them recently OR they're inside a session
-    // whose end time hasn't passed yet -- the latter keeps a focusing member (whose tab is
-    // backgrounded while they work, so their heartbeat has stalled) green for the whole pomo
-    // instead of flipping them to offline after 30s.
-    const fresh = !!p && Date.now() - p.at < PRESENCE_STALE_MS;
-    const inSession = !!p && p.sessionEndsAt != null && Date.now() < p.sessionEndsAt;
-    if (!p || p.state === "idle" || (!fresh && !inSession)) {
+    // trust the presence roster directly: if they're in it, show their current state; if
+    // they're not, Supabase has dropped them (disconnected) -> offline. No heartbeat-age
+    // gate -- that window was what delayed a real start/stop by up to 30s and what wrongly
+    // flipped a still-connected member to offline. A member who's connected but idle also
+    // reads as offline (idle == not in a session), same as before.
+    if (!p || p.state === "idle") {
       return { state: "offline", taskTitle: null, durationMinutes: null };
     }
     return { state: p.state, taskTitle: p.taskTitle, durationMinutes: p.durationMinutes };
@@ -70,12 +66,6 @@ export function LobbySummary({ lobby, refreshToken, presence, selfPresence }: Lo
       clearInterval(id);
     };
   }, [lobby.id, refreshToken]);
-
-  useEffect(() => {
-    if (!showPresence) return;
-    const id = setInterval(() => setNowTick((n) => n + 1), 5000);
-    return () => clearInterval(id);
-  }, [showPresence]);
 
   if (stats.length === 0) return null;
 
