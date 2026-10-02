@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { newId, useLocalStorage } from "../lib/storage";
 import {
+  deleteHistoryRow,
   deleteTaskRow,
   fetchHistory,
   fetchTasks,
@@ -37,6 +38,7 @@ interface TasksContextValue {
   toggleDone: (id: string) => void;
   removeTask: (id: string) => void;
   logCompletion: (record: Omit<PomoRecord, "id">) => void;
+  removeHistory: (id: string) => void;
   pomosForTask: (taskId: string) => number;
 }
 
@@ -133,12 +135,19 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     if (user) void insertHistory(user.id, full);
   };
 
+  // delete a single logged session -- removes it locally right away and, for a signed-in
+  // user, from the cloud too (pomo_history RLS already allows owner delete, no migration).
+  const removeHistory = (id: string) => {
+    setHistory((prev) => prev.filter((r) => r.id !== id));
+    if (user) void deleteHistoryRow(user.id, id);
+  };
+
   const pomosForTask = (taskId: string) =>
     history.filter((r) => r.taskId === taskId && r.phase === "focus").length;
 
   return (
     <TasksContext.Provider
-      value={{ tasks, history, historyReady, addTask, updateTask, toggleDone, removeTask, logCompletion, pomosForTask }}
+      value={{ tasks, history, historyReady, addTask, updateTask, toggleDone, removeTask, logCompletion, removeHistory, pomosForTask }}
     >
       {children}
     </TasksContext.Provider>
