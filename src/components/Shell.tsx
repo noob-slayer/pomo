@@ -11,7 +11,6 @@ import { DEFAULT_FOCUS_MIN } from "../lib/durations";
 import { GALLERY } from "../lib/gallery";
 import { parseShareFromLocation, clearShareFromLocation } from "../lib/share";
 import { resolveIdentityKey } from "../lib/identity";
-import { supabase } from "../lib/supabaseClient";
 import { startHeartbeat } from "../lib/heartbeat";
 import { findLobbyByCode, joinLobby, logLobbySession, parseLobbyCodeFromLocation, clearLobbyFromLocation } from "../lib/lobby";
 import {
@@ -40,6 +39,7 @@ import {
   SELF_HEARTBEAT_MS,
   SELF_STALE_MS,
   type SelfSnapshot,
+  type SelfSyncConnection,
 } from "../lib/selfSync";
 import { playChime, stopChime, unlockAudio } from "../lib/sound";
 import type { CardKind } from "../lib/shareCards";
@@ -116,8 +116,7 @@ export function Shell() {
   const topbarAutoHideRef = useRef<number | null>(null);
   const taskPanelRef = useRef<HTMLElement | null>(null);
   const syncChannelRef = useRef<RealtimeChannel | null>(null);
-  const selfSyncChannelRef = useRef<RealtimeChannel | null>(null);
-  const selfSubscribedRef = useRef(false);
+  const selfSyncConnRef = useRef<SelfSyncConnection | null>(null);
   // this tab's id on the self-sync channel, when it came up, and the last timer action this
   // device knows about (its own or adopted from a peer) -- see lib/selfSync.ts
   const [deviceId] = useState(getDeviceId);
@@ -483,10 +482,7 @@ export function Shell() {
       at: Date.now(),
     };
   };
-  const pushSelf = () => {
-    const channel = selfSyncChannelRef.current;
-    if (channel && selfSubscribedRef.current) void channel.track(buildSelfSnapshot());
-  };
+  const pushSelf = () => selfSyncConnRef.current?.announce();
   const pushSelfRef = useRef(pushSelf);
   pushSelfRef.current = pushSelf;
 
@@ -557,54 +553,48 @@ export function Shell() {
   reconcileSelfRef.current = reconcileSelf;
 
   useEffect(() => {
-    selfSubscribedRef.current = false;
     selfPeersRef.current = [];
     // wait for sign-in to settle: before it does, identityKey is the per-browser guest id,
     // which would briefly put this device on the wrong channel with a half-restored state
     if (inSyncLobby || authLoading || !identityUserId) return;
     let lastPeers: SelfSnapshot[] = [];
     let cancelled = false;
-    let channel: RealtimeChannel | null = null;
+    let conn: SelfSyncConnection | null = null;
     void connectSelfSync(
       identityKey,
       deviceId,
+      () => buildSelfSnapshot(),
       (peers) => {
         lastPeers = peers;
         reconcileSelfRef.current(peers);
       },
-      () => {
-        selfSubscribedRef.current = true;
-        pushSelfRef.current();
-      },
       () => cancelled,
-    ).then((ch) => {
+    ).then((c) => {
       if (cancelled) {
-        if (ch) void supabase?.removeChannel(ch);
+        c?.dispose();
         return;
       }
-      channel = ch;
-      selfSyncChannelRef.current = ch;
+      conn = c;
+      selfSyncConnRef.current = c;
       pushSelfRef.current(); // in case the join completed before this ran
     });
     const stopBeat = startHeartbeat(SELF_HEARTBEAT_MS, () => pushSelfRef.current());
-    // back from the background: announce ourselves and re-check what peers last showed
-    // (the reconnect's own presence sync then brings any newer state)
+    // back from the background: re-announce ourselves and ask peers to re-announce (the
+    // heartbeat does this too, but a hello on wake converges immediately)
     const onVisible = () => {
       if (document.visibilityState !== "visible") return;
       pushSelfRef.current();
       reconcileSelfRef.current(lastPeers);
     };
     document.addEventListener("visibilitychange", onVisible);
-    const onPageHide = () => void channel?.untrack();
-    window.addEventListener("pagehide", onPageHide);
+    // no pagehide handler: broadcast has nothing to "untrack", and a device that really
+    // closed simply stops heartbeating and ages out of every peer's roster (SELF_STALE_MS).
     return () => {
       cancelled = true;
       stopBeat();
       document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("pagehide", onPageHide);
-      if (channel) void supabase?.removeChannel(channel);
-      selfSyncChannelRef.current = null;
-      selfSubscribedRef.current = false;
+      conn?.dispose();
+      selfSyncConnRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identityKey, identityUserId, authLoading, inSyncLobby]);
