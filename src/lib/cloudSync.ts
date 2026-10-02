@@ -152,6 +152,14 @@ export async function insertHistory(userId: string, record: PomoRecord): Promise
   if (error) console.error("cloud sync: insertHistory failed", error);
 }
 
+export async function deleteHistoryRow(userId: string, id: string): Promise<void> {
+  if (!supabase) return;
+  // pomo_history's "owner full access" RLS policy already covers delete (for all / auth.uid()
+  // = user_id), so no migration is needed. Scoped to user_id as well as id as defence in depth.
+  const { error } = await supabase.from("pomo_history").delete().eq("id", id).eq("user_id", userId);
+  if (error) console.error("cloud sync: deleteHistoryRow failed", error);
+}
+
 // synced settings exclude personalBg (a large data-uri photo) — that stays per-device
 // to avoid bloating the settings row and hitting payload limits.
 export async function fetchSettings(userId: string): Promise<Record<string, unknown> | null> {

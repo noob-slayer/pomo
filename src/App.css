@@ -2424,6 +2424,81 @@
   color: var(--page-muted);
 }
 
+.history-sessions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.history-session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--page-border);
+  font-size: 0.86rem;
+}
+
+.history-session:first-child {
+  border-top: none;
+}
+
+.history-session__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.history-session__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-session__flag {
+  color: var(--page-muted);
+}
+
+.history-session__meta {
+  color: var(--page-muted);
+  font-size: 0.78rem;
+}
+
+.history-session__confirm {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.history-session__btn {
+  border: 1px solid var(--page-border);
+  background: transparent;
+  color: var(--page-muted);
+  border-radius: var(--radius-sm, 6px);
+  padding: 3px 9px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.history-session__btn:hover {
+  color: var(--page-ink);
+  border-color: currentColor;
+}
+
+.history-session__del {
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+
+.history-session__btn--yes:hover {
+  color: #c0392b;
+}
+
 /* ---------- stats view ---------- */
 
 .stats-best-banner {
