@@ -1,13 +1,18 @@
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import type { Phase, Status } from "../types";
 
 // "self sync" -- keeps ONE account's own timer in step across its own open devices (laptop +
-// phone), in or out of a lobby. Built on Realtime Presence rather than broadcast: every device
-// continuously publishes a full snapshot of its timer, so a device that opens late, reloads,
-// or comes back from the background catches up from whatever its peers are showing *right
-// now* -- a broadcast-only design (the previous version) only reached devices that happened
-// to be connected at the exact moment of the action.
+// phone), in or out of a lobby. Every device continuously broadcasts a full snapshot of its
+// timer; a device that opens late, reloads, or returns from the background sends a "hello" and
+// its connected peers immediately re-broadcast, so it catches up from whatever they're showing
+// *right now*.
+//
+// Broadcast, NOT Realtime Presence: presence diffs on this project's Realtime are slow and
+// unreliable (measured 3-4s, often dropped), which is exactly why a phone kept sitting on its
+// own stale state instead of adopting the tablet's live timer. Broadcast lands in ~30ms (same
+// change made for lobby presence in the prior PR). A bonus of broadcast being ephemeral: a
+// device that's actually closed sends nothing, so it never appears as a peer -- a long-closed
+// laptop's stale snapshot can no longer win over a freshly-opened phone.
 //
 // Conflict rule: the snapshot with the newest `actionAt` (the last real start/pause/resume/
 // stop/reset anywhere) wins. On a tie -- the same action seen by two devices that now disagree,
@@ -28,8 +33,15 @@ export interface SelfSnapshot {
   at: number; // ms epoch the snapshot was taken; running values are exact as of this moment
 }
 
-export const SELF_STALE_MS = 90000; // only for "is the owning device still around" -- see logIfOwner
+// a peer we haven't heard a broadcast from within this window is treated as gone (its tab
+// closed / device asleep), dropped from the roster, and no longer considered by reconcile or
+// by logIfOwner's "is the owner still around" check. Generous (many heartbeats) so a merely
+// backgrounded device mid-session isn't dropped and yanked away from the others.
+export const SELF_STALE_MS = 90000;
 export const SELF_HEARTBEAT_MS = 8000;
+// how often to re-check for peers that have gone silent (they send nothing, so only this
+// sweep can drop them)
+const SELF_SWEEP_MS = 3000;
 
 // per tab (sessionStorage), so it survives a reload of this tab but two tabs are two devices
 export function getDeviceId(): string {
@@ -67,6 +79,16 @@ export function writeSelfSyncMeta(meta: SelfSyncMeta): void {
   }
 }
 
+export interface SelfSyncConnection {
+  // broadcast this device's current snapshot now -- a no-op until subscribed
+  announce: () => void;
+  // leave the channel and stop the staleness sweep
+  dispose: () => void;
+}
+
+// `getSelf` supplies this device's current snapshot on demand (with a fresh `at`); `onPeers`
+// is called with the live peer list whenever it changes, including when a peer ages out.
+//
 // async because a previous channel on the same topic must be fully gone first: supabase-js
 // only drops a channel from its registry once the server acks the leave, and until then
 // channel() hands back that same dying instance -- so a quick leave + rejoin (React StrictMode's
@@ -75,10 +97,10 @@ export function writeSelfSyncMeta(meta: SelfSyncMeta): void {
 export async function connectSelfSync(
   identityKey: string,
   deviceId: string,
+  getSelf: () => SelfSnapshot,
   onPeers: (peers: SelfSnapshot[]) => void,
-  onSubscribed: () => void,
   isCancelled: () => boolean,
-): Promise<RealtimeChannel | null> {
+): Promise<SelfSyncConnection | null> {
   if (!supabase) return null;
   const topic = `pomo-self-${identityKey}`;
   const stale = supabase.getChannels().find((c) => c.topic === `realtime:${topic}`);
@@ -91,27 +113,55 @@ export async function connectSelfSync(
   // device joins as private, which silently never sync. The only thing this channel carries
   // is your own timer state to your own devices; the residual exposure (a lobby co-member who
   // digs out your uid could watch it) is low, and reliability of the sync wins here.
-  const channel = supabase.channel(topic, { config: { presence: { key: deviceId } } });
-  const rebuild = () => {
-    const state = channel.presenceState<SelfSnapshot>();
-    const peers: SelfSnapshot[] = [];
-    for (const key of Object.keys(state)) {
-      if (key === deviceId) continue;
-      const metas = state[key];
-      // newest snapshot by its own timestamp -- a re-track across a reconnect can leave an
-      // older meta listed after the current one, and trusting list order let a stale
-      // pre-resume snapshot win on a peer that had just reloaded
-      if (metas && metas.length) peers.push(metas.reduce((a, b) => (b.at > a.at ? b : a)));
+  const channel = supabase.channel(topic, { config: { broadcast: { self: false } } });
+
+  const peers = new Map<string, SelfSnapshot>();
+  let subscribed = false;
+
+  const emit = (force: boolean) => {
+    const now = Date.now();
+    let changed = force;
+    for (const [id, s] of peers) {
+      if (now - s.at > SELF_STALE_MS) {
+        peers.delete(id);
+        changed = true;
+      }
     }
-    onPeers(peers);
+    if (changed) onPeers([...peers.values()]);
   };
-  channel.on("presence", { event: "sync" }, rebuild);
-  channel.on("presence", { event: "join" }, rebuild);
-  channel.on("presence", { event: "leave" }, rebuild);
-  channel.subscribe((status) => {
-    if (status === "SUBSCRIBED") onSubscribed();
+
+  const announce = () => {
+    if (!subscribed) return; // a send before SUBSCRIBED is silently dropped
+    void channel.send({ type: "broadcast", event: "snapshot", payload: getSelf() });
+  };
+
+  channel.on("broadcast", { event: "snapshot" }, ({ payload }) => {
+    const s = payload as SelfSnapshot;
+    if (!s?.deviceId || s.deviceId === deviceId) return;
+    peers.set(s.deviceId, s);
+    emit(true);
   });
-  return channel;
+  // a device that just opened / reloaded / woke asks everyone to re-announce, so it catches
+  // up immediately instead of waiting for the next heartbeat (broadcast is ephemeral -- it
+  // never saw our earlier snapshot).
+  channel.on("broadcast", { event: "hello" }, () => announce());
+
+  channel.subscribe((status) => {
+    if (status !== "SUBSCRIBED") return;
+    subscribed = true;
+    announce(); // publish our state...
+    void channel.send({ type: "broadcast", event: "hello", payload: {} }); // ...and pull theirs
+  });
+
+  const sweep = setInterval(() => emit(false), SELF_SWEEP_MS);
+
+  return {
+    announce,
+    dispose: () => {
+      clearInterval(sweep);
+      void supabase?.removeChannel(channel);
+    },
+  };
 }
 
 // a peer's running countdown/elapsed as of right now, from its snapshot time
